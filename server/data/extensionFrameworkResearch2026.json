@@ -3862,7 +3862,8 @@
           "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
           "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
           "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification.",
-          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified."
+          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified.",
+          "PFRDA's 26 October 2026 signed circular postpones the revised PoP charge deduction implementation to 1 December 2026; subscriber-specific channel, fee, NAV and account eligibility remain unverified."
         ],
         "specificPensionFundAndSchemeVerified": false,
         "currentSchemeNavAndRiskLevelVerified": false,
@@ -3893,13 +3894,18 @@
           "priorCircularIssuedOn": "2026-08-28",
           "priorImplementationDate": "2026-10-01",
           "revisedImplementationDate": "2026-12-01",
-          "reviewedOn": "2026-10-29",
+          "reviewedOn": "2026-10-31",
           "scope": "REVISED_POP_CHARGE_START_DATE_ONLY_NOT_CURRENT_SUBSCRIBER_FEES_OR_NAV",
           "separateFromApril2026MultipleNavFramework": true,
           "individualPopChannelAndApplicableChargesVerified": false,
           "individualNavFeeImpactVerified": false,
           "commercialNavRightsVerified": false,
-          "individualSuitabilityVerified": false
+          "individualSuitabilityVerified": false,
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154928/2026-53-REG-POP-09%2BE%2BSigned.pdf",
+          "previousCircularNumber": "PFRDA/2026/46/REG-PoP/08",
+          "otherAugust2026ProvisionsRemainUnchanged": true,
+          "craRevisedChargeDeductionsBeginOn": "2026-12-01",
+          "revisedChargesNotVerifiedForIndividual": true
         },
         "schemePresentation2026Review": {
           "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Circular%2B-%2BStandardised%2Bframework%2Bfor%2Bclassification%2Band%2Bpresentation%2Bof%2BSchemes%2Bunder%2Bthe%2BNPS.pdf",
@@ -3984,7 +3990,8 @@
           "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
           "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
           "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification.",
-          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified."
+          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified.",
+          "PFRDA's 26 October 2026 signed circular postpones the revised PoP charge deduction implementation to 1 December 2026; subscriber-specific channel, fee, NAV and account eligibility remain unverified."
         ],
         "specificPensionFundAndSchemeVerified": false,
         "currentSchemeNavAndRiskLevelVerified": false,
@@ -4015,13 +4022,18 @@
           "priorCircularIssuedOn": "2026-08-28",
           "priorImplementationDate": "2026-10-01",
           "revisedImplementationDate": "2026-12-01",
-          "reviewedOn": "2026-10-29",
+          "reviewedOn": "2026-10-31",
           "scope": "REVISED_POP_CHARGE_START_DATE_ONLY_NOT_CURRENT_SUBSCRIBER_FEES_OR_NAV",
           "separateFromApril2026MultipleNavFramework": true,
           "individualPopChannelAndApplicableChargesVerified": false,
           "individualNavFeeImpactVerified": false,
           "commercialNavRightsVerified": false,
-          "individualSuitabilityVerified": false
+          "individualSuitabilityVerified": false,
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154928/2026-53-REG-POP-09%2BE%2BSigned.pdf",
+          "previousCircularNumber": "PFRDA/2026/46/REG-PoP/08",
+          "otherAugust2026ProvisionsRemainUnchanged": true,
+          "craRevisedChargeDeductionsBeginOn": "2026-12-01",
+          "revisedChargesNotVerifiedForIndividual": true
         },
         "schemePresentation2026Review": {
           "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Circular%2B-%2BStandardised%2Bframework%2Bfor%2Bclassification%2Band%2Bpresentation%2Bof%2BSchemes%2Bunder%2Bthe%2BNPS.pdf",
@@ -4106,7 +4118,8 @@
           "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
           "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
           "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification.",
-          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified."
+          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified.",
+          "PFRDA's 26 October 2026 signed circular postpones the revised PoP charge deduction implementation to 1 December 2026; subscriber-specific channel, fee, NAV and account eligibility remain unverified."
         ],
         "specificPensionFundAndSchemeVerified": false,
         "currentSchemeNavAndRiskLevelVerified": false,
@@ -4137,13 +4150,18 @@
           "priorCircularIssuedOn": "2026-08-28",
           "priorImplementationDate": "2026-10-01",
           "revisedImplementationDate": "2026-12-01",
-          "reviewedOn": "2026-10-29",
+          "reviewedOn": "2026-10-31",
           "scope": "REVISED_POP_CHARGE_START_DATE_ONLY_NOT_CURRENT_SUBSCRIBER_FEES_OR_NAV",
           "separateFromApril2026MultipleNavFramework": true,
           "individualPopChannelAndApplicableChargesVerified": false,
           "individualNavFeeImpactVerified": false,
           "commercialNavRightsVerified": false,
-          "individualSuitabilityVerified": false
+          "individualSuitabilityVerified": false,
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154928/2026-53-REG-POP-09%2BE%2BSigned.pdf",
+          "previousCircularNumber": "PFRDA/2026/46/REG-PoP/08",
+          "otherAugust2026ProvisionsRemainUnchanged": true,
+          "craRevisedChargeDeductionsBeginOn": "2026-12-01",
+          "revisedChargesNotVerifiedForIndividual": true
         },
         "schemePresentation2026Review": {
           "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Circular%2B-%2BStandardised%2Bframework%2Bfor%2Bclassification%2Band%2Bpresentation%2Bof%2BSchemes%2Bunder%2Bthe%2BNPS.pdf",
@@ -4228,7 +4246,8 @@
           "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
           "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
           "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification.",
-          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified."
+          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified.",
+          "PFRDA's 26 October 2026 signed circular postpones the revised PoP charge deduction implementation to 1 December 2026; subscriber-specific channel, fee, NAV and account eligibility remain unverified."
         ],
         "specificPensionFundAndSchemeVerified": false,
         "currentSchemeNavAndRiskLevelVerified": false,
@@ -4259,13 +4278,18 @@
           "priorCircularIssuedOn": "2026-08-28",
           "priorImplementationDate": "2026-10-01",
           "revisedImplementationDate": "2026-12-01",
-          "reviewedOn": "2026-10-29",
+          "reviewedOn": "2026-10-31",
           "scope": "REVISED_POP_CHARGE_START_DATE_ONLY_NOT_CURRENT_SUBSCRIBER_FEES_OR_NAV",
           "separateFromApril2026MultipleNavFramework": true,
           "individualPopChannelAndApplicableChargesVerified": false,
           "individualNavFeeImpactVerified": false,
           "commercialNavRightsVerified": false,
-          "individualSuitabilityVerified": false
+          "individualSuitabilityVerified": false,
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154928/2026-53-REG-POP-09%2BE%2BSigned.pdf",
+          "previousCircularNumber": "PFRDA/2026/46/REG-PoP/08",
+          "otherAugust2026ProvisionsRemainUnchanged": true,
+          "craRevisedChargeDeductionsBeginOn": "2026-12-01",
+          "revisedChargesNotVerifiedForIndividual": true
         },
         "schemePresentation2026Review": {
           "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Circular%2B-%2BStandardised%2Bframework%2Bfor%2Bclassification%2Band%2Bpresentation%2Bof%2BSchemes%2Bunder%2Bthe%2BNPS.pdf",
@@ -4350,7 +4374,8 @@
           "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
           "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
           "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification.",
-          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified."
+          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified.",
+          "PFRDA's 26 October 2026 signed circular postpones the revised PoP charge deduction implementation to 1 December 2026; subscriber-specific channel, fee, NAV and account eligibility remain unverified."
         ],
         "specificPensionFundAndSchemeVerified": false,
         "currentSchemeNavAndRiskLevelVerified": false,
@@ -4381,13 +4406,18 @@
           "priorCircularIssuedOn": "2026-08-28",
           "priorImplementationDate": "2026-10-01",
           "revisedImplementationDate": "2026-12-01",
-          "reviewedOn": "2026-10-29",
+          "reviewedOn": "2026-10-31",
           "scope": "REVISED_POP_CHARGE_START_DATE_ONLY_NOT_CURRENT_SUBSCRIBER_FEES_OR_NAV",
           "separateFromApril2026MultipleNavFramework": true,
           "individualPopChannelAndApplicableChargesVerified": false,
           "individualNavFeeImpactVerified": false,
           "commercialNavRightsVerified": false,
-          "individualSuitabilityVerified": false
+          "individualSuitabilityVerified": false,
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154928/2026-53-REG-POP-09%2BE%2BSigned.pdf",
+          "previousCircularNumber": "PFRDA/2026/46/REG-PoP/08",
+          "otherAugust2026ProvisionsRemainUnchanged": true,
+          "craRevisedChargeDeductionsBeginOn": "2026-12-01",
+          "revisedChargesNotVerifiedForIndividual": true
         },
         "schemePresentation2026Review": {
           "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Circular%2B-%2BStandardised%2Bframework%2Bfor%2Bclassification%2Band%2Bpresentation%2Bof%2BSchemes%2Bunder%2Bthe%2BNPS.pdf",
@@ -4472,7 +4502,8 @@
           "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
           "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
           "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification.",
-          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified."
+          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified.",
+          "PFRDA's 26 October 2026 signed circular postpones the revised PoP charge deduction implementation to 1 December 2026; subscriber-specific channel, fee, NAV and account eligibility remain unverified."
         ],
         "specificPensionFundAndSchemeVerified": false,
         "currentSchemeNavAndRiskLevelVerified": false,
@@ -4503,13 +4534,18 @@
           "priorCircularIssuedOn": "2026-08-28",
           "priorImplementationDate": "2026-10-01",
           "revisedImplementationDate": "2026-12-01",
-          "reviewedOn": "2026-10-29",
+          "reviewedOn": "2026-10-31",
           "scope": "REVISED_POP_CHARGE_START_DATE_ONLY_NOT_CURRENT_SUBSCRIBER_FEES_OR_NAV",
           "separateFromApril2026MultipleNavFramework": true,
           "individualPopChannelAndApplicableChargesVerified": false,
           "individualNavFeeImpactVerified": false,
           "commercialNavRightsVerified": false,
-          "individualSuitabilityVerified": false
+          "individualSuitabilityVerified": false,
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154928/2026-53-REG-POP-09%2BE%2BSigned.pdf",
+          "previousCircularNumber": "PFRDA/2026/46/REG-PoP/08",
+          "otherAugust2026ProvisionsRemainUnchanged": true,
+          "craRevisedChargeDeductionsBeginOn": "2026-12-01",
+          "revisedChargesNotVerifiedForIndividual": true
         },
         "schemePresentation2026Review": {
           "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Circular%2B-%2BStandardised%2Bframework%2Bfor%2Bclassification%2Band%2Bpresentation%2Bof%2BSchemes%2Bunder%2Bthe%2BNPS.pdf",
@@ -4594,7 +4630,8 @@
           "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
           "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
           "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification.",
-          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified."
+          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified.",
+          "PFRDA's 26 October 2026 signed circular postpones the revised PoP charge deduction implementation to 1 December 2026; subscriber-specific channel, fee, NAV and account eligibility remain unverified."
         ],
         "specificPensionFundAndSchemeVerified": false,
         "currentSchemeNavAndRiskLevelVerified": false,
@@ -4625,13 +4662,18 @@
           "priorCircularIssuedOn": "2026-08-28",
           "priorImplementationDate": "2026-10-01",
           "revisedImplementationDate": "2026-12-01",
-          "reviewedOn": "2026-10-29",
+          "reviewedOn": "2026-10-31",
           "scope": "REVISED_POP_CHARGE_START_DATE_ONLY_NOT_CURRENT_SUBSCRIBER_FEES_OR_NAV",
           "separateFromApril2026MultipleNavFramework": true,
           "individualPopChannelAndApplicableChargesVerified": false,
           "individualNavFeeImpactVerified": false,
           "commercialNavRightsVerified": false,
-          "individualSuitabilityVerified": false
+          "individualSuitabilityVerified": false,
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154928/2026-53-REG-POP-09%2BE%2BSigned.pdf",
+          "previousCircularNumber": "PFRDA/2026/46/REG-PoP/08",
+          "otherAugust2026ProvisionsRemainUnchanged": true,
+          "craRevisedChargeDeductionsBeginOn": "2026-12-01",
+          "revisedChargesNotVerifiedForIndividual": true
         },
         "schemePresentation2026Review": {
           "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Circular%2B-%2BStandardised%2Bframework%2Bfor%2Bclassification%2Band%2Bpresentation%2Bof%2BSchemes%2Bunder%2Bthe%2BNPS.pdf",
@@ -4716,7 +4758,8 @@
           "All Citizen NPS generally requires an eligible individual aged 18-85, Indian citizen (resident or non-resident) or OCI, and completed KYC; the specific subscriber has not been verified.",
           "Common Scheme Tier I vesting is generally 15 years or age 60, whichever earlier; the former five-year minimum subscription requirement was removed, but premature-exit, annuity and partial-withdrawal conditions still apply.",
           "Actual pension fund, sector, PRAN/CRA, asset-class availability, fees, tax regime and investment permissions require independent verification.",
-          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified."
+          "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified.",
+          "PFRDA's 26 October 2026 signed circular postpones the revised PoP charge deduction implementation to 1 December 2026; subscriber-specific channel, fee, NAV and account eligibility remain unverified."
         ],
         "specificPensionFundAndSchemeVerified": false,
         "currentSchemeNavAndRiskLevelVerified": false,
@@ -4747,13 +4790,18 @@
           "priorCircularIssuedOn": "2026-08-28",
           "priorImplementationDate": "2026-10-01",
           "revisedImplementationDate": "2026-12-01",
-          "reviewedOn": "2026-10-29",
+          "reviewedOn": "2026-10-31",
           "scope": "REVISED_POP_CHARGE_START_DATE_ONLY_NOT_CURRENT_SUBSCRIBER_FEES_OR_NAV",
           "separateFromApril2026MultipleNavFramework": true,
           "individualPopChannelAndApplicableChargesVerified": false,
           "individualNavFeeImpactVerified": false,
           "commercialNavRightsVerified": false,
-          "individualSuitabilityVerified": false
+          "individualSuitabilityVerified": false,
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154928/2026-53-REG-POP-09%2BE%2BSigned.pdf",
+          "previousCircularNumber": "PFRDA/2026/46/REG-PoP/08",
+          "otherAugust2026ProvisionsRemainUnchanged": true,
+          "craRevisedChargeDeductionsBeginOn": "2026-12-01",
+          "revisedChargesNotVerifiedForIndividual": true
         },
         "schemePresentation2026Review": {
           "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Circular%2B-%2BStandardised%2Bframework%2Bfor%2Bclassification%2Band%2Bpresentation%2Bof%2BSchemes%2Bunder%2Bthe%2BNPS.pdf",
@@ -4851,7 +4899,8 @@
           "Account exit/withdrawal rules depend on subscriber age, corpus and applicable regulations; do not infer personalized eligibility.",
           "PFRDA's April 2026 multiple-NAV framework differentiates pension-fund charges by subscriber sector and adjusts PoP/eNPS charges through NAV; the applicable subscriber-specific NAV, units and fees are unverified.",
           "PFRDA's effective 2026 guidelines and June FAQ specify Rs 250 opening/annual contributions, while an older still-accessible FAQ says Rs 1,000; stale figures are not current booking terms.",
-          "The January guidelines use 'less than Rs 8 lakh' for full exit while the January press release says 'Rs 8 lakh or less'; the exact boundary, KYC and subscriber-specific exit conditions require confirmation."
+          "The January guidelines use 'less than Rs 8 lakh' for full exit while the January press release says 'Rs 8 lakh or less'; the exact boundary, KYC and subscriber-specific exit conditions require confirmation.",
+          "PFRDA's 26 October 2026 signed circular postpones the revised PoP charge deduction implementation to 1 December 2026; subscriber-specific channel, fee, NAV and account eligibility remain unverified."
         ],
         "specificPensionFundAndAllocationVerified": false,
         "minorCitizenshipAgeGuardianKycVerified": false,
@@ -4882,13 +4931,18 @@
           "priorCircularIssuedOn": "2026-08-28",
           "priorImplementationDate": "2026-10-01",
           "revisedImplementationDate": "2026-12-01",
-          "reviewedOn": "2026-10-29",
+          "reviewedOn": "2026-10-31",
           "scope": "REVISED_POP_CHARGE_START_DATE_ONLY_NOT_CURRENT_SUBSCRIBER_FEES_OR_NAV",
           "separateFromApril2026MultipleNavFramework": true,
           "individualPopChannelAndApplicableChargesVerified": false,
           "individualNavFeeImpactVerified": false,
           "commercialNavRightsVerified": false,
-          "individualSuitabilityVerified": false
+          "individualSuitabilityVerified": false,
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154928/2026-53-REG-POP-09%2BE%2BSigned.pdf",
+          "previousCircularNumber": "PFRDA/2026/46/REG-PoP/08",
+          "otherAugust2026ProvisionsRemainUnchanged": true,
+          "craRevisedChargeDeductionsBeginOn": "2026-12-01",
+          "revisedChargesNotVerifiedForIndividual": true
         },
         "guidelines2026EvidenceReview": {
           "officialGuidelinesUrl": "https://pfrda.org.in/documents/33652/153574/NPS%2BVatsalya%2BScheme%2BGuidelines%2B2025.pdf",

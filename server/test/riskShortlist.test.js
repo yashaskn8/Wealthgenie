@@ -943,6 +943,44 @@ test('nine NPS archetypes record PFRDA October 26 postponement to December 1 wit
     'NPS_OCT_2026_POP_CHARGE_DATE_MOVED_TO_DEC_VERIFY_APPLICABLE_FEES'));
  }
 });
+test('PFRDA signed October PoP postponement and observed zero emergency buffer remain non-ranking',()=>{
+ const rows=listExtensionResearch().filter(x=>x.id.startsWith('catalog_2026_nps_'));
+ const zero=screenExtensionResearchForProfile(canonicalProfile({
+  emergencyFundMonths:0,investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+ }));
+ const unknown=screenExtensionResearchForProfile(canonicalProfile({
+  emergencyFundMonths:null,investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+ }));
+ const positive=screenExtensionResearchForProfile(canonicalProfile({
+  emergencyFundMonths:6,investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+ }));
+ assert.equal(rows.length,9);
+ for(const row of rows){
+  const p=(row.npsCommonSchemeReview||row.npsVatsalyaAccessReview).popChargeDateReview;
+  assert.equal(p.officialPfrdaCircularPdfUrl,'https://www.pfrda.org.in/documents/33652/154928/2026-53-REG-POP-09%2BE%2BSigned.pdf');
+  assert.equal(p.previousCircularNumber,'PFRDA/2026/46/REG-PoP/08');
+  assert.equal(p.otherAugust2026ProvisionsRemainUnchanged,true);
+  assert.equal(p.craRevisedChargeDeductionsBeginOn,'2026-12-01');
+  assert.equal(p.revisedChargesNotVerifiedForIndividual,true);
+  assert.equal(p.reviewedOn,'2026-10-31');
+  const review=row.npsCommonSchemeReview||row.npsVatsalyaAccessReview;
+  assert.ok(review.investorAccessConstraints.some(x=>x.includes('1 December 2026')));
+  const code=row.id==='catalog_2026_nps_vatsalya'
+   ? 'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_NPS_VATSALYA_GUARDIAN_WITHDRAWAL_REVIEW'
+   : 'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_NPS_TIER_I_WITHDRAWAL_AND_NAV_FEE_REVIEW';
+  const get=all=>all.find(x=>x.id===row.id);
+  assert.ok(get(zero).screeningReasonCodes.includes(code),row.id);
+  assert.ok(!get(unknown).screeningReasonCodes.includes(code),row.id);
+  assert.ok(!get(positive).screeningReasonCodes.includes(code),row.id);
+  for(const result of [get(zero),get(unknown),get(positive)]){
+   assert.equal(result.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(result.productQualified,false);
+   assert.equal(result.productRiskLevel,null);
+   assert.equal(result.scoreAvailable,false);
+  }
+ }
+});
+
 test('RBI SGS STRIPS evidence separates underlying outstanding threshold from retail access',()=>{
  const rows=listExtensionResearch().filter(x=>x.sgsStripsAccessReview);
  assert.equal(rows.length,2);

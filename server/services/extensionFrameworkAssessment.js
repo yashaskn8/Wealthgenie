@@ -76,6 +76,7 @@ const aifGarudaCircularUrl="https://www.sebi.gov.in/legal/circulars/jul-2026/-gr
 const sifMinimumThresholdMonitoringUrl="https://www.sebi.gov.in/legal/circulars/jul-2025/monitoring-of-minimum-investment-threshold-under-specialized-investment-funds-sif-_95676.html";
 const sifDistributorCertificationUrl="https://www.sebi.gov.in/legal/circulars/jul-2026/certification-requirements-for-distribution-of-specialized-investment-funds-sifs-_102986.html";
 const pfrdaPopOctoberUrl="https://www.pfrda.org.in/w/charge-structure-applicable-to-pops-for-all-schemes-under-nps-and-nps-lite-1";
+const pfrdaPopOctoberSignedPdfUrl='https://www.pfrda.org.in/documents/33652/154928/2026-53-REG-POP-09%2BE%2BSigned.pdf';
 const rbiSgsStripsUrl="https://www.rbi.org.in/Scripts/NotificationUser.aspx?Id=12867&Mode=0";
 const npsExitFaqUrl="https://www.pfrda.org.in/documents/33652/676426/Exits%2Band%2BWithdrawals%2Bunder%2BNPS%2Bfor%2BAll%2BCitizen%2BModel%2B%281%29.pdf";
 const nseBroadIndexPages=Object.freeze({"catalog_2026_index_nifty_next50":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-next-50","catalog_2026_index_nifty100":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-100","catalog_2026_index_nifty500":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-500","catalog_2026_index_midcap150":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-midcap-150","catalog_2026_index_smallcap250":"https://www.niftyindices.com/indices/equity/broad-based-indices/niftysmallcap250"});
@@ -229,6 +230,12 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
       || x.npsVatsalyaAccessReview?.multipleNavFrameworkReview!==undefined)
   || research.entries.some(x=>x.id.startsWith('catalog_2026_nps_')
     ? (x.npsCommonSchemeReview||x.npsVatsalyaAccessReview)?.popChargeDateReview?.officialPfrdaCircularUrl!==pfrdaPopOctoberUrl
+      || (x.npsCommonSchemeReview||x.npsVatsalyaAccessReview)?.popChargeDateReview?.officialPfrdaCircularPdfUrl!==pfrdaPopOctoberSignedPdfUrl
+      || (x.npsCommonSchemeReview||x.npsVatsalyaAccessReview)?.popChargeDateReview?.previousCircularNumber!=='PFRDA/2026/46/REG-PoP/08'
+      || (x.npsCommonSchemeReview||x.npsVatsalyaAccessReview)?.popChargeDateReview?.otherAugust2026ProvisionsRemainUnchanged!==true
+      || (x.npsCommonSchemeReview||x.npsVatsalyaAccessReview)?.popChargeDateReview?.craRevisedChargeDeductionsBeginOn!=='2026-12-01'
+      || (x.npsCommonSchemeReview||x.npsVatsalyaAccessReview)?.popChargeDateReview?.revisedChargesNotVerifiedForIndividual!==true
+      || (x.npsCommonSchemeReview||x.npsVatsalyaAccessReview)?.popChargeDateReview?.reviewedOn!=='2026-10-31'
       || (x.npsCommonSchemeReview||x.npsVatsalyaAccessReview)?.popChargeDateReview?.issuedOn!=='2026-10-26'
       || (x.npsCommonSchemeReview||x.npsVatsalyaAccessReview)?.popChargeDateReview?.priorImplementationDate!=='2026-10-01'
       || (x.npsCommonSchemeReview||x.npsVatsalyaAccessReview)?.popChargeDateReview?.revisedImplementationDate!=='2026-12-01'
@@ -1145,6 +1152,11 @@ export function screenExtensionResearchForProfile(profileInput) {
      reasons.push('NPS_ALLOCATION_EXIT_AND_AGE_RULES_REQUIRE_SCHEME_REVIEW');
      reasons.push('NPS_MULTIPLE_NAV_FEE_SECTOR_AND_CHANNEL_NOT_INDIVIDUALLY_VERIFIED');
       reasons.push('NPS_OCT_2026_POP_CHARGE_DATE_MOVED_TO_DEC_VERIFY_APPLICABLE_FEES');
+     // Zero is an observed profile fact; an omitted emergency buffer remains unknown.
+     if(profile.emergencyFundMonths===0)
+       reasons.push(row.id==='catalog_2026_nps_vatsalya'
+         ? 'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_NPS_VATSALYA_GUARDIAN_WITHDRAWAL_REVIEW'
+         : 'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_NPS_TIER_I_WITHDRAWAL_AND_NAV_FEE_REVIEW');
      if(profile.investmentHorizonYears<=3)
        reasons.push('SHORT_HORIZON_REQUIRES_NPS_APPLICABLE_NAV_FEES_AND_EXIT_VALUE_REVIEW');
      if(profile.investmentGoals.includes('Tax Saving'))
