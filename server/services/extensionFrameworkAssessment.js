@@ -48,6 +48,7 @@ const rbiSgsStripsUrl="https://www.rbi.org.in/Scripts/NotificationUser.aspx?Id=1
 const npsExitFaqUrl="https://www.pfrda.org.in/documents/33652/676426/Exits%2Band%2BWithdrawals%2Bunder%2BNPS%2Bfor%2BAll%2BCitizen%2BModel%2B%281%29.pdf";
 const nseBroadIndexPages=Object.freeze({"catalog_2026_index_nifty_next50":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-next-50","catalog_2026_index_nifty100":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-100","catalog_2026_index_nifty500":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-500","catalog_2026_index_midcap150":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-midcap-150","catalog_2026_index_smallcap250":"https://www.niftyindices.com/indices/equity/broad-based-indices/niftysmallcap250"});
 const sebiDebtSchemeCircularUrl="https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html";
+const sebiMutualFundRegulationsOct2026Url="https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-mutual-funds-regulations-2026-last-amended-on-october-10-2026-_105356.html";
 const nseFactorIndexSpecs=Object.freeze({"catalog_2026_index_nifty50_equal":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty50-equal-weight","code":"EQUAL_WEIGHT_NIFTY50"},"catalog_2026_index_nifty100_equal":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-equal-weight","code":"EQUAL_WEIGHT_NIFTY100"},"catalog_2026_index_nifty200_quality":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty200-quality-30","code":"QUALITY_SCORE_NIFTY200"},"catalog_2026_index_nifty_lowvol":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-low-volatility","code":"LOW_VOLATILITY_NIFTY100"},"catalog_2026_index_nifty500_momentum":{"url":"https://niftyindices.com/indices/equity/strategy-indices/nifty500-momentum-50","code":"MOMENTUM_NIFTY500"},"catalog_2026_index_nifty500_equal":{"url":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty500-equal-weight","code":"EQUAL_WEIGHT_NIFTY500"}});
 const nseIndexPages=Object.freeze({...nseBroadIndexPages,...Object.fromEntries(Object.entries(nseFactorIndexSpecs).map(([id,x])=>[id,x.url]))});
 const nseEquityEtfBenchmarks=Object.freeze({"catalog_2026_etf_nifty100":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-100","catalog_2026_etf_nifty500":"https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-500","catalog_2026_etf_smallcap250":"https://www.niftyindices.com/indices/equity/broad-based-indices/niftysmallcap250","catalog_2026_etf_nifty50_equal":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty50-equal-weight","catalog_2026_etf_nifty100_equal":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-equal-weight","catalog_2026_etf_nifty200_quality":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty200-quality-30","catalog_2026_etf_nifty500_lowvol":"https://www.niftyindices.com/indices/equity/strategy-indices/nifty500-low-volatility-50","catalog_2026_etf_nifty500_momentum":"https://niftyindices.com/indices/equity/strategy-indices/nifty500-momentum-50","catalog_2026_etf_india_defence":"https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-defence","catalog_2026_etf_india_consumption":"https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-consumption"});
@@ -256,6 +257,20 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
       || x.sebiDebtSchemeStructureReview?.officialSebiCategorizationCircularUrl!==sebiDebtSchemeCircularUrl
       || x.sebiDebtSchemeStructureReview?.circularIssuedOn!=='2026-02-26'
       || x.sebiDebtSchemeStructureReview?.reviewedOn!=='2026-10-29'
+      || x.sebiDebtSchemeStructureReview?.mutualFundRegulationsOct2026Review?.officialSebiRegulationsUrl!==sebiMutualFundRegulationsOct2026Url
+      || x.sebiDebtSchemeStructureReview?.mutualFundRegulationsOct2026Review?.regulationsInForceFrom!=='2026-04-01'
+      || x.sebiDebtSchemeStructureReview?.mutualFundRegulationsOct2026Review?.regulationsAmendedThrough!=='2026-10-10'
+      || x.sebiDebtSchemeStructureReview?.mutualFundRegulationsOct2026Review?.reviewedOn!=='2026-10-30'
+      || x.sebiDebtSchemeStructureReview?.mutualFundRegulationsOct2026Review?.sourceScope!=='GENERAL_CURRENT_MUTUAL_FUND_REGULATIONS_NOT_SPECIFIC_SCHEME_APPROVAL_OR_RISKOMETER'
+      || x.sebiDebtSchemeStructureReview?.mutualFundRegulationsOct2026Review?.schemeArchetype!==sebiDebtSchemeKinds[x.id]
+      || x.sebiDebtSchemeStructureReview?.mutualFundRegulationsOct2026Review?.categoryRiskBoundary!==x.sebiDebtSchemeStructureReview?.riskConsiderations?.[0]
+      || x.sebiDebtSchemeStructureReview?.mutualFundRegulationsOct2026Review?.categoryAccessBoundary!==x.sebiDebtSchemeStructureReview?.investorAccessConstraints?.[0]
+      || !isOfficialFrameworkReferenceUrl(x.sebiDebtSchemeStructureReview?.mutualFundRegulationsOct2026Review?.officialSebiRegulationsUrl)
+      || !hasCompleteCategoryRiskAccessResearch({sebiDebtSchemeStructureReview:x.sebiDebtSchemeStructureReview?.mutualFundRegulationsOct2026Review})
+      || ['specificSchemeRegisteredAndAvailableVerified','currentSchemeRiskometerAndPortfolioVerified',
+          'investorKycAndTransactionEligibilityVerified','currentNavOrExchangeQuoteAndReuseRightsVerified',
+          'personalizedAdviceAuthorizationVerified']
+        .some(key=>x.sebiDebtSchemeStructureReview?.mutualFundRegulationsOct2026Review?.[key]!==false)
       || x.sebiDebtSchemeStructureReview?.sourceScope!=='REGULATORY_SCHEME_CATEGORY_ONLY_NOT_AN_ACTUAL_FUND_OR_CURRENT_RISKOMETER'
       || x.verifiedPublicFrameworkFact?.officialSourceUrl!==sebiDebtSchemeCircularUrl
       || !Array.isArray(x.sebiDebtSchemeStructureReview?.riskConsiderations)
@@ -664,6 +679,10 @@ export function screenExtensionResearchForProfile(profileInput) {
  const profile=buildRecommendationProfile(profileInput);
  return research.entries.map(row=>{
    const reasons=['INDIVIDUAL_PRODUCT_RISK_ELIGIBILITY_NOT_ESTABLISHED'];
+   // Current SEBI mutual-fund regulations are general legal context, not
+   // evidence of a named scheme's risk-o-meter, availability or advice rights.
+   if(row.sebiDebtSchemeStructureReview?.mutualFundRegulationsOct2026Review)
+     reasons.push('SEBI_OCT_2026_MUTUAL_FUND_REGULATIONS_NOT_SCHEME_RISKOMETER_OR_APPROVAL');
    if(row.nominalMaturityMonths!==null
      && row.nominalMaturityMonths>profile.investmentHorizonYears*12)
      reasons.push('NOMINAL_TENOR_EXCEEDS_PROFILE_HORIZON_REVIEW_WITHDRAWAL_TERMS');

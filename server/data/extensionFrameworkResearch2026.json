@@ -1118,7 +1118,30 @@
         "investorKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "mutualFundRegulationsOct2026Review": {
+          "officialSebiRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-mutual-funds-regulations-2026-last-amended-on-october-10-2026-_105356.html",
+          "regulationsInForceFrom": "2026-04-01",
+          "regulationsAmendedThrough": "2026-10-10",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "GENERAL_CURRENT_MUTUAL_FUND_REGULATIONS_NOT_SPECIFIC_SCHEME_APPROVAL_OR_RISKOMETER",
+          "schemeArchetype": "GILT_10_YEAR_CONSTANT_DURATION",
+          "categoryRiskBoundary": "Rate-driven NAV fluctuations despite government-security exposure",
+          "categoryAccessBoundary": "Scheme SID/KIM, AMC/KYC, and actual unit availability not verified",
+          "riskConsiderations": [
+            "Rate-driven NAV fluctuations despite government-security exposure",
+            "The October 2026 mutual-fund regulations do not supply the risk-o-meter or actual holdings of a named scheme."
+          ],
+          "investorAccessConstraints": [
+            "Scheme SID/KIM, AMC/KYC, and actual unit availability not verified",
+            "A named AMC and scheme, current SID/KIM, investor KYC, dealing channel and licensed NAV/quote must be verified independently."
+          ],
+          "specificSchemeRegisteredAndAvailableVerified": false,
+          "currentSchemeRiskometerAndPortfolioVerified": false,
+          "investorKycAndTransactionEligibilityVerified": false,
+          "currentNavOrExchangeQuoteAndReuseRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
@@ -1173,7 +1196,30 @@
         "investorKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "mutualFundRegulationsOct2026Review": {
+          "officialSebiRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-mutual-funds-regulations-2026-last-amended-on-october-10-2026-_105356.html",
+          "regulationsInForceFrom": "2026-04-01",
+          "regulationsAmendedThrough": "2026-10-10",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "GENERAL_CURRENT_MUTUAL_FUND_REGULATIONS_NOT_SPECIFIC_SCHEME_APPROVAL_OR_RISKOMETER",
+          "schemeArchetype": "MEDIUM_TO_LONG_TERM_DEBT_FUND",
+          "categoryRiskBoundary": "Interest-rate sensitivity and debt issuer credit risk",
+          "categoryAccessBoundary": "Actual scheme SID, KYC, NAV, redemption settlement and exit loads not verified",
+          "riskConsiderations": [
+            "Interest-rate sensitivity and debt issuer credit risk",
+            "The October 2026 mutual-fund regulations do not supply the risk-o-meter or actual holdings of a named scheme."
+          ],
+          "investorAccessConstraints": [
+            "Actual scheme SID, KYC, NAV, redemption settlement and exit loads not verified",
+            "A named AMC and scheme, current SID/KIM, investor KYC, dealing channel and licensed NAV/quote must be verified independently."
+          ],
+          "specificSchemeRegisteredAndAvailableVerified": false,
+          "currentSchemeRiskometerAndPortfolioVerified": false,
+          "investorKycAndTransactionEligibilityVerified": false,
+          "currentNavOrExchangeQuoteAndReuseRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
@@ -1228,7 +1274,30 @@
         "investorKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "mutualFundRegulationsOct2026Review": {
+          "officialSebiRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-mutual-funds-regulations-2026-last-amended-on-october-10-2026-_105356.html",
+          "regulationsInForceFrom": "2026-04-01",
+          "regulationsAmendedThrough": "2026-10-10",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "GENERAL_CURRENT_MUTUAL_FUND_REGULATIONS_NOT_SPECIFIC_SCHEME_APPROVAL_OR_RISKOMETER",
+          "schemeArchetype": "LONG_TERM_DEBT_FUND",
+          "categoryRiskBoundary": "High sensitivity of NAV to interest-rate changes",
+          "categoryAccessBoundary": "Current scheme riskometer, SID, KYC, NAV and exit load not verified",
+          "riskConsiderations": [
+            "High sensitivity of NAV to interest-rate changes",
+            "The October 2026 mutual-fund regulations do not supply the risk-o-meter or actual holdings of a named scheme."
+          ],
+          "investorAccessConstraints": [
+            "Current scheme riskometer, SID, KYC, NAV and exit load not verified",
+            "A named AMC and scheme, current SID/KIM, investor KYC, dealing channel and licensed NAV/quote must be verified independently."
+          ],
+          "specificSchemeRegisteredAndAvailableVerified": false,
+          "currentSchemeRiskometerAndPortfolioVerified": false,
+          "investorKycAndTransactionEligibilityVerified": false,
+          "currentNavOrExchangeQuoteAndReuseRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
@@ -1283,7 +1352,30 @@
         "investorKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "mutualFundRegulationsOct2026Review": {
+          "officialSebiRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-mutual-funds-regulations-2026-last-amended-on-october-10-2026-_105356.html",
+          "regulationsInForceFrom": "2026-04-01",
+          "regulationsAmendedThrough": "2026-10-10",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "GENERAL_CURRENT_MUTUAL_FUND_REGULATIONS_NOT_SPECIFIC_SCHEME_APPROVAL_OR_RISKOMETER",
+          "schemeArchetype": "GSEC_TARGET_MATURITY_INDEX_STRATEGY",
+          "categoryRiskBoundary": "NAV may fluctuate before target maturity",
+          "categoryAccessBoundary": "Actual fund identity, target date, index constituents and subscription availability unverified",
+          "riskConsiderations": [
+            "NAV may fluctuate before target maturity",
+            "The October 2026 mutual-fund regulations do not supply the risk-o-meter or actual holdings of a named scheme."
+          ],
+          "investorAccessConstraints": [
+            "Actual fund identity, target date, index constituents and subscription availability unverified",
+            "A named AMC and scheme, current SID/KIM, investor KYC, dealing channel and licensed NAV/quote must be verified independently."
+          ],
+          "specificSchemeRegisteredAndAvailableVerified": false,
+          "currentSchemeRiskometerAndPortfolioVerified": false,
+          "investorKycAndTransactionEligibilityVerified": false,
+          "currentNavOrExchangeQuoteAndReuseRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
@@ -1338,7 +1430,30 @@
         "investorKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "mutualFundRegulationsOct2026Review": {
+          "officialSebiRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-mutual-funds-regulations-2026-last-amended-on-october-10-2026-_105356.html",
+          "regulationsInForceFrom": "2026-04-01",
+          "regulationsAmendedThrough": "2026-10-10",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "GENERAL_CURRENT_MUTUAL_FUND_REGULATIONS_NOT_SPECIFIC_SCHEME_APPROVAL_OR_RISKOMETER",
+          "schemeArchetype": "SDL_TARGET_MATURITY_INDEX_STRATEGY",
+          "categoryRiskBoundary": "State-security concentration, interest-rate and liquidity risk",
+          "categoryAccessBoundary": "Actual fund identity, state holdings, target date and retail scheme terms unverified",
+          "riskConsiderations": [
+            "State-security concentration, interest-rate and liquidity risk",
+            "The October 2026 mutual-fund regulations do not supply the risk-o-meter or actual holdings of a named scheme."
+          ],
+          "investorAccessConstraints": [
+            "Actual fund identity, state holdings, target date and retail scheme terms unverified",
+            "A named AMC and scheme, current SID/KIM, investor KYC, dealing channel and licensed NAV/quote must be verified independently."
+          ],
+          "specificSchemeRegisteredAndAvailableVerified": false,
+          "currentSchemeRiskometerAndPortfolioVerified": false,
+          "investorKycAndTransactionEligibilityVerified": false,
+          "currentNavOrExchangeQuoteAndReuseRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
@@ -1393,7 +1508,30 @@
         "investorKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "mutualFundRegulationsOct2026Review": {
+          "officialSebiRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-mutual-funds-regulations-2026-last-amended-on-october-10-2026-_105356.html",
+          "regulationsInForceFrom": "2026-04-01",
+          "regulationsAmendedThrough": "2026-10-10",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "GENERAL_CURRENT_MUTUAL_FUND_REGULATIONS_NOT_SPECIFIC_SCHEME_APPROVAL_OR_RISKOMETER",
+          "schemeArchetype": "PSU_BOND_TARGET_MATURITY_INDEX_STRATEGY",
+          "categoryRiskBoundary": "Issuer credit and spread changes even for public-sector borrowers",
+          "categoryAccessBoundary": "Actual issuer list, credit ratings, fund identity, target date and scheme access unverified",
+          "riskConsiderations": [
+            "Issuer credit and spread changes even for public-sector borrowers",
+            "The October 2026 mutual-fund regulations do not supply the risk-o-meter or actual holdings of a named scheme."
+          ],
+          "investorAccessConstraints": [
+            "Actual issuer list, credit ratings, fund identity, target date and scheme access unverified",
+            "A named AMC and scheme, current SID/KIM, investor KYC, dealing channel and licensed NAV/quote must be verified independently."
+          ],
+          "specificSchemeRegisteredAndAvailableVerified": false,
+          "currentSchemeRiskometerAndPortfolioVerified": false,
+          "investorKycAndTransactionEligibilityVerified": false,
+          "currentNavOrExchangeQuoteAndReuseRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
@@ -1448,7 +1586,30 @@
         "investorKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "mutualFundRegulationsOct2026Review": {
+          "officialSebiRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-mutual-funds-regulations-2026-last-amended-on-october-10-2026-_105356.html",
+          "regulationsInForceFrom": "2026-04-01",
+          "regulationsAmendedThrough": "2026-10-10",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "GENERAL_CURRENT_MUTUAL_FUND_REGULATIONS_NOT_SPECIFIC_SCHEME_APPROVAL_OR_RISKOMETER",
+          "schemeArchetype": "CONSTANT_MATURITY_PASSIVE_DEBT_INDEX_STRATEGY",
+          "categoryRiskBoundary": "Rebalancing to maintain constant maturity sustains interest-rate exposure",
+          "categoryAccessBoundary": "Named benchmark, scheme existence, NAV, KYC and fund redemption terms unverified",
+          "riskConsiderations": [
+            "Rebalancing to maintain constant maturity sustains interest-rate exposure",
+            "The October 2026 mutual-fund regulations do not supply the risk-o-meter or actual holdings of a named scheme."
+          ],
+          "investorAccessConstraints": [
+            "Named benchmark, scheme existence, NAV, KYC and fund redemption terms unverified",
+            "A named AMC and scheme, current SID/KIM, investor KYC, dealing channel and licensed NAV/quote must be verified independently."
+          ],
+          "specificSchemeRegisteredAndAvailableVerified": false,
+          "currentSchemeRiskometerAndPortfolioVerified": false,
+          "investorKycAndTransactionEligibilityVerified": false,
+          "currentNavOrExchangeQuoteAndReuseRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
@@ -1503,7 +1664,30 @@
         "investorKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "mutualFundRegulationsOct2026Review": {
+          "officialSebiRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-mutual-funds-regulations-2026-last-amended-on-october-10-2026-_105356.html",
+          "regulationsInForceFrom": "2026-04-01",
+          "regulationsAmendedThrough": "2026-10-10",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "GENERAL_CURRENT_MUTUAL_FUND_REGULATIONS_NOT_SPECIFIC_SCHEME_APPROVAL_OR_RISKOMETER",
+          "schemeArchetype": "DOMESTIC_DEBT_FUND_OF_FUNDS",
+          "categoryRiskBoundary": "Look-through duration and issuer credit risks of underlying schemes",
+          "categoryAccessBoundary": "Actual FoF and underlying schemes, fees, KYC, NAV and redemption rules unverified",
+          "riskConsiderations": [
+            "Look-through duration and issuer credit risks of underlying schemes",
+            "The October 2026 mutual-fund regulations do not supply the risk-o-meter or actual holdings of a named scheme."
+          ],
+          "investorAccessConstraints": [
+            "Actual FoF and underlying schemes, fees, KYC, NAV and redemption rules unverified",
+            "A named AMC and scheme, current SID/KIM, investor KYC, dealing channel and licensed NAV/quote must be verified independently."
+          ],
+          "specificSchemeRegisteredAndAvailableVerified": false,
+          "currentSchemeRiskometerAndPortfolioVerified": false,
+          "investorKycAndTransactionEligibilityVerified": false,
+          "currentNavOrExchangeQuoteAndReuseRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
@@ -1558,7 +1742,30 @@
         "investorKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "mutualFundRegulationsOct2026Review": {
+          "officialSebiRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-mutual-funds-regulations-2026-last-amended-on-october-10-2026-_105356.html",
+          "regulationsInForceFrom": "2026-04-01",
+          "regulationsAmendedThrough": "2026-10-10",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "GENERAL_CURRENT_MUTUAL_FUND_REGULATIONS_NOT_SPECIFIC_SCHEME_APPROVAL_OR_RISKOMETER",
+          "schemeArchetype": "GSEC_PASSIVE_DEBT_ETF_STRATEGY",
+          "categoryRiskBoundary": "ETF market price can differ from NAV and trading liquidity can vary",
+          "categoryAccessBoundary": "Specific ETF, listing, exchange access, KYC, market quote and scheme riskometer unverified",
+          "riskConsiderations": [
+            "ETF market price can differ from NAV and trading liquidity can vary",
+            "The October 2026 mutual-fund regulations do not supply the risk-o-meter or actual holdings of a named scheme."
+          ],
+          "investorAccessConstraints": [
+            "Specific ETF, listing, exchange access, KYC, market quote and scheme riskometer unverified",
+            "A named AMC and scheme, current SID/KIM, investor KYC, dealing channel and licensed NAV/quote must be verified independently."
+          ],
+          "specificSchemeRegisteredAndAvailableVerified": false,
+          "currentSchemeRiskometerAndPortfolioVerified": false,
+          "investorKycAndTransactionEligibilityVerified": false,
+          "currentNavOrExchangeQuoteAndReuseRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {

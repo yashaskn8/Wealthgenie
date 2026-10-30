@@ -1527,3 +1527,34 @@ test('PMS 2026 future regulations preserve current-framework boundaries and fact
  assert.equal(zero.size,95);
  assert.equal([...zero.values()].filter(row=>row.productQualified).length,0);
 });
+
+test('nine debt-fund archetypes distinguish October 2026 SEBI mutual-fund rules from actual schemes',()=>{
+ const rows=listExtensionResearch().filter(row=>row.sebiDebtSchemeStructureReview);
+ assert.equal(rows.length,9);
+ const screened=new Map(screenExtensionResearchForProfile(canonicalProfile())
+  .map(row=>[row.id,row]));
+ for(const row of rows){
+  const r=row.sebiDebtSchemeStructureReview,e=r.mutualFundRegulationsOct2026Review;
+  assert.equal(e.officialSebiRegulationsUrl,'https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-mutual-funds-regulations-2026-last-amended-on-october-10-2026-_105356.html',row.id);
+  assert.equal(e.regulationsInForceFrom,'2026-04-01',row.id);
+  assert.equal(e.regulationsAmendedThrough,'2026-10-10',row.id);
+  assert.equal(e.reviewedOn,'2026-10-30',row.id);
+  assert.equal(e.schemeArchetype,r.schemeArchetype,row.id);
+  assert.equal(e.categoryRiskBoundary,r.riskConsiderations[0],row.id);
+  assert.equal(e.categoryAccessBoundary,r.investorAccessConstraints[0],row.id);
+  assert.ok(e.riskConsiderations.length>=2&&e.investorAccessConstraints.length>=2,row.id);
+  for(const key of ['specificSchemeRegisteredAndAvailableVerified',
+   'currentSchemeRiskometerAndPortfolioVerified','investorKycAndTransactionEligibilityVerified',
+   'currentNavOrExchangeQuoteAndReuseRightsVerified','personalizedAdviceAuthorizationVerified'])
+   assert.equal(e[key],false,row.id+':'+key);
+  const result=screened.get(row.id);
+  assert.ok(result.screeningReasonCodes.includes(
+   'SEBI_OCT_2026_MUTUAL_FUND_REGULATIONS_NOT_SCHEME_RISKOMETER_OR_APPROVAL'),row.id);
+  assert.equal(result.productQualified,false,row.id);
+  assert.equal(result.scoreAvailable,false,row.id);
+  assert.equal(result.productRiskLevel,null,row.id);
+  assert.equal(row.actualRetailProductEligible,false,row.id);
+ }
+ assert.equal(screened.size,95);
+ assert.equal([...screened.values()].filter(x=>x.productQualified).length,0);
+});

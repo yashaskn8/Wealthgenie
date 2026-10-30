@@ -837,3 +837,25 @@ test('PMS future 2026 regulatory evidence is copied without manager, market or c
    assert.ok(!fresh.investorAccessConstraints.includes('fabricated approval'),id);
  }
 });
+
+test('October 2026 mutual-fund regulations remain general evidence for nine debt categories',()=>{
+ const get=id=>listFinancialDiscoveryDirectory().items.find(item=>item.id===id);
+ const ids=listFinancialDiscoveryDirectory().items.filter(item=>
+  item.frameworkResearch?.sebiDebtSchemeStructureReview).map(item=>item.id);
+ assert.equal(ids.length,9);
+ for(const id of ids){
+  const item=get(id);
+  const evidence=item.frameworkResearch.sebiDebtSchemeStructureReview.mutualFundRegulationsOct2026Review;
+  assert.equal(evidence.regulationsAmendedThrough,'2026-10-10',id);
+  assert.equal(evidence.currentSchemeRiskometerAndPortfolioVerified,false,id);
+  assert.equal(evidence.currentNavOrExchangeQuoteAndReuseRightsVerified,false,id);
+  assert.equal(item.recommendationEligible,false,id);
+  assert.equal(item.dataRights,'NOT_VERIFIED',id);
+  assert.ok(Object.values(item.productData).every(value=>value===null),id);
+  evidence.currentSchemeRiskometerAndPortfolioVerified=true;
+  evidence.riskConsiderations.push('FORGED APPROVAL');
+  const clean=get(id).frameworkResearch.sebiDebtSchemeStructureReview.mutualFundRegulationsOct2026Review;
+  assert.equal(clean.currentSchemeRiskometerAndPortfolioVerified,false,id);
+  assert.ok(!clean.riskConsiderations.includes('FORGED APPROVAL'),id);
+ }
+});
