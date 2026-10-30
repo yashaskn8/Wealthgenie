@@ -7066,6 +7066,33 @@
           "commercialMarketDataRightsVerified": false,
           "personalizedAdviceAuthorizationVerified": false,
           "futureRegulationsAlreadyInForce": false
+        },
+        "pmsMandate2020FaqReview": {
+          "officialSebiFaqUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/aug-2020/1598359862760.pdf",
+          "faqPublishedOn": "2020-08-25",
+          "officialSebiInvestorEducationUrl": "https://investor.sebi.gov.in/pms_final.html",
+          "currentRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/sep-2025/securities-and-exchange-board-of-india-portfolio-managers-regulations-2020-last-amended-on-september-03-2025-_96560.html",
+          "futureRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-portfolio-managers-regulations-2026-with-effect-from-april-1-2027-_105159.html",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "HISTORICAL_SEBI_PMS_FAQ_AND_INVESTOR_EDUCATION_NOT_CURRENT_MANAGER_OR_CLIENT_APPROVAL",
+          "mandateType": "DISCRETIONARY_PMS",
+          "managerExercisesTradingDiscretionWithinMandate": true,
+          "clientInstructionsDetermineTrades": false,
+          "faqIsHistoricalNotCurrentProviderApproval": true,
+          "standardFiftyLakhReferenceDoesNotVerifyPersonalEligibility": true,
+          "riskConsiderations": [
+            "SEBI's August 2020 FAQ distinguishes manager-directed discretionary trades; an individual contract and holdings can create concentration, market-loss and turnover risk.",
+            "Manager discretion does not establish guaranteed returns, timely liquidation or current custody, fee and execution arrangements."
+          ],
+          "investorAccessConstraints": [
+            "Verify the currently registered manager, signed discretionary authority and custodian before assuming the manager can trade for this client.",
+            "The SEBI investor education minimum is a general reference; actual capital, lawful exemptions, KYC, terms, data permissions and advice authorization remain unverified."
+          ],
+          "currentRegisteredManagerAndMandateVerified": false,
+          "individualClientKycAndMinimumExceptionsVerified": false,
+          "actualHoldingsFeesCustodyAndExitTermsVerified": false,
+          "livePricesAndCommercialRightsVerified": false,
+          "adviceAuthorizationVerified": false
         }
       }
     },
@@ -7146,6 +7173,33 @@
           "commercialMarketDataRightsVerified": false,
           "personalizedAdviceAuthorizationVerified": false,
           "futureRegulationsAlreadyInForce": false
+        },
+        "pmsMandate2020FaqReview": {
+          "officialSebiFaqUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/aug-2020/1598359862760.pdf",
+          "faqPublishedOn": "2020-08-25",
+          "officialSebiInvestorEducationUrl": "https://investor.sebi.gov.in/pms_final.html",
+          "currentRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/sep-2025/securities-and-exchange-board-of-india-portfolio-managers-regulations-2020-last-amended-on-september-03-2025-_96560.html",
+          "futureRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-portfolio-managers-regulations-2026-with-effect-from-april-1-2027-_105159.html",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "HISTORICAL_SEBI_PMS_FAQ_AND_INVESTOR_EDUCATION_NOT_CURRENT_MANAGER_OR_CLIENT_APPROVAL",
+          "mandateType": "NON_DISCRETIONARY_PMS",
+          "managerExercisesTradingDiscretionWithinMandate": false,
+          "clientInstructionsDetermineTrades": true,
+          "faqIsHistoricalNotCurrentProviderApproval": true,
+          "standardFiftyLakhReferenceDoesNotVerifyPersonalEligibility": true,
+          "riskConsiderations": [
+            "SEBI's August 2020 FAQ describes non-discretionary trades following client directions; the client instruction workflow can introduce timing and execution-price risks.",
+            "Client-controlled instructions do not eliminate underlying security losses, concentration, fees, custody risk or illiquidity."
+          ],
+          "investorAccessConstraints": [
+            "Verify the currently registered manager, signed non-discretionary mandate and actual client instruction and execution workflow.",
+            "A general SEBI minimum or historical FAQ is not personal eligibility; check exemptions, KYC, holdings, fees, source rights and authorized advice."
+          ],
+          "currentRegisteredManagerAndMandateVerified": false,
+          "individualClientKycAndMinimumExceptionsVerified": false,
+          "actualHoldingsFeesCustodyAndExitTermsVerified": false,
+          "livePricesAndCommercialRightsVerified": false,
+          "adviceAuthorizationVerified": false
         }
       }
     },

@@ -1164,3 +1164,35 @@ test('municipal green circular research remains independently copied and not a p
  assert.equal(fresh.actualMunicipalIssuerAndIsinVerified,false);
  assert.ok(!fresh.riskConsiderations.includes('FABRICATED MUNICIPAL ISSUE'));
 });
+
+test('all 95 directory archetypes expose separate category risks and access constraints without approval',()=>{
+ const rows=listFinancialDiscoveryDirectory().items.filter(row=>row.origin==='EXTENDED_95');
+ assert.equal(rows.length,95);
+ for(const row of rows){
+   const research=row.frameworkResearch;
+   assert.equal(research.categoryRiskAccessScope,
+     'GENERAL_CATEGORY_CAUTIONS_NOT_SCHEME_RISKOMETER_OR_ELIGIBILITY',row.id);
+   assert.ok(research.categoryRiskConsiderations.length>=2,row.id);
+   assert.ok(research.categoryInvestorAccessConstraints.length>=2,row.id);
+   assert.ok(research.categoryRiskConsiderations.every(x=>typeof x==='string'&&x.length>=12),row.id);
+   assert.ok(research.categoryInvestorAccessConstraints.every(x=>typeof x==='string'&&x.length>=12),row.id);
+   assert.equal(research.actualRiskScore,null,row.id);
+   assert.equal(row.recommendationEligible,false,row.id);
+   assert.equal(row.productAvailability,'NOT_VERIFIED',row.id);
+   assert.equal(row.dataRights,'NOT_VERIFIED',row.id);
+ }
+ const id='catalog_2026_pms_nondiscretionary';
+ const get=()=>listFinancialDiscoveryDirectory().items.find(row=>row.id===id);
+ const row=get();
+ assert.equal(row.frameworkResearch.individualCategoryReview.pmsMandate2020FaqReview
+   .clientInstructionsDetermineTrades,true);
+ row.frameworkResearch.categoryRiskConsiderations.push('FABRICATED RISK');
+ row.frameworkResearch.categoryInvestorAccessConstraints.push('FABRICATED ACCESS');
+ row.frameworkResearch.individualCategoryReview.pmsMandate2020FaqReview
+   .clientInstructionsDetermineTrades=false;
+ const fresh=get();
+ assert.ok(!fresh.frameworkResearch.categoryRiskConsiderations.includes('FABRICATED RISK'));
+ assert.ok(!fresh.frameworkResearch.categoryInvestorAccessConstraints.includes('FABRICATED ACCESS'));
+ assert.equal(fresh.frameworkResearch.individualCategoryReview.pmsMandate2020FaqReview
+   .clientInstructionsDetermineTrades,true);
+});

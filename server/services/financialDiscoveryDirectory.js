@@ -129,7 +129,18 @@ function buildDirectory() {
         || research.sourcePermissionVerified !== false) {
         throw new Error('FINANCIAL_95_FRAMEWORK_ITEM_UNQUALIFIED:' + item.id);
       }
+      const categoryReview=Object.values(research).find(review=>review
+        &&typeof review==='object'&&!Array.isArray(review)
+        &&Array.isArray(review.riskConsiderations)
+        &&Array.isArray(review.investorAccessConstraints));
+      if(!categoryReview||categoryReview.riskConsiderations.length<2
+        ||categoryReview.investorAccessConstraints.length<2) {
+        throw new Error('FINANCIAL_CATEGORY_RISK_ACCESS_EVIDENCE_MISSING:'+item.id);
+      }
       return {
+        categoryRiskConsiderations: [...categoryReview.riskConsiderations],
+        categoryInvestorAccessConstraints: [...categoryReview.investorAccessConstraints],
+        categoryRiskAccessScope: 'GENERAL_CATEGORY_CAUTIONS_NOT_SCHEME_RISKOMETER_OR_ELIGIBILITY',
         structuralExposureClass: research.exposureClass,
         specificResearchConcern: research.scenarioDescription,
         standardCapitalReferenceInr: research.standardCapitalReferenceInr,
@@ -222,6 +233,8 @@ export function listFinancialDiscoveryDirectory() {
       ...item, productData: { ...item.productData },
       frameworkResearch: item.frameworkResearch ? {
         ...item.frameworkResearch,
+        categoryRiskConsiderations: [...item.frameworkResearch.categoryRiskConsiderations],
+        categoryInvestorAccessConstraints: [...item.frameworkResearch.categoryInvestorAccessConstraints],
         reviewedOfficialFrameworkFact: item.frameworkResearch.reviewedOfficialFrameworkFact
           ? { ...item.frameworkResearch.reviewedOfficialFrameworkFact } : null,
         postalSavingsAccessReview: item.frameworkResearch.postalSavingsAccessReview

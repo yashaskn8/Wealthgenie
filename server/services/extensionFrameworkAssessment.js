@@ -70,6 +70,8 @@ const aifOctoberRegulationsUrl="https://www.sebi.gov.in/legal/regulations/oct-20
 const pmsFutureRegulationsUrl="https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-portfolio-managers-regulations-2026-with-effect-from-april-1-2027-_105159.html";
 const pmsCurrentRegulationsUrl="https://www.sebi.gov.in/legal/regulations/sep-2025/securities-and-exchange-board-of-india-portfolio-managers-regulations-2020-last-amended-on-september-03-2025-_96560.html";
 const pmsMandateTypes=Object.freeze({"catalog_2026_pms_discretionary":"DISCRETIONARY_PMS","catalog_2026_pms_nondiscretionary":"NON_DISCRETIONARY_PMS"});
+const pmsHistoricalFaqUrl='https://www.sebi.gov.in/sebi_data/attachdocs/aug-2020/1598359862760.pdf';
+const pmsInvestorEducationUrl='https://investor.sebi.gov.in/pms_final.html';
 const aifGarudaCircularUrl="https://www.sebi.gov.in/legal/circulars/jul-2026/-green-channel-aif-rollout-upon-document-acknowledgement-garuda-mechanism-for-processing-of-placement-memorandum-of-alternative-investment-funds-aifs-filed-with-sebi_103241.html";
 const sifMinimumThresholdMonitoringUrl="https://www.sebi.gov.in/legal/circulars/jul-2025/monitoring-of-minimum-investment-threshold-under-specialized-investment-funds-sif-_95676.html";
 const sifDistributorCertificationUrl="https://www.sebi.gov.in/legal/circulars/jul-2026/certification-requirements-for-distribution-of-specialized-investment-funds-sifs-_102986.html";
@@ -674,6 +676,34 @@ if(research.entries.filter(row=>row.individualCategoryReview?.pmsRegulatoryTrans
        'personalizedAdviceAuthorizationVerified','futureRegulationsAlreadyInForce']
        .some(key=>p[key]!==false);
  }))throw new Error('FINANCIAL_PMS_2026_FUTURE_REGULATORY_TRANSITION_INVALID');
+// The 2020 SEBI FAQ describes mandate control, not current manager approval.
+// Neither its historical minimum nor the investor education page establishes
+// an individual client's lawful eligibility or current portfolio terms.
+if(research.entries.filter(row=>row.individualCategoryReview?.pmsMandate2020FaqReview).length!==2
+ ||research.entries.some(row=>{
+   const expectedType=pmsMandateTypes[row.id];
+   const p=row.individualCategoryReview?.pmsMandate2020FaqReview;
+   if(!expectedType)return p!==undefined;
+   const discretionary=expectedType==='DISCRETIONARY_PMS';
+   return !p||p.officialSebiFaqUrl!==pmsHistoricalFaqUrl
+     ||p.officialSebiInvestorEducationUrl!==pmsInvestorEducationUrl
+     ||p.currentRegulationsUrl!==pmsCurrentRegulationsUrl
+     ||p.futureRegulationsUrl!==pmsFutureRegulationsUrl
+     ||p.faqPublishedOn!=='2020-08-25'||p.reviewedOn!=='2026-10-31'
+     ||p.sourceScope!=='HISTORICAL_SEBI_PMS_FAQ_AND_INVESTOR_EDUCATION_NOT_CURRENT_MANAGER_OR_CLIENT_APPROVAL'
+     ||p.mandateType!==expectedType
+     ||p.managerExercisesTradingDiscretionWithinMandate!==discretionary
+     ||p.clientInstructionsDetermineTrades===discretionary
+     ||p.faqIsHistoricalNotCurrentProviderApproval!==true
+     ||p.standardFiftyLakhReferenceDoesNotVerifyPersonalEligibility!==true
+     ||!Array.isArray(p.riskConsiderations)||p.riskConsiderations.length<2
+     ||!Array.isArray(p.investorAccessConstraints)||p.investorAccessConstraints.length<2
+     ||['currentRegisteredManagerAndMandateVerified',
+       'individualClientKycAndMinimumExceptionsVerified',
+       'actualHoldingsFeesCustodyAndExitTermsVerified',
+       'livePricesAndCommercialRightsVerified','adviceAuthorizationVerified']
+       .some(key=>p[key]!==false);
+ }))throw new Error('FINANCIAL_PMS_HISTORICAL_FAQ_MANDATE_AND_ACCESS_EVIDENCE_INVALID');
 // SIF access and distribution facts must remain source-scoped: a PAN-level
 // aggregate threshold and distributor certification never approve an investor,
 // actual strategy, licensed data feed or personalized recommendation.
@@ -1429,6 +1459,13 @@ export function screenExtensionResearchForProfile(profileInput) {
      reasons.push('PMS_MANAGER_REGISTRATION_MANDATE_CLIENT_MINIMUM_AND_FEES_UNVERIFIED');
      reasons.push('PMS_2026_REGULATIONS_NOT_EFFECTIVE_UNTIL_APRIL_2027');
      reasons.push('PMS_FUTURE_2026_FRAMEWORK_NOT_CURRENT_MANAGER_OR_CLIENT_APPROVAL');
+     reasons.push('SEBI_2020_PMS_FAQ_MANDATE_CONTROL_NOT_CURRENT_MANAGER_OR_CLIENT_APPROVAL');
+     if(profile.investmentHorizonYears<=3)
+       reasons.push('SHORT_HORIZON_REQUIRES_PMS_HOLDINGS_EXIT_FEES_AND_SETTLEMENT_REVIEW');
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_PMS_SECURITY_LIQUIDITY_AND_TERMINATION_REVIEW');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_PMS_CONCENTRATION_AND_MARKET_LOSS_REVIEW');
      if(profile.emergencyFundMonths===0)
        reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_PMS_PORTFOLIO_LIQUIDATION_AND_CUSTODY_REVIEW');
      reasons.push(row.id==='catalog_2026_pms_discretionary'

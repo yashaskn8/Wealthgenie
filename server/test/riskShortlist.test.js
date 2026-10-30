@@ -2228,3 +2228,57 @@ test('municipal green bonds separate SEBI 2022/2026 green issuance and reviewer 
   assert.equal(item.productRiskLevel,null);
  }
 });
+
+test('SEBI historical PMS FAQ distinguishes manager authority without qualifying clients or products',()=>{
+ const ids=['catalog_2026_pms_discretionary','catalog_2026_pms_nondiscretionary'];
+ const rows=new Map(listExtensionResearch().map(row=>[row.id,row]));
+ const pick=overrides=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+   investmentGoals:['Wealth Growth'],riskTolerance:'Aggressive',
+   investmentHorizonYears:10,emergencyFundMonths:null,...overrides,
+ })).map(row=>[row.id,row]));
+ const baseline=pick({});
+ const short=pick({investmentHorizonYears:2});
+ const emergency=pick({investmentGoals:['Emergency Fund']});
+ const conservative=pick({riskTolerance:'Conservative'});
+ const unknown=pick({emergencyFundMonths:null});
+ for(const [index,id] of ids.entries()){
+   const review=rows.get(id).individualCategoryReview.pmsMandate2020FaqReview;
+   assert.equal(review.officialSebiFaqUrl,
+     'https://www.sebi.gov.in/sebi_data/attachdocs/aug-2020/1598359862760.pdf');
+   assert.equal(review.officialSebiInvestorEducationUrl,'https://investor.sebi.gov.in/pms_final.html');
+   assert.equal(review.faqPublishedOn,'2020-08-25');
+   assert.equal(review.reviewedOn,'2026-10-31');
+   assert.equal(review.managerExercisesTradingDiscretionWithinMandate,index===0);
+   assert.equal(review.clientInstructionsDetermineTrades,index===1);
+   assert.equal(review.faqIsHistoricalNotCurrentProviderApproval,true);
+   assert.equal(review.standardFiftyLakhReferenceDoesNotVerifyPersonalEligibility,true);
+   assert.ok(review.riskConsiderations.length>=2);
+   assert.ok(review.investorAccessConstraints.length>=2);
+   for(const key of ['currentRegisteredManagerAndMandateVerified',
+     'individualClientKycAndMinimumExceptionsVerified',
+     'actualHoldingsFeesCustodyAndExitTermsVerified',
+     'livePricesAndCommercialRightsVerified','adviceAuthorizationVerified'])
+     assert.equal(review[key],false,id+':'+key);
+   const common='SEBI_2020_PMS_FAQ_MANDATE_CONTROL_NOT_CURRENT_MANAGER_OR_CLIENT_APPROVAL';
+   const notices=[
+     ['SHORT_HORIZON_REQUIRES_PMS_HOLDINGS_EXIT_FEES_AND_SETTLEMENT_REVIEW',short],
+     ['EMERGENCY_FUND_GOAL_REQUIRES_PMS_SECURITY_LIQUIDITY_AND_TERMINATION_REVIEW',emergency],
+     ['CONSERVATIVE_PROFILE_REQUIRES_PMS_CONCENTRATION_AND_MARKET_LOSS_REVIEW',conservative],
+   ];
+   assert.ok(baseline.get(id).screeningReasonCodes.includes(common),id);
+   for(const [code,matched] of notices){
+     assert.ok(matched.get(id).screeningReasonCodes.includes(code),id+':'+code);
+     assert.ok(!baseline.get(id).screeningReasonCodes.includes(code),id+':'+code);
+   }
+   assert.ok(!unknown.get(id).screeningReasonCodes.includes(
+     'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_PMS_PORTFOLIO_LIQUIDATION_AND_CUSTODY_REVIEW'));
+   for(const screened of [baseline,short,emergency,conservative]){
+     const item=screened.get(id);
+     assert.equal(item.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+     assert.equal(item.productQualified,false);
+     assert.equal(item.scoreAvailable,false);
+     assert.equal(item.productRiskLevel,null);
+   }
+ }
+ assert.equal(rows.size,95);
+});
