@@ -804,6 +804,54 @@ if(research.entries.some(row=>{
    'currentSchemeNavAndLicensedDataVerified','investorAccessAndAdviceRightsVerified']
    .some(field=>evidence[field]!==false);
 }))throw new Error('FINANCIAL_FOF_SCHEME_RISKOMETER_DISCLOSURE_EVIDENCE_INVALID');
+
+const etfTrading2026Classes=Object.freeze({
+ "catalog_2026_etf_nifty100":"EQUITY_ETF",
+ "catalog_2026_etf_nifty500":"EQUITY_ETF",
+ "catalog_2026_etf_smallcap250":"EQUITY_ETF",
+ "catalog_2026_etf_nifty50_equal":"EQUITY_ETF",
+ "catalog_2026_etf_nifty100_equal":"EQUITY_ETF",
+ "catalog_2026_etf_nifty200_quality":"EQUITY_ETF",
+ "catalog_2026_etf_nifty500_lowvol":"EQUITY_ETF",
+ "catalog_2026_etf_nifty500_momentum":"EQUITY_ETF",
+ "catalog_2026_etf_india_defence":"EQUITY_ETF",
+ "catalog_2026_etf_india_consumption":"EQUITY_ETF",
+ "catalog_2026_gsec_debt_etf":"DEBT_ETF",
+});
+const etfTrading2026Reviews=research.entries.filter(row=>
+ row.etfBenchmarkReview?.sebiEtfSecondaryMarket2026Review
+ ||row.sebiDebtSchemeStructureReview?.sebiEtfSecondaryMarket2026Review);
+if(etfTrading2026Reviews.length!==11
+ ||new Set(etfTrading2026Reviews.map(row=>
+  (row.etfBenchmarkReview||row.sebiDebtSchemeStructureReview).sebiEtfSecondaryMarket2026Review.categoryInterpretation)).size!==11
+ ||research.entries.some(row=>{
+  const e=row.etfBenchmarkReview?.sebiEtfSecondaryMarket2026Review
+   ||row.sebiDebtSchemeStructureReview?.sebiEtfSecondaryMarket2026Review;
+  if(!Object.hasOwn(etfTrading2026Classes,row.id))return e!==undefined;
+  return !e
+   ||e.officialSebiTradingNormsCircularUrl!=='https://www.sebi.gov.in/legal/circulars/jun-2026/norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-traded-funds-etfs-_102121.html'
+   ||e.officialSebiTimelineExtensionUrl!=='https://www.sebi.gov.in/legal/circulars/aug-2026/extension-of-timeline-for-implementation-of-provisions-of-sebi-circular-dated-june-15-2026-on-norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-_104094.html'
+   ||!isOfficialFrameworkReferenceUrl(e.officialSebiTradingNormsCircularUrl)
+   ||!isOfficialFrameworkReferenceUrl(e.officialSebiTimelineExtensionUrl)
+   ||e.originalCircularIssuedOn!=='2026-06-15'
+   ||e.timelineExtensionIssuedOn!=='2026-08-28'
+   ||e.originalImplementationDate!=='2026-09-01'
+   ||e.revisedFrameworkEffectiveFrom!=='2026-09-07'
+   ||e.reviewedOn!=='2026-10-30'
+   ||e.categoryClass!==etfTrading2026Classes[row.id]
+   ||e.sourceScope!=='GENERAL_SECONDARY_MARKET_ETF_TRADING_NORMS_NOT_SCHEME_OR_EXECUTABLE_QUOTE'
+   ||e.priceBandBaseReference!=='T_MINUS_1_LAST_30_MINUTE_VWAP_WITH_LAST_TRADE_OR_NAV_FALLBACK'
+   ||e.initialDynamicBandPercent!==10||e.maximumFlexedBandPercent!==20
+   ||e.proposedTMinusOneNavBaseFrom!=='2027-04-01'
+   ||typeof e.categoryInterpretation!=='string'||e.categoryInterpretation.length<110
+   ||!Array.isArray(e.riskConsiderations)||e.riskConsiderations.length<2
+   ||!Array.isArray(e.investorAccessConstraints)||e.investorAccessConstraints.length<2
+   ||['futureNavBaseOperationallyVerified','actualListedEtfAndIsinVerified',
+    'actualExchangeImplementationAndOrderbookVerified','liveExecutableBidAskAndNavVerified',
+    'individualBrokerDematKycAndRetailAccessVerified','commercialQuoteRedistributionRightsVerified',
+    'schemeRiskometerAndSuitabilityVerified','investmentAdviceAuthorizationVerified',
+    'priceBandsGuaranteeExecutionOrLimitInvestmentLoss'].some(key=>e[key]!==false);
+ }))throw new Error('FINANCIAL_SEBI_ETF_SEPT_2026_TRADING_EVIDENCE_INVALID');
 const retailDirectAuctionTypes=Object.freeze({"catalog_2026_tbill_91":"91_DAY_DISCOUNT_TREASURY_BILL","catalog_2026_tbill_182":"182_DAY_DISCOUNT_TREASURY_BILL","catalog_2026_tbill_364":"364_DAY_DISCOUNT_TREASURY_BILL","catalog_2026_sdl_dated":"DATED_STATE_DEVELOPMENT_LOAN"});
 if(research.entries.some(row=>{
  const e=row.rbiRetailDirectAccessReview?.retailDirectAuctionMechanics2021Review;
@@ -1049,6 +1097,17 @@ export function screenExtensionResearchForProfile(profileInput) {
        reasons.push('EMERGENCY_FUND_REQUIRES_ETF_TRADING_AND_SETTLEMENT_LIQUIDITY_REVIEW');
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_ETF_EQUITY_LOSS_AND_SPREAD_CAPACITY_REVIEW');
+   }
+
+   const etfTradingReview=row.etfBenchmarkReview?.sebiEtfSecondaryMarket2026Review
+    ||row.sebiDebtSchemeStructureReview?.sebiEtfSecondaryMarket2026Review;
+   if(etfTradingReview){
+     reasons.push('SEBI_SEPT_2026_ETF_DYNAMIC_PRICE_BANDS_NOT_SCHEME_RISKOMETER_OR_EXECUTABLE_QUOTE');
+     reasons.push('ETF_T_MINUS_ONE_PRICE_BAND_BASE_NOT_LIVE_BID_ASK_OR_NAV');
+     if(profile.emergencyFundMonths===0)
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_ETF_PRICE_BAND_EXIT_AND_SETTLEMENT_REVIEW');
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_ETF_EXCHANGE_EXECUTION_AND_ORDERBOOK_REVIEW');
    }
    if(row.nbfcPublicDepositAccessReview) {
      reasons.push('NBFC_PUBLIC_DEPOSITS_NOT_DICGC_INSURED');

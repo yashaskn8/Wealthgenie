@@ -983,3 +983,27 @@ test('SM REIT October 2026 trust registry and draft filings are defensive educat
  assert.equal(clean.finalSchemeOfferAndListingVerified,false);
  assert.ok(!clean.investorAccessConstraints.includes('FABRICATED FINAL OFFER'));
 });
+
+test('11 ETF September 2026 exchange-trading reviews remain defensive educational copies',()=>{
+ const ids=["catalog_2026_etf_nifty100","catalog_2026_etf_nifty500","catalog_2026_etf_smallcap250","catalog_2026_etf_nifty50_equal","catalog_2026_etf_nifty100_equal","catalog_2026_etf_nifty200_quality","catalog_2026_etf_nifty500_lowvol","catalog_2026_etf_nifty500_momentum","catalog_2026_etf_india_defence","catalog_2026_etf_india_consumption","catalog_2026_gsec_debt_etf"];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(row=>row.id===id);
+ for(const id of ids){
+  const row=get(id);
+  const e=row.frameworkResearch.etfBenchmarkReview?.sebiEtfSecondaryMarket2026Review
+   ||row.frameworkResearch.sebiDebtSchemeStructureReview?.sebiEtfSecondaryMarket2026Review;
+  assert.ok(e,id);
+  assert.equal(e.revisedFrameworkEffectiveFrom,'2026-09-07',id);
+  assert.equal(e.liveExecutableBidAskAndNavVerified,false,id);
+  assert.equal(e.priceBandsGuaranteeExecutionOrLimitInvestmentLoss,false,id);
+  assert.equal(row.recommendationEligible,false,id);
+  assert.equal(row.dataRights,'NOT_VERIFIED',id);
+  assert.ok(Object.values(row.productData).every(value=>value===null),id);
+  e.liveExecutableBidAskAndNavVerified=true;
+  e.riskConsiderations.push('FABRICATED EXECUTION');
+  const fresh=get(id);
+  const clean=fresh.frameworkResearch.etfBenchmarkReview?.sebiEtfSecondaryMarket2026Review
+   ||fresh.frameworkResearch.sebiDebtSchemeStructureReview?.sebiEtfSecondaryMarket2026Review;
+  assert.equal(clean.liveExecutableBidAskAndNavVerified,false,id);
+  assert.ok(!clean.riskConsiderations.includes('FABRICATED EXECUTION'),id);
+ }
+});

@@ -1967,6 +1967,39 @@
           "investorKycAndTransactionEligibilityVerified": false,
           "currentNavOrExchangeQuoteAndReuseRightsVerified": false,
           "personalizedAdviceAuthorizationVerified": false
+        },
+        "sebiEtfSecondaryMarket2026Review": {
+          "officialSebiTradingNormsCircularUrl": "https://www.sebi.gov.in/legal/circulars/jun-2026/norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-traded-funds-etfs-_102121.html",
+          "officialSebiTimelineExtensionUrl": "https://www.sebi.gov.in/legal/circulars/aug-2026/extension-of-timeline-for-implementation-of-provisions-of-sebi-circular-dated-june-15-2026-on-norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-_104094.html",
+          "originalCircularIssuedOn": "2026-06-15",
+          "timelineExtensionIssuedOn": "2026-08-28",
+          "originalImplementationDate": "2026-09-01",
+          "revisedFrameworkEffectiveFrom": "2026-09-07",
+          "reviewedOn": "2026-10-30",
+          "categoryClass": "DEBT_ETF",
+          "categoryInterpretation": "Government-security debt ETF: sovereign underlying exposure does not remove interest-rate, duration or secondary-market execution risk; general debt-ETF bands are not NAV protection.",
+          "sourceScope": "GENERAL_SECONDARY_MARKET_ETF_TRADING_NORMS_NOT_SCHEME_OR_EXECUTABLE_QUOTE",
+          "priceBandBaseReference": "T_MINUS_1_LAST_30_MINUTE_VWAP_WITH_LAST_TRADE_OR_NAV_FALLBACK",
+          "initialDynamicBandPercent": 10,
+          "maximumFlexedBandPercent": 20,
+          "proposedTMinusOneNavBaseFrom": "2027-04-01",
+          "futureNavBaseOperationallyVerified": false,
+          "actualListedEtfAndIsinVerified": false,
+          "actualExchangeImplementationAndOrderbookVerified": false,
+          "liveExecutableBidAskAndNavVerified": false,
+          "individualBrokerDematKycAndRetailAccessVerified": false,
+          "commercialQuoteRedistributionRightsVerified": false,
+          "schemeRiskometerAndSuitabilityVerified": false,
+          "investmentAdviceAuthorizationVerified": false,
+          "priceBandsGuaranteeExecutionOrLimitInvestmentLoss": false,
+          "riskConsiderations": [
+            "Interest-rate movements can lower a G-Sec debt ETF's NAV despite sovereign underlying securities.",
+            "Dynamic price bands can constrain orders; neither the band nor the previous-day base price guarantees a buyer, liquidity or realizable NAV."
+          ],
+          "investorAccessConstraints": [
+            "Verify a named G-Sec debt ETF, issuer, ISIN, holdings, duration, current riskometer and exchange venue.",
+            "Verify licensed live bid/ask, spread, NAV/iNAV, settlement, demat/KYC, broker permissions and actual exchange implementation; a circular is not an executable offer."
+          ]
         }
       }
     },
@@ -2789,7 +2822,40 @@
         "brokerDematKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "sebiEtfSecondaryMarket2026Review": {
+          "officialSebiTradingNormsCircularUrl": "https://www.sebi.gov.in/legal/circulars/jun-2026/norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-traded-funds-etfs-_102121.html",
+          "officialSebiTimelineExtensionUrl": "https://www.sebi.gov.in/legal/circulars/aug-2026/extension-of-timeline-for-implementation-of-provisions-of-sebi-circular-dated-june-15-2026-on-norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-_104094.html",
+          "originalCircularIssuedOn": "2026-06-15",
+          "timelineExtensionIssuedOn": "2026-08-28",
+          "originalImplementationDate": "2026-09-01",
+          "revisedFrameworkEffectiveFrom": "2026-09-07",
+          "reviewedOn": "2026-10-30",
+          "categoryClass": "EQUITY_ETF",
+          "categoryInterpretation": "Nifty 100 large-cap benchmark ETF: the T-1 exchange-price base and dynamic price bands concern secondary-market orders, not a confirmed fund, current NAV or protected exit.",
+          "sourceScope": "GENERAL_SECONDARY_MARKET_ETF_TRADING_NORMS_NOT_SCHEME_OR_EXECUTABLE_QUOTE",
+          "priceBandBaseReference": "T_MINUS_1_LAST_30_MINUTE_VWAP_WITH_LAST_TRADE_OR_NAV_FALLBACK",
+          "initialDynamicBandPercent": 10,
+          "maximumFlexedBandPercent": 20,
+          "proposedTMinusOneNavBaseFrom": "2027-04-01",
+          "futureNavBaseOperationallyVerified": false,
+          "actualListedEtfAndIsinVerified": false,
+          "actualExchangeImplementationAndOrderbookVerified": false,
+          "liveExecutableBidAskAndNavVerified": false,
+          "individualBrokerDematKycAndRetailAccessVerified": false,
+          "commercialQuoteRedistributionRightsVerified": false,
+          "schemeRiskometerAndSuitabilityVerified": false,
+          "investmentAdviceAuthorizationVerified": false,
+          "priceBandsGuaranteeExecutionOrLimitInvestmentLoss": false,
+          "riskConsiderations": [
+            "Equity market losses and large-company concentration. A current fund-specific loss estimate is not verified.",
+            "Dynamic price bands can constrain orders; neither the band nor the previous-day base price guarantees a buyer, liquidity or realizable NAV."
+          ],
+          "investorAccessConstraints": [
+            "Identify actual AMC ETF, exchange ticker, ISIN, SID/KIM and scheme riskometer. An underlying index is not a listed ETF.",
+            "Verify licensed live bid/ask, spread, NAV/iNAV, settlement, demat/KYC, broker permissions and actual exchange implementation; a circular is not an executable offer."
+          ]
+        }
       }
     },
     {
@@ -2846,7 +2912,40 @@
         "brokerDematKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "sebiEtfSecondaryMarket2026Review": {
+          "officialSebiTradingNormsCircularUrl": "https://www.sebi.gov.in/legal/circulars/jun-2026/norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-traded-funds-etfs-_102121.html",
+          "officialSebiTimelineExtensionUrl": "https://www.sebi.gov.in/legal/circulars/aug-2026/extension-of-timeline-for-implementation-of-provisions-of-sebi-circular-dated-june-15-2026-on-norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-_104094.html",
+          "originalCircularIssuedOn": "2026-06-15",
+          "timelineExtensionIssuedOn": "2026-08-28",
+          "originalImplementationDate": "2026-09-01",
+          "revisedFrameworkEffectiveFrom": "2026-09-07",
+          "reviewedOn": "2026-10-30",
+          "categoryClass": "EQUITY_ETF",
+          "categoryInterpretation": "Nifty 500 broad-market benchmark ETF: index breadth does not guarantee constituent liquidity or execution when an exchange price band constrains orders.",
+          "sourceScope": "GENERAL_SECONDARY_MARKET_ETF_TRADING_NORMS_NOT_SCHEME_OR_EXECUTABLE_QUOTE",
+          "priceBandBaseReference": "T_MINUS_1_LAST_30_MINUTE_VWAP_WITH_LAST_TRADE_OR_NAV_FALLBACK",
+          "initialDynamicBandPercent": 10,
+          "maximumFlexedBandPercent": 20,
+          "proposedTMinusOneNavBaseFrom": "2027-04-01",
+          "futureNavBaseOperationallyVerified": false,
+          "actualListedEtfAndIsinVerified": false,
+          "actualExchangeImplementationAndOrderbookVerified": false,
+          "liveExecutableBidAskAndNavVerified": false,
+          "individualBrokerDematKycAndRetailAccessVerified": false,
+          "commercialQuoteRedistributionRightsVerified": false,
+          "schemeRiskometerAndSuitabilityVerified": false,
+          "investmentAdviceAuthorizationVerified": false,
+          "priceBandsGuaranteeExecutionOrLimitInvestmentLoss": false,
+          "riskConsiderations": [
+            "Large-, mid- and smaller-company equity losses and constituent liquidity. A current fund-specific loss estimate is not verified.",
+            "Dynamic price bands can constrain orders; neither the band nor the previous-day base price guarantees a buyer, liquidity or realizable NAV."
+          ],
+          "investorAccessConstraints": [
+            "Verify named AMC ETF, ticker, ISIN, SID/KIM and current riskometer. An underlying index is not a listed ETF.",
+            "Verify licensed live bid/ask, spread, NAV/iNAV, settlement, demat/KYC, broker permissions and actual exchange implementation; a circular is not an executable offer."
+          ]
+        }
       }
     },
     {
@@ -2903,7 +3002,40 @@
         "brokerDematKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "sebiEtfSecondaryMarket2026Review": {
+          "officialSebiTradingNormsCircularUrl": "https://www.sebi.gov.in/legal/circulars/jun-2026/norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-traded-funds-etfs-_102121.html",
+          "officialSebiTimelineExtensionUrl": "https://www.sebi.gov.in/legal/circulars/aug-2026/extension-of-timeline-for-implementation-of-provisions-of-sebi-circular-dated-june-15-2026-on-norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-_104094.html",
+          "originalCircularIssuedOn": "2026-06-15",
+          "timelineExtensionIssuedOn": "2026-08-28",
+          "originalImplementationDate": "2026-09-01",
+          "revisedFrameworkEffectiveFrom": "2026-09-07",
+          "reviewedOn": "2026-10-30",
+          "categoryClass": "EQUITY_ETF",
+          "categoryInterpretation": "Nifty Smallcap 250 ETF: small-company liquidity and ETF order-book depth need security-specific checking despite the general September trading-band framework.",
+          "sourceScope": "GENERAL_SECONDARY_MARKET_ETF_TRADING_NORMS_NOT_SCHEME_OR_EXECUTABLE_QUOTE",
+          "priceBandBaseReference": "T_MINUS_1_LAST_30_MINUTE_VWAP_WITH_LAST_TRADE_OR_NAV_FALLBACK",
+          "initialDynamicBandPercent": 10,
+          "maximumFlexedBandPercent": 20,
+          "proposedTMinusOneNavBaseFrom": "2027-04-01",
+          "futureNavBaseOperationallyVerified": false,
+          "actualListedEtfAndIsinVerified": false,
+          "actualExchangeImplementationAndOrderbookVerified": false,
+          "liveExecutableBidAskAndNavVerified": false,
+          "individualBrokerDematKycAndRetailAccessVerified": false,
+          "commercialQuoteRedistributionRightsVerified": false,
+          "schemeRiskometerAndSuitabilityVerified": false,
+          "investmentAdviceAuthorizationVerified": false,
+          "priceBandsGuaranteeExecutionOrLimitInvestmentLoss": false,
+          "riskConsiderations": [
+            "Small-company equity drawdowns and underlying constituent liquidity. A current fund-specific loss estimate is not verified.",
+            "Dynamic price bands can constrain orders; neither the band nor the previous-day base price guarantees a buyer, liquidity or realizable NAV."
+          ],
+          "investorAccessConstraints": [
+            "Verify named ETF, AMC, exchange ticker, ISIN, SID/KIM and riskometer. An underlying index is not a listed ETF.",
+            "Verify licensed live bid/ask, spread, NAV/iNAV, settlement, demat/KYC, broker permissions and actual exchange implementation; a circular is not an executable offer."
+          ]
+        }
       }
     },
     {
@@ -2960,7 +3092,40 @@
         "brokerDematKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "sebiEtfSecondaryMarket2026Review": {
+          "officialSebiTradingNormsCircularUrl": "https://www.sebi.gov.in/legal/circulars/jun-2026/norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-traded-funds-etfs-_102121.html",
+          "officialSebiTimelineExtensionUrl": "https://www.sebi.gov.in/legal/circulars/aug-2026/extension-of-timeline-for-implementation-of-provisions-of-sebi-circular-dated-june-15-2026-on-norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-_104094.html",
+          "originalCircularIssuedOn": "2026-06-15",
+          "timelineExtensionIssuedOn": "2026-08-28",
+          "originalImplementationDate": "2026-09-01",
+          "revisedFrameworkEffectiveFrom": "2026-09-07",
+          "reviewedOn": "2026-10-30",
+          "categoryClass": "EQUITY_ETF",
+          "categoryInterpretation": "Nifty 50 Equal Weight ETF: periodic equal-weight rebalancing and secondary-market price-band execution are distinct from a verified scheme NAV or riskometer.",
+          "sourceScope": "GENERAL_SECONDARY_MARKET_ETF_TRADING_NORMS_NOT_SCHEME_OR_EXECUTABLE_QUOTE",
+          "priceBandBaseReference": "T_MINUS_1_LAST_30_MINUTE_VWAP_WITH_LAST_TRADE_OR_NAV_FALLBACK",
+          "initialDynamicBandPercent": 10,
+          "maximumFlexedBandPercent": 20,
+          "proposedTMinusOneNavBaseFrom": "2027-04-01",
+          "futureNavBaseOperationallyVerified": false,
+          "actualListedEtfAndIsinVerified": false,
+          "actualExchangeImplementationAndOrderbookVerified": false,
+          "liveExecutableBidAskAndNavVerified": false,
+          "individualBrokerDematKycAndRetailAccessVerified": false,
+          "commercialQuoteRedistributionRightsVerified": false,
+          "schemeRiskometerAndSuitabilityVerified": false,
+          "investmentAdviceAuthorizationVerified": false,
+          "priceBandsGuaranteeExecutionOrLimitInvestmentLoss": false,
+          "riskConsiderations": [
+            "Equal-weight rebalancing and relative company-size exposure. A current fund-specific loss estimate is not verified.",
+            "Dynamic price bands can constrain orders; neither the band nor the previous-day base price guarantees a buyer, liquidity or realizable NAV."
+          ],
+          "investorAccessConstraints": [
+            "Verify named listed ETF, AMC, ticker, ISIN, SID/KIM and riskometer. An underlying index is not a listed ETF.",
+            "Verify licensed live bid/ask, spread, NAV/iNAV, settlement, demat/KYC, broker permissions and actual exchange implementation; a circular is not an executable offer."
+          ]
+        }
       }
     },
     {
@@ -3017,7 +3182,40 @@
         "brokerDematKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "sebiEtfSecondaryMarket2026Review": {
+          "officialSebiTradingNormsCircularUrl": "https://www.sebi.gov.in/legal/circulars/jun-2026/norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-traded-funds-etfs-_102121.html",
+          "officialSebiTimelineExtensionUrl": "https://www.sebi.gov.in/legal/circulars/aug-2026/extension-of-timeline-for-implementation-of-provisions-of-sebi-circular-dated-june-15-2026-on-norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-_104094.html",
+          "originalCircularIssuedOn": "2026-06-15",
+          "timelineExtensionIssuedOn": "2026-08-28",
+          "originalImplementationDate": "2026-09-01",
+          "revisedFrameworkEffectiveFrom": "2026-09-07",
+          "reviewedOn": "2026-10-30",
+          "categoryClass": "EQUITY_ETF",
+          "categoryInterpretation": "Nifty 100 Equal Weight ETF: changes in relative constituent weights and exchange order-book conditions remain risks notwithstanding general ETF trading controls.",
+          "sourceScope": "GENERAL_SECONDARY_MARKET_ETF_TRADING_NORMS_NOT_SCHEME_OR_EXECUTABLE_QUOTE",
+          "priceBandBaseReference": "T_MINUS_1_LAST_30_MINUTE_VWAP_WITH_LAST_TRADE_OR_NAV_FALLBACK",
+          "initialDynamicBandPercent": 10,
+          "maximumFlexedBandPercent": 20,
+          "proposedTMinusOneNavBaseFrom": "2027-04-01",
+          "futureNavBaseOperationallyVerified": false,
+          "actualListedEtfAndIsinVerified": false,
+          "actualExchangeImplementationAndOrderbookVerified": false,
+          "liveExecutableBidAskAndNavVerified": false,
+          "individualBrokerDematKycAndRetailAccessVerified": false,
+          "commercialQuoteRedistributionRightsVerified": false,
+          "schemeRiskometerAndSuitabilityVerified": false,
+          "investmentAdviceAuthorizationVerified": false,
+          "priceBandsGuaranteeExecutionOrLimitInvestmentLoss": false,
+          "riskConsiderations": [
+            "Equal weighting increases relative exposure to smaller constituents and turnover. A current fund-specific loss estimate is not verified.",
+            "Dynamic price bands can constrain orders; neither the band nor the previous-day base price guarantees a buyer, liquidity or realizable NAV."
+          ],
+          "investorAccessConstraints": [
+            "First independently establish whether an Indian-listed ETF exists; index methodology alone is not a listed product. An underlying index is not a listed ETF.",
+            "Verify licensed live bid/ask, spread, NAV/iNAV, settlement, demat/KYC, broker permissions and actual exchange implementation; a circular is not an executable offer."
+          ]
+        }
       }
     },
     {
@@ -3075,7 +3273,40 @@
         "brokerDematKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "sebiEtfSecondaryMarket2026Review": {
+          "officialSebiTradingNormsCircularUrl": "https://www.sebi.gov.in/legal/circulars/jun-2026/norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-traded-funds-etfs-_102121.html",
+          "officialSebiTimelineExtensionUrl": "https://www.sebi.gov.in/legal/circulars/aug-2026/extension-of-timeline-for-implementation-of-provisions-of-sebi-circular-dated-june-15-2026-on-norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-_104094.html",
+          "originalCircularIssuedOn": "2026-06-15",
+          "timelineExtensionIssuedOn": "2026-08-28",
+          "originalImplementationDate": "2026-09-01",
+          "revisedFrameworkEffectiveFrom": "2026-09-07",
+          "reviewedOn": "2026-10-30",
+          "categoryClass": "EQUITY_ETF",
+          "categoryInterpretation": "Nifty 200 Quality ETF: a quality-factor benchmark does not establish loss protection, and the exchange price-band mechanism is not a product-specific suitability assessment.",
+          "sourceScope": "GENERAL_SECONDARY_MARKET_ETF_TRADING_NORMS_NOT_SCHEME_OR_EXECUTABLE_QUOTE",
+          "priceBandBaseReference": "T_MINUS_1_LAST_30_MINUTE_VWAP_WITH_LAST_TRADE_OR_NAV_FALLBACK",
+          "initialDynamicBandPercent": 10,
+          "maximumFlexedBandPercent": 20,
+          "proposedTMinusOneNavBaseFrom": "2027-04-01",
+          "futureNavBaseOperationallyVerified": false,
+          "actualListedEtfAndIsinVerified": false,
+          "actualExchangeImplementationAndOrderbookVerified": false,
+          "liveExecutableBidAskAndNavVerified": false,
+          "individualBrokerDematKycAndRetailAccessVerified": false,
+          "commercialQuoteRedistributionRightsVerified": false,
+          "schemeRiskometerAndSuitabilityVerified": false,
+          "investmentAdviceAuthorizationVerified": false,
+          "priceBandsGuaranteeExecutionOrLimitInvestmentLoss": false,
+          "riskConsiderations": [
+            "Accounting-quality metrics and 30-stock concentration do not prevent equity drawdowns. A current fund-specific loss estimate is not verified.",
+            "Dynamic price bands can constrain orders; neither the band nor the previous-day base price guarantees a buyer, liquidity or realizable NAV."
+          ],
+          "investorAccessConstraints": [
+            "Independently verify actual AMC scheme, exchange ticker/ISIN, SID/KIM, current scheme riskometer, fees and tracking disclosures. An underlying index is not a listed ETF.",
+            "Verify licensed live bid/ask, spread, NAV/iNAV, settlement, demat/KYC, broker permissions and actual exchange implementation; a circular is not an executable offer."
+          ]
+        }
       }
     },
     {
@@ -3133,7 +3364,40 @@
         "brokerDematKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "sebiEtfSecondaryMarket2026Review": {
+          "officialSebiTradingNormsCircularUrl": "https://www.sebi.gov.in/legal/circulars/jun-2026/norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-traded-funds-etfs-_102121.html",
+          "officialSebiTimelineExtensionUrl": "https://www.sebi.gov.in/legal/circulars/aug-2026/extension-of-timeline-for-implementation-of-provisions-of-sebi-circular-dated-june-15-2026-on-norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-_104094.html",
+          "originalCircularIssuedOn": "2026-06-15",
+          "timelineExtensionIssuedOn": "2026-08-28",
+          "originalImplementationDate": "2026-09-01",
+          "revisedFrameworkEffectiveFrom": "2026-09-07",
+          "reviewedOn": "2026-10-30",
+          "categoryClass": "EQUITY_ETF",
+          "categoryInterpretation": "Nifty 500 Low Volatility ETF: historical factor selection is not downside protection and secondary-market price-band rules do not ensure an executable exit.",
+          "sourceScope": "GENERAL_SECONDARY_MARKET_ETF_TRADING_NORMS_NOT_SCHEME_OR_EXECUTABLE_QUOTE",
+          "priceBandBaseReference": "T_MINUS_1_LAST_30_MINUTE_VWAP_WITH_LAST_TRADE_OR_NAV_FALLBACK",
+          "initialDynamicBandPercent": 10,
+          "maximumFlexedBandPercent": 20,
+          "proposedTMinusOneNavBaseFrom": "2027-04-01",
+          "futureNavBaseOperationallyVerified": false,
+          "actualListedEtfAndIsinVerified": false,
+          "actualExchangeImplementationAndOrderbookVerified": false,
+          "liveExecutableBidAskAndNavVerified": false,
+          "individualBrokerDematKycAndRetailAccessVerified": false,
+          "commercialQuoteRedistributionRightsVerified": false,
+          "schemeRiskometerAndSuitabilityVerified": false,
+          "investmentAdviceAuthorizationVerified": false,
+          "priceBandsGuaranteeExecutionOrLimitInvestmentLoss": false,
+          "riskConsiderations": [
+            "Historical low volatility is not a capital guarantee or protection against future losses. A current fund-specific loss estimate is not verified.",
+            "Dynamic price bands can constrain orders; neither the band nor the previous-day base price guarantees a buyer, liquidity or realizable NAV."
+          ],
+          "investorAccessConstraints": [
+            "Independently verify actual AMC scheme, exchange ticker/ISIN, SID/KIM, current scheme riskometer, fees and tracking disclosures. An underlying index is not a listed ETF.",
+            "Verify licensed live bid/ask, spread, NAV/iNAV, settlement, demat/KYC, broker permissions and actual exchange implementation; a circular is not an executable offer."
+          ]
+        }
       }
     },
     {
@@ -3191,7 +3455,40 @@
         "brokerDematKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "sebiEtfSecondaryMarket2026Review": {
+          "officialSebiTradingNormsCircularUrl": "https://www.sebi.gov.in/legal/circulars/jun-2026/norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-traded-funds-etfs-_102121.html",
+          "officialSebiTimelineExtensionUrl": "https://www.sebi.gov.in/legal/circulars/aug-2026/extension-of-timeline-for-implementation-of-provisions-of-sebi-circular-dated-june-15-2026-on-norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-_104094.html",
+          "originalCircularIssuedOn": "2026-06-15",
+          "timelineExtensionIssuedOn": "2026-08-28",
+          "originalImplementationDate": "2026-09-01",
+          "revisedFrameworkEffectiveFrom": "2026-09-07",
+          "reviewedOn": "2026-10-30",
+          "categoryClass": "EQUITY_ETF",
+          "categoryInterpretation": "Nifty 500 Momentum ETF: momentum reversal and turnover risks persist; dynamic ETF price bands do not validate a fund or guarantee order execution.",
+          "sourceScope": "GENERAL_SECONDARY_MARKET_ETF_TRADING_NORMS_NOT_SCHEME_OR_EXECUTABLE_QUOTE",
+          "priceBandBaseReference": "T_MINUS_1_LAST_30_MINUTE_VWAP_WITH_LAST_TRADE_OR_NAV_FALLBACK",
+          "initialDynamicBandPercent": 10,
+          "maximumFlexedBandPercent": 20,
+          "proposedTMinusOneNavBaseFrom": "2027-04-01",
+          "futureNavBaseOperationallyVerified": false,
+          "actualListedEtfAndIsinVerified": false,
+          "actualExchangeImplementationAndOrderbookVerified": false,
+          "liveExecutableBidAskAndNavVerified": false,
+          "individualBrokerDematKycAndRetailAccessVerified": false,
+          "commercialQuoteRedistributionRightsVerified": false,
+          "schemeRiskometerAndSuitabilityVerified": false,
+          "investmentAdviceAuthorizationVerified": false,
+          "priceBandsGuaranteeExecutionOrLimitInvestmentLoss": false,
+          "riskConsiderations": [
+            "Momentum reversals and reconstitution turnover can cause significant equity drawdowns. A current fund-specific loss estimate is not verified.",
+            "Dynamic price bands can constrain orders; neither the band nor the previous-day base price guarantees a buyer, liquidity or realizable NAV."
+          ],
+          "investorAccessConstraints": [
+            "Independently verify actual AMC scheme, exchange ticker/ISIN, SID/KIM, current scheme riskometer, fees and tracking disclosures. An underlying index is not a listed ETF.",
+            "Verify licensed live bid/ask, spread, NAV/iNAV, settlement, demat/KYC, broker permissions and actual exchange implementation; a circular is not an executable offer."
+          ]
+        }
       }
     },
     {
@@ -3249,7 +3546,40 @@
         "brokerDematKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "sebiEtfSecondaryMarket2026Review": {
+          "officialSebiTradingNormsCircularUrl": "https://www.sebi.gov.in/legal/circulars/jun-2026/norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-traded-funds-etfs-_102121.html",
+          "officialSebiTimelineExtensionUrl": "https://www.sebi.gov.in/legal/circulars/aug-2026/extension-of-timeline-for-implementation-of-provisions-of-sebi-circular-dated-june-15-2026-on-norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-_104094.html",
+          "originalCircularIssuedOn": "2026-06-15",
+          "timelineExtensionIssuedOn": "2026-08-28",
+          "originalImplementationDate": "2026-09-01",
+          "revisedFrameworkEffectiveFrom": "2026-09-07",
+          "reviewedOn": "2026-10-30",
+          "categoryClass": "EQUITY_ETF",
+          "categoryInterpretation": "India Defence theme ETF: sector concentration and possible order-book gaps persist independently of SEBI's general equity-ETF price-band mechanics.",
+          "sourceScope": "GENERAL_SECONDARY_MARKET_ETF_TRADING_NORMS_NOT_SCHEME_OR_EXECUTABLE_QUOTE",
+          "priceBandBaseReference": "T_MINUS_1_LAST_30_MINUTE_VWAP_WITH_LAST_TRADE_OR_NAV_FALLBACK",
+          "initialDynamicBandPercent": 10,
+          "maximumFlexedBandPercent": 20,
+          "proposedTMinusOneNavBaseFrom": "2027-04-01",
+          "futureNavBaseOperationallyVerified": false,
+          "actualListedEtfAndIsinVerified": false,
+          "actualExchangeImplementationAndOrderbookVerified": false,
+          "liveExecutableBidAskAndNavVerified": false,
+          "individualBrokerDematKycAndRetailAccessVerified": false,
+          "commercialQuoteRedistributionRightsVerified": false,
+          "schemeRiskometerAndSuitabilityVerified": false,
+          "investmentAdviceAuthorizationVerified": false,
+          "priceBandsGuaranteeExecutionOrLimitInvestmentLoss": false,
+          "riskConsiderations": [
+            "Defence-theme concentration and contract or policy sensitivity can cause equity losses. A current fund-specific loss estimate is not verified.",
+            "Dynamic price bands can constrain orders; neither the band nor the previous-day base price guarantees a buyer, liquidity or realizable NAV."
+          ],
+          "investorAccessConstraints": [
+            "Independently verify actual AMC scheme, exchange ticker/ISIN, SID/KIM, current scheme riskometer, fees and tracking disclosures. An underlying index is not a listed ETF.",
+            "Verify licensed live bid/ask, spread, NAV/iNAV, settlement, demat/KYC, broker permissions and actual exchange implementation; a circular is not an executable offer."
+          ]
+        }
       }
     },
     {
@@ -3307,7 +3637,40 @@
         "brokerDematKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "sebiEtfSecondaryMarket2026Review": {
+          "officialSebiTradingNormsCircularUrl": "https://www.sebi.gov.in/legal/circulars/jun-2026/norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-traded-funds-etfs-_102121.html",
+          "officialSebiTimelineExtensionUrl": "https://www.sebi.gov.in/legal/circulars/aug-2026/extension-of-timeline-for-implementation-of-provisions-of-sebi-circular-dated-june-15-2026-on-norms-for-base-price-price-bands-call-auction-in-pre-open-session-and-close-out-procedure-for-exchange-_104094.html",
+          "originalCircularIssuedOn": "2026-06-15",
+          "timelineExtensionIssuedOn": "2026-08-28",
+          "originalImplementationDate": "2026-09-01",
+          "revisedFrameworkEffectiveFrom": "2026-09-07",
+          "reviewedOn": "2026-10-30",
+          "categoryClass": "EQUITY_ETF",
+          "categoryInterpretation": "India Consumption theme ETF: consumer-sector cycles and ETF premium or discount risk persist; price-band rules are not a current tradable quote.",
+          "sourceScope": "GENERAL_SECONDARY_MARKET_ETF_TRADING_NORMS_NOT_SCHEME_OR_EXECUTABLE_QUOTE",
+          "priceBandBaseReference": "T_MINUS_1_LAST_30_MINUTE_VWAP_WITH_LAST_TRADE_OR_NAV_FALLBACK",
+          "initialDynamicBandPercent": 10,
+          "maximumFlexedBandPercent": 20,
+          "proposedTMinusOneNavBaseFrom": "2027-04-01",
+          "futureNavBaseOperationallyVerified": false,
+          "actualListedEtfAndIsinVerified": false,
+          "actualExchangeImplementationAndOrderbookVerified": false,
+          "liveExecutableBidAskAndNavVerified": false,
+          "individualBrokerDematKycAndRetailAccessVerified": false,
+          "commercialQuoteRedistributionRightsVerified": false,
+          "schemeRiskometerAndSuitabilityVerified": false,
+          "investmentAdviceAuthorizationVerified": false,
+          "priceBandsGuaranteeExecutionOrLimitInvestmentLoss": false,
+          "riskConsiderations": [
+            "Correlated domestic-demand, valuation and sector exposures persist despite multiple industries. A current fund-specific loss estimate is not verified.",
+            "Dynamic price bands can constrain orders; neither the band nor the previous-day base price guarantees a buyer, liquidity or realizable NAV."
+          ],
+          "investorAccessConstraints": [
+            "Independently verify actual AMC scheme, exchange ticker/ISIN, SID/KIM, current scheme riskometer, fees and tracking disclosures. An underlying index is not a listed ETF.",
+            "Verify licensed live bid/ask, spread, NAV/iNAV, settlement, demat/KYC, broker permissions and actual exchange implementation; a circular is not an executable offer."
+          ]
+        }
       }
     },
     {

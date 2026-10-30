@@ -1799,3 +1799,58 @@ test('October 2026 SM REIT trust registration and draft scheme filings remain di
  assert.equal(clean.finalSchemeOfferAndListingVerified,false);
  assert.ok(!clean.riskConsiderations.includes('FABRICATED LIQUIDITY'));
 });
+
+test('11 ETF archetypes separate September 2026 trading-band rules from quotes and eligibility',()=>{
+ const ids=["catalog_2026_etf_nifty100","catalog_2026_etf_nifty500","catalog_2026_etf_smallcap250","catalog_2026_etf_nifty50_equal","catalog_2026_etf_nifty100_equal","catalog_2026_etf_nifty200_quality","catalog_2026_etf_nifty500_lowvol","catalog_2026_etf_nifty500_momentum","catalog_2026_etf_india_defence","catalog_2026_etf_india_consumption","catalog_2026_gsec_debt_etf"];
+ const rows=listExtensionResearch();
+ const reviews=rows.filter(row=>row.etfBenchmarkReview?.sebiEtfSecondaryMarket2026Review
+  ||row.sebiDebtSchemeStructureReview?.sebiEtfSecondaryMarket2026Review);
+ assert.equal(reviews.length,11);
+ assert.deepEqual(reviews.map(row=>row.id).sort(),[...ids].sort());
+ const get=(months,goals)=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+  emergencyFundMonths:months,investmentGoals:goals,investmentHorizonYears:10,riskTolerance:'Aggressive',
+ })).map(row=>[row.id,row]));
+ const zero=get(0,['Wealth Growth']),missing=get(null,['Wealth Growth']);
+ const positive=get(6,['Wealth Growth']),goal=get(6,['Emergency Fund']);
+ const interpretations=new Set();
+ for(const row of reviews){
+  const e=row.etfBenchmarkReview?.sebiEtfSecondaryMarket2026Review
+   ||row.sebiDebtSchemeStructureReview?.sebiEtfSecondaryMarket2026Review;
+  assert.equal(e.originalCircularIssuedOn,'2026-06-15',row.id);
+  assert.equal(e.timelineExtensionIssuedOn,'2026-08-28',row.id);
+  assert.equal(e.originalImplementationDate,'2026-09-01',row.id);
+  assert.equal(e.revisedFrameworkEffectiveFrom,'2026-09-07',row.id);
+  assert.equal(e.reviewedOn,'2026-10-30',row.id);
+  assert.equal(e.categoryClass,row.id==='catalog_2026_gsec_debt_etf'?'DEBT_ETF':'EQUITY_ETF',row.id);
+  assert.equal(e.initialDynamicBandPercent,10,row.id);
+  assert.equal(e.maximumFlexedBandPercent,20,row.id);
+  assert.equal(e.proposedTMinusOneNavBaseFrom,'2027-04-01',row.id);
+  assert.match(e.officialSebiTradingNormsCircularUrl,/sebi\.gov\.in\/legal\/circulars\/jun-2026/);
+  assert.match(e.officialSebiTimelineExtensionUrl,/sebi\.gov\.in\/legal\/circulars\/aug-2026/);
+  assert.ok(e.riskConsiderations.length>=2&&e.investorAccessConstraints.length>=2,row.id);
+  interpretations.add(e.categoryInterpretation);
+  for(const field of ['actualListedEtfAndIsinVerified','actualExchangeImplementationAndOrderbookVerified',
+   'liveExecutableBidAskAndNavVerified','individualBrokerDematKycAndRetailAccessVerified',
+   'commercialQuoteRedistributionRightsVerified','schemeRiskometerAndSuitabilityVerified',
+   'investmentAdviceAuthorizationVerified','priceBandsGuaranteeExecutionOrLimitInvestmentLoss',
+   'futureNavBaseOperationallyVerified'])assert.equal(e[field],false,row.id+' '+field);
+  for(const group of [zero,missing,positive,goal]){
+   const item=group.get(row.id);
+   assert.ok(item.screeningReasonCodes.includes('SEBI_SEPT_2026_ETF_DYNAMIC_PRICE_BANDS_NOT_SCHEME_RISKOMETER_OR_EXECUTABLE_QUOTE'),row.id);
+   assert.ok(item.screeningReasonCodes.includes('ETF_T_MINUS_ONE_PRICE_BAND_BASE_NOT_LIVE_BID_ASK_OR_NAV'),row.id);
+   assert.equal(item.productQualified,false,row.id);
+   assert.equal(item.scoreAvailable,false,row.id);
+   assert.equal(item.productRiskLevel,null,row.id);
+  }
+  const zeroFlag='RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_ETF_PRICE_BAND_EXIT_AND_SETTLEMENT_REVIEW';
+  const goalFlag='EMERGENCY_FUND_GOAL_REQUIRES_ETF_EXCHANGE_EXECUTION_AND_ORDERBOOK_REVIEW';
+  assert.ok(zero.get(row.id).screeningReasonCodes.includes(zeroFlag),row.id);
+  assert.ok(!missing.get(row.id).screeningReasonCodes.includes(zeroFlag),row.id);
+  assert.ok(!positive.get(row.id).screeningReasonCodes.includes(zeroFlag),row.id);
+  assert.ok(goal.get(row.id).screeningReasonCodes.includes(goalFlag),row.id);
+  assert.ok(!positive.get(row.id).screeningReasonCodes.includes(goalFlag),row.id);
+ }
+ assert.equal(interpretations.size,11);
+ assert.equal(zero.size,95);
+ assert.equal([...zero.values()].filter(row=>row.productQualified).length,0);
+});
