@@ -497,6 +497,37 @@ if(research.entries.some(row=>{
   ||row.productRiskScore!==null||row.actualRetailProductEligible!==false
   ||row.sourcePermissionVerified!==false||row.suitabilityRankingPermitted!==false;
 }))throw new Error('FINANCIAL_FINAL_15_SOURCE_SCOPED_RESEARCH_INVALID');
+// A Silver ETF FoF is a separate scheme from its underlying silver ETF.
+// Current SEBI mutual-fund regulations and scheme disclosure rules cannot
+// substitute for current FoF/ETF riskometers, NAVs, fees or subscriber rights.
+const silverFofDisclosure=research.entries.find(row=>row.id==='catalog_2026_silver_fof')
+  ?.preciousMetalsCategoryReview?.october2026MutualFundRiskDisclosureReview;
+if(!silverFofDisclosure
+ ||silverFofDisclosure.officialSebiRegulationsUrl!=='https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-mutual-funds-regulations-2026-last-amended-on-october-10-2026-_105356.html'
+ ||silverFofDisclosure.officialSebiRiskometerDisclosureCircularUrl!=='https://www.sebi.gov.in/legal/circulars/nov-2024/disclosure-of-expenses-half-yearly-returns-yield-and-risk-o-meter-of-schemes-of-mutual-funds_88230.html'
+ ||silverFofDisclosure.regulationsInForceFrom!=='2026-04-01'
+ ||silverFofDisclosure.regulationsLastAmendedOn!=='2026-10-10'
+ ||silverFofDisclosure.riskometerCircularIssuedOn!=='2024-11-05'
+ ||silverFofDisclosure.riskometerCircularEffectiveFrom!=='2024-12-05'
+ ||silverFofDisclosure.reviewedOn!=='2026-10-30'
+ ||silverFofDisclosure.sourceScope!=='CURRENT_GENERAL_MF_REGULATIONS_AND_SCHEME_DISCLOSURE_RULES_NOT_VERIFIED_SILVER_FOF_OR_UNDERLYING_ETF'
+ ||silverFofDisclosure.schemeAndUnderlyingRiskometersMustNotBeConflated!==true
+ ||silverFofDisclosure.directAndRegularPlanExpenseDisclosuresAreSeparate!==true
+ ||silverFofDisclosure.schemeRiskometerChangesRequireSchemeHolderNotice!==true
+ ||typeof silverFofDisclosure.categoryInterpretation!=='string'
+ ||silverFofDisclosure.categoryInterpretation.length<90
+ ||!Array.isArray(silverFofDisclosure.riskConsiderations)
+ ||silverFofDisclosure.riskConsiderations.length<2
+ ||!Array.isArray(silverFofDisclosure.investorAccessConstraints)
+ ||silverFofDisclosure.investorAccessConstraints.length<2
+ ||['actualFoFSchemeAndPlanVerified','actualUnderlyingSilverEtfAndHoldingsVerified',
+    'currentFoFSchemeRiskometerVerified','currentUnderlyingEtfRiskometerVerified',
+    'currentFoFNavFeesAndExitTermsVerified','investorKycAndRetailAccessVerified',
+    'commercialNavAndQuoteReuseRightsVerified','personalizedAdviceAuthorizationVerified']
+   .some(key=>silverFofDisclosure[key]!==false)
+ ||research.entries.some(row=>row.id!=='catalog_2026_silver_fof'
+   &&row.preciousMetalsCategoryReview?.october2026MutualFundRiskDisclosureReview!==undefined))
+ throw new Error('FINANCIAL_SILVER_FOF_SCHEME_SPECIFIC_RISK_AND_ACCESS_EVIDENCE_INVALID');
 // SEBI's SM REIT register has a stale as-of header while displaying an October
 // 2026 trust registration. Its October draft scheme filings are not final offers
 // or evidence that any individual scheme's units are listed or accessible.
@@ -1363,8 +1394,17 @@ export function screenExtensionResearchForProfile(profileInput) {
      if(profile.investmentHorizonYears<=3||profile.investmentGoals.includes('Emergency Fund'))
        reasons.push('SIF_SHORT_HORIZON_OR_EMERGENCY_LIQUIDITY_REQUIRES_INTERVAL_EXIT_REVIEW');
    }
-   if(row.id==='catalog_2026_silver_fof')
+   if(row.id==='catalog_2026_silver_fof') {
      reasons.push('SILVER_FOF_UNDERLYING_ETF_RISKOMETER_NAV_TRACKING_AND_FEES_UNVERIFIED');
+     reasons.push('SEBI_OCT_2026_MF_REGULATIONS_NOT_SILVER_FOF_SCHEME_APPROVAL');
+     reasons.push('SILVER_FOF_AND_UNDERLYING_ETF_REQUIRE_SEPARATE_CURRENT_RISKOMETERS_AND_FEE_REVIEW');
+     if(profile.investmentHorizonYears<3)
+       reasons.push('SHORT_HORIZON_REQUIRES_SILVER_FOF_VOLATILITY_AND_REDEMPTION_SETTLEMENT_REVIEW');
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_SILVER_FOF_SCHEME_EXIT_AND_NAV_REVIEW');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_SILVER_FOF_COMMODITY_LOSS_CAPACITY_REVIEW');
+   }
    if(row.id.startsWith('catalog_2026_ncd_'))
      reasons.push('DEBT_CREDIT_SECURITY_AND_DISCLOSURES_REQUIRE_INSTRUMENT_REVIEW');
    if(profile.riskTolerance==='Conservative'

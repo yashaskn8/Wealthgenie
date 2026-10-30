@@ -1031,3 +1031,26 @@ test('11 ETF September 2026 exchange-trading reviews remain defensive educationa
   assert.ok(!clean.riskConsiderations.includes('FABRICATED EXECUTION'),id);
  }
 });
+
+test('silver ETF FoF educational disclosure remains deep-copied and never a purchasable product',()=>{
+ const id='catalog_2026_silver_fof';
+ const get=()=>listFinancialDiscoveryDirectory().items.find(item=>item.id===id);
+ const row=get(),research=row.frameworkResearch;
+ const review=research.preciousMetalsCategoryReview.october2026MutualFundRiskDisclosureReview;
+ assert.equal(review.regulationsLastAmendedOn,'2026-10-10');
+ assert.equal(review.riskometerCircularEffectiveFrom,'2024-12-05');
+ assert.equal(review.schemeAndUnderlyingRiskometersMustNotBeConflated,true);
+ assert.equal(review.currentFoFSchemeRiskometerVerified,false);
+ assert.equal(review.currentUnderlyingEtfRiskometerVerified,false);
+ assert.equal(review.commercialNavAndQuoteReuseRightsVerified,false);
+ assert.equal(row.recommendationEligible,false);
+ assert.equal(row.productAvailability,'NOT_VERIFIED');
+ assert.equal(row.dataRights,'NOT_VERIFIED');
+ assert.equal(research.actualRiskScore,null);
+ assert.ok(Object.values(row.productData).every(value=>value===null));
+ review.currentFoFSchemeRiskometerVerified=true;
+ review.riskConsiderations.push('FABRICATED SCHEME RISK');
+ const fresh=get().frameworkResearch.preciousMetalsCategoryReview.october2026MutualFundRiskDisclosureReview;
+ assert.equal(fresh.currentFoFSchemeRiskometerVerified,false);
+ assert.ok(!fresh.riskConsiderations.includes('FABRICATED SCHEME RISK'));
+});

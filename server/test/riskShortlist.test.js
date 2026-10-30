@@ -1911,3 +1911,63 @@ test('11 ETF archetypes separate September 2026 trading-band rules from quotes a
  assert.equal(zero.size,95);
  assert.equal([...zero.values()].filter(row=>row.productQualified).length,0);
 });
+
+test('silver ETF FoF has separate current scheme-risk and October 2026 regulatory boundaries',()=>{
+ const id='catalog_2026_silver_fof';
+ const get=()=>listExtensionResearch().find(row=>row.id===id);
+ const evidence=get().preciousMetalsCategoryReview.october2026MutualFundRiskDisclosureReview;
+ assert.equal(evidence.regulationsInForceFrom,'2026-04-01');
+ assert.equal(evidence.regulationsLastAmendedOn,'2026-10-10');
+ assert.equal(evidence.riskometerCircularIssuedOn,'2024-11-05');
+ assert.equal(evidence.riskometerCircularEffectiveFrom,'2024-12-05');
+ assert.equal(evidence.reviewedOn,'2026-10-30');
+ assert.match(evidence.officialSebiRegulationsUrl,/sebi\.gov\.in\/legal\/regulations\/oct-2026/);
+ assert.match(evidence.officialSebiRiskometerDisclosureCircularUrl,/sebi\.gov\.in\/legal\/circulars\/nov-2024/);
+ assert.equal(evidence.schemeAndUnderlyingRiskometersMustNotBeConflated,true);
+ assert.equal(evidence.directAndRegularPlanExpenseDisclosuresAreSeparate,true);
+ assert.equal(evidence.schemeRiskometerChangesRequireSchemeHolderNotice,true);
+ for(const field of ['actualFoFSchemeAndPlanVerified','actualUnderlyingSilverEtfAndHoldingsVerified',
+  'currentFoFSchemeRiskometerVerified','currentUnderlyingEtfRiskometerVerified',
+  'currentFoFNavFeesAndExitTermsVerified','investorKycAndRetailAccessVerified',
+  'commercialNavAndQuoteReuseRightsVerified','personalizedAdviceAuthorizationVerified'])
+  assert.equal(evidence[field],false,field);
+ const make=options=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+  riskTolerance:'Moderate',emergencyFundMonths:null,...options,
+ })).map(row=>[row.id,row]));
+ const ordinary=make({}),short=make({investmentHorizonYears:2}),
+  emergency=make({investmentGoals:['Emergency Fund']}),
+  conservative=make({riskTolerance:'Conservative'});
+ const common=[
+  'SEBI_OCT_2026_MF_REGULATIONS_NOT_SILVER_FOF_SCHEME_APPROVAL',
+  'SILVER_FOF_AND_UNDERLYING_ETF_REQUIRE_SEPARATE_CURRENT_RISKOMETERS_AND_FEE_REVIEW',
+ ];
+ for(const group of [ordinary,short,emergency,conservative]){
+  const row=group.get(id);
+  for(const flag of common)assert.ok(row.screeningReasonCodes.includes(flag),flag);
+  assert.equal(row.productQualified,false);
+  assert.equal(row.scoreAvailable,false);
+  assert.equal(row.productRiskLevel,null);
+  assert.equal(group.size,95);
+ }
+ const horizon='SHORT_HORIZON_REQUIRES_SILVER_FOF_VOLATILITY_AND_REDEMPTION_SETTLEMENT_REVIEW';
+ const goal='EMERGENCY_FUND_GOAL_REQUIRES_SILVER_FOF_SCHEME_EXIT_AND_NAV_REVIEW';
+ const risk='CONSERVATIVE_PROFILE_REQUIRES_SILVER_FOF_COMMODITY_LOSS_CAPACITY_REVIEW';
+ assert.ok(!ordinary.get(id).screeningReasonCodes.includes(horizon));
+ assert.ok(!ordinary.get(id).screeningReasonCodes.includes(goal));
+ assert.ok(!ordinary.get(id).screeningReasonCodes.includes(risk));
+ assert.ok(short.get(id).screeningReasonCodes.includes(horizon));
+ assert.ok(emergency.get(id).screeningReasonCodes.includes(goal));
+ assert.ok(conservative.get(id).screeningReasonCodes.includes(risk));
+ const profile=canonicalProfile({investmentGoals:['Wealth Growth']});
+ const result=buildRiskShortlist({profile,instruments:runPipeline(profile).instruments});
+ const item=result.catalogAssessments.find(row=>row.id===id);
+ assert.equal(item.productQualified,false);
+ assert.equal(item.scoreAvailable,false);
+ assert.ok(Object.values(result.groups).flat().every(row=>row.canonicalParentId!==id));
+ evidence.currentFoFSchemeRiskometerVerified=true;
+ evidence.riskConsiderations.push('FORGED');
+ const fresh=get().preciousMetalsCategoryReview.october2026MutualFundRiskDisclosureReview;
+ assert.equal(fresh.currentFoFSchemeRiskometerVerified,false);
+ assert.ok(!fresh.riskConsiderations.includes('FORGED'));
+});

@@ -7254,10 +7254,10 @@
     {
       "id": "catalog_2026_silver_fof",
       "exposureClass": "SILVER_COMMODITY_AND_FOF_COST",
-      "scenarioDescription": "Silver ETF Fund of Funds Strategy: Commodity Fund of Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
+      "scenarioDescription": "Silver ETF Fund of Funds strategy: an illustrative mutual-fund category investing through an underlying silver ETF, not an identified purchasable FoF. October 2026 SEBI mutual-fund regulations and November 2024 scheme-level risk-o-meter and plan-expense disclosures do not authenticate a named FoF, its underlying ETF, current riskometers, NAV, fees, investor access, or advice and data permissions.",
       "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": "2026-10-29",
+      "referenceReviewedAt": "2026-10-30",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -7291,17 +7291,49 @@
         "officialRiskAccessEvidenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
         "riskConsiderations": [
           "Underlying silver ETF price and tracking differences can transmit volatile commodity losses to a FoF's NAV.",
-          "Two fund layers, ETF spreads, liquidity and redemption settlement can increase realised costs and losses."
+          "Two fund layers, ETF spreads, liquidity and redemption settlement can increase realised costs and losses.",
+          "The FoF and its underlying silver ETF are separate schemes: a generic commodity risk label or an ETF's historical risk-o-meter cannot be copied into a current FoF risk-o-meter."
         ],
         "investorAccessConstraints": [
           "Verify actual current silver FoF and underlying ETF, AMC/ISIN, SID/KIM, riskometer, NAV and KYC; historical filings are not proof of live availability.",
-          "Check redemption terms, expense layers, tax classification, lawful licensed price data and investor permissions before any product display."
+          "Check redemption terms, expense layers, tax classification, lawful licensed price data and investor permissions before any product display.",
+          "Verify both schemes and their current risk disclosures, plus the FoF's actual direct/regular plan expenses, underlying ETF units, KYC, redemption terms and licensed NAV data."
         ],
         "specificInstrumentOrSchemeVerified": false,
         "currentPriceOrNavVerified": false,
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
-        "personalizedAdviceAuthorizationVerified": false
+        "personalizedAdviceAuthorizationVerified": false,
+        "october2026MutualFundRiskDisclosureReview": {
+          "officialSebiRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-mutual-funds-regulations-2026-last-amended-on-october-10-2026-_105356.html",
+          "officialSebiRiskometerDisclosureCircularUrl": "https://www.sebi.gov.in/legal/circulars/nov-2024/disclosure-of-expenses-half-yearly-returns-yield-and-risk-o-meter-of-schemes-of-mutual-funds_88230.html",
+          "regulationsInForceFrom": "2026-04-01",
+          "regulationsLastAmendedOn": "2026-10-10",
+          "riskometerCircularIssuedOn": "2024-11-05",
+          "riskometerCircularEffectiveFrom": "2024-12-05",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "CURRENT_GENERAL_MF_REGULATIONS_AND_SCHEME_DISCLOSURE_RULES_NOT_VERIFIED_SILVER_FOF_OR_UNDERLYING_ETF",
+          "categoryInterpretation": "A silver ETF FoF and its underlying ETF have distinct scheme portfolios, NAVs, costs and risk disclosures. The November 2024 SEBI circular standardises scheme risk-o-meter presentation and separate direct/regular plan expense disclosure; neither source verifies any current silver FoF or underlying ETF.",
+          "schemeAndUnderlyingRiskometersMustNotBeConflated": true,
+          "directAndRegularPlanExpenseDisclosuresAreSeparate": true,
+          "schemeRiskometerChangesRequireSchemeHolderNotice": true,
+          "actualFoFSchemeAndPlanVerified": false,
+          "actualUnderlyingSilverEtfAndHoldingsVerified": false,
+          "currentFoFSchemeRiskometerVerified": false,
+          "currentUnderlyingEtfRiskometerVerified": false,
+          "currentFoFNavFeesAndExitTermsVerified": false,
+          "investorKycAndRetailAccessVerified": false,
+          "commercialNavAndQuoteReuseRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Silver price movements and ETF tracking differences can affect FoF NAV, while a second fund layer may add costs and redemption settlement risk.",
+            "A published scheme risk-o-meter is not a price-loss guarantee, and the underlying ETF's risk disclosure is not a substitute for the FoF's own current disclosure."
+          ],
+          "investorAccessConstraints": [
+            "Check the named FoF and underlying ETF, latest SID/KIM, separate current risk disclosures and actual direct/regular plan expense information before assessing an investment.",
+            "Confirm actual investor KYC, account/transaction eligibility, current NAV and lawful data rights; regulatory publications grant no retail or personalized-advice approval."
+          ]
+        }
       }
     },
     {
