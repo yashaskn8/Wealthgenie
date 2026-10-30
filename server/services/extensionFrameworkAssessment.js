@@ -1312,7 +1312,11 @@ export function screenExtensionResearchForProfile(profileInput) {
        reasons.push('DYNAMIC_FOF_ALLOCATION_NOT_FIXED_OR_VERIFIED');
    }
    if(row.preciousMetalsCategoryReview){
-     reasons.push('PHYSICAL_BULLION_ASSAY_DEALER_SPREAD_CUSTODY_AND_RESALE_UNVERIFIED');
+     // Physical custody, assay and dealer-spread warnings do not describe
+     // an investor's holdings in a silver ETF fund-of-funds archetype.
+     if(row.id==='catalog_2026_physical_gold_bullion'
+       ||row.id==='catalog_2026_physical_silver_bullion')
+       reasons.push('PHYSICAL_BULLION_ASSAY_DEALER_SPREAD_CUSTODY_AND_RESALE_UNVERIFIED');
      if(row.id==='catalog_2026_physical_silver_bullion')
        reasons.push('SILVER_JEWELLERY_HALLMARK_NOT_BULLION_CERTIFICATION');
    }

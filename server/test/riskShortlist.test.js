@@ -648,7 +648,8 @@ test('all 28 reviewed fund, thematic, debt, metal and individual categories stay
    riskTolerance:'Aggressive',investmentHorizonYears:10,investmentGoals:['Retirement'],
  }));
  for(const row of rows){
-   assert.equal(row.referenceReviewedAt,'2026-10-29',row.id);
+   assert.equal(row.referenceReviewedAt,
+     row.id==='catalog_2026_silver_fof'?'2026-10-30':'2026-10-29',row.id);
    assert.equal(row.productRiskScore,null,row.id);
    assert.equal(row.actualRetailProductEligible,false,row.id);
    assert.equal(row.sourcePermissionVerified,false,row.id);
@@ -1950,6 +1951,14 @@ test('silver ETF FoF has separate current scheme-risk and October 2026 regulator
   assert.equal(row.scoreAvailable,false);
   assert.equal(row.productRiskLevel,null);
   assert.equal(group.size,95);
+ }
+ // A silver FoF has scheme/underlying ETF risks, not direct bullion assay/custody.
+ const physical='PHYSICAL_BULLION_ASSAY_DEALER_SPREAD_CUSTODY_AND_RESALE_UNVERIFIED';
+ for(const group of [ordinary,short,emergency,conservative]){
+  assert.ok(!group.get(id).screeningReasonCodes.includes(physical));
+  for(const physicalId of ['catalog_2026_physical_gold_bullion',
+   'catalog_2026_physical_silver_bullion'])
+   assert.ok(group.get(physicalId).screeningReasonCodes.includes(physical));
  }
  const horizon='SHORT_HORIZON_REQUIRES_SILVER_FOF_VOLATILITY_AND_REDEMPTION_SETTLEMENT_REVIEW';
  const goal='EMERGENCY_FUND_GOAL_REQUIRES_SILVER_FOF_SCHEME_EXIT_AND_NAV_REVIEW';
