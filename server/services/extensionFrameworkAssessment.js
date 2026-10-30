@@ -73,6 +73,35 @@ export function isOfficialFrameworkReferenceUrl(value) {
 }
 // A framework citation without separate, nonempty category risk and access
 // research is incomplete. Exactly one category review must back each archetype.
+// The 28 August 2026 PFRDA PDF itself prints circular 47; the website
+// listing displays 48. Preserve that provenance discrepancy rather than
+// silently treating the listing number as the PDF's identifier.
+const npsPresentationCircularPdfUrl="https://www.pfrda.org.in/documents/33652/154008/Circular%2B-%2BStandardised%2Bframework%2Bfor%2Bclassification%2Band%2Bpresentation%2Bof%2BSchemes%2Bunder%2Bthe%2BNPS.pdf";
+const npsPresentationClassification=Object.freeze({"catalog_2026_nps_lc25":"LIFECYCLE","catalog_2026_nps_lc50":"LIFECYCLE","catalog_2026_nps_lc75":"LIFECYCLE","catalog_2026_nps_lc_aggressive":"LIFECYCLE","catalog_2026_nps_asset_e":"ACTIVE_CHOICE","catalog_2026_nps_asset_c":"ACTIVE_CHOICE","catalog_2026_nps_asset_g":"ACTIVE_CHOICE","catalog_2026_nps_asset_a":"ACTIVE_CHOICE_A_NOT_LISTED","catalog_2026_nps_vatsalya":"FOUR_A"});
+const validNpsPresentationReview=row=>{
+ const expected=npsPresentationClassification[row.id];
+ const review=row.npsCommonSchemeReview||row.npsVatsalyaAccessReview;
+ const e=review?.schemePresentation2026Review;
+ if(!expected)return e===undefined;
+ return e?.officialPfrdaCircularPdfUrl===npsPresentationCircularPdfUrl
+  &&e.circularNumberPrintedInPdf==='PFRDA/2026/47/REG-PF/10'
+  &&e.websiteListingShowsNumber==='PFRDA/2026/48/REG-PF/10'
+  &&e.pdfAndWebsiteListingCircularNumberDiscrepancyNoted===true
+  &&e.issuedOn==='2026-08-28'&&e.reviewedOn==='2026-10-30'
+  &&e.sourceScope==='PFRDA_SCHEME_PRESENTATION_AND_SELECTION_NOT_INDIVIDUAL_RISKOMETER_OR_ELIGIBILITY'
+  &&e.schemeClassification===expected
+  &&typeof e.categoryInterpretation==='string'&&e.categoryInterpretation.length>=80
+  &&e.governmentSectorAccountsExcludedFromCircular===true
+  &&e.subscriberFacingComparisonIncludesRiskometerReturnsChargesAum===true
+  &&e.pensionFundSelectionAfterSchemeTypeAndCategory===true
+  &&e.lifecycleOrActiveChoiceOneAtATimePerPran===true
+  &&e.generalTwoSchemeOrFundChangeRequestsPerAccountPerFinancialYear===true
+  &&Array.isArray(e.riskConsiderations)&&e.riskConsiderations.length>=2
+  &&Array.isArray(e.investorAccessConstraints)&&e.investorAccessConstraints.length>=2
+  &&['actualPensionFundAndSchemeVerified','currentSchemeSpecificRiskometerAndNavVerified',
+    'individualPranSectorAndEligibilityVerified','applicableChargesAndTransactionRightsVerified',
+    'licensedMarketDataAndAdviceRightsVerified'].every(key=>e[key]===false);
+};
 const categoryRiskAccessReviewKeys=Object.freeze([
  'postalSavingsAccessReview','rbiRetailDirectAccessReview','sgsStripsAccessReview',
  'governmentBondStructureReview','bankDepositAccessReview','nbfcPublicDepositAccessReview',
@@ -96,6 +125,7 @@ export function hasCompleteCategoryRiskAccessResearch(row) {
 if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries?.length!==95
   || universe.length!==95 || legacyIds.size!==155
   || research.entries.some(row=>!hasCompleteCategoryRiskAccessResearch(row))
+  || research.entries.some(row=>!validNpsPresentationReview(row))
   || research.entries.some(x=>!isOfficialFrameworkReferenceUrl(x.referenceUrl)
     || !isOfficialFrameworkReferenceUrl(x.verifiedPublicFrameworkFact?.officialSourceUrl))
   || new Set(research.entries.map(x=>x.id)).size!==95
@@ -732,6 +762,14 @@ export function screenExtensionResearchForProfile(profileInput) {
  const profile=buildRecommendationProfile(profileInput);
  return research.entries.map(row=>{
    const reasons=['INDIVIDUAL_PRODUCT_RISK_ELIGIBILITY_NOT_ESTABLISHED'];
+   if(row.npsCommonSchemeReview?.schemePresentation2026Review
+     ||row.npsVatsalyaAccessReview?.schemePresentation2026Review){
+     reasons.push('PFRDA_AUG_2026_SCHEME_PRESENTATION_NOT_ACTUAL_RISKOMETER_NAV_OR_ELIGIBILITY');
+     if(row.id==='catalog_2026_nps_asset_a')
+       reasons.push('NPS_CLASS_A_NOT_IN_AUG_2026_ACTIVE_CHOICE_TABLE_VERIFY_CURRENT_AVAILABILITY');
+     if(row.id==='catalog_2026_nps_vatsalya')
+       reasons.push('NPS_VATSALYA_FOUR_A_SPECIFIC_GUARDIAN_AND_SCHEME_TERMS_REQUIRED');
+   }
    // Current SEBI mutual-fund regulations are general legal context, not
    // evidence of a named scheme's risk-o-meter, availability or advice rights.
    if(row.sebiDebtSchemeStructureReview?.mutualFundRegulationsOct2026Review)

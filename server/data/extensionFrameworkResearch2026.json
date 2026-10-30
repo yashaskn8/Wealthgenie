@@ -3197,6 +3197,36 @@
           "individualNavFeeImpactVerified": false,
           "commercialNavRightsVerified": false,
           "individualSuitabilityVerified": false
+        },
+        "schemePresentation2026Review": {
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Circular%2B-%2BStandardised%2Bframework%2Bfor%2Bclassification%2Band%2Bpresentation%2Bof%2BSchemes%2Bunder%2Bthe%2BNPS.pdf",
+          "circularNumberPrintedInPdf": "PFRDA/2026/47/REG-PF/10",
+          "issuedOn": "2026-08-28",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "PFRDA_SCHEME_PRESENTATION_AND_SELECTION_NOT_INDIVIDUAL_RISKOMETER_OR_ELIGIBILITY",
+          "categoryName": "Life Cycle 25 – Low",
+          "schemeClassification": "LIFECYCLE",
+          "categoryInterpretation": "25% equity through age 35, tapering to 5% by age 55; lower equity exposure does not eliminate drawdown, bond NAV or withdrawal risk.",
+          "pdfAndWebsiteListingCircularNumberDiscrepancyNoted": true,
+          "websiteListingShowsNumber": "PFRDA/2026/48/REG-PF/10",
+          "governmentSectorAccountsExcludedFromCircular": true,
+          "subscriberFacingComparisonIncludesRiskometerReturnsChargesAum": true,
+          "pensionFundSelectionAfterSchemeTypeAndCategory": true,
+          "lifecycleOrActiveChoiceOneAtATimePerPran": true,
+          "generalTwoSchemeOrFundChangeRequestsPerAccountPerFinancialYear": true,
+          "actualPensionFundAndSchemeVerified": false,
+          "currentSchemeSpecificRiskometerAndNavVerified": false,
+          "individualPranSectorAndEligibilityVerified": false,
+          "applicableChargesAndTransactionRightsVerified": false,
+          "licensedMarketDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "25% equity through age 35, tapering to 5% by age 55; lower equity exposure does not eliminate drawdown, bond NAV or withdrawal risk.",
+            "Published asset-allocation ceilings or lifecycle paths are not the actual pension-fund holdings, current NAV, historical return, or scheme-specific riskometer."
+          ],
+          "investorAccessConstraints": [
+            "The circular excludes Government-sector-tagged accounts; subscriber sector, PRAN, account type and actual choice eligibility are not verified.",
+            "The subscriber-facing comparison requirement does not authenticate any selected pension fund, scheme riskometer, NAV, fees, permissions or advice entitlement."
+          ]
         }
       }
     },
@@ -3289,6 +3319,36 @@
           "individualNavFeeImpactVerified": false,
           "commercialNavRightsVerified": false,
           "individualSuitabilityVerified": false
+        },
+        "schemePresentation2026Review": {
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Circular%2B-%2BStandardised%2Bframework%2Bfor%2Bclassification%2Band%2Bpresentation%2Bof%2BSchemes%2Bunder%2Bthe%2BNPS.pdf",
+          "circularNumberPrintedInPdf": "PFRDA/2026/47/REG-PF/10",
+          "issuedOn": "2026-08-28",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "PFRDA_SCHEME_PRESENTATION_AND_SELECTION_NOT_INDIVIDUAL_RISKOMETER_OR_ELIGIBILITY",
+          "categoryName": "Life Cycle 50 – Moderate",
+          "schemeClassification": "LIFECYCLE",
+          "categoryInterpretation": "50% equity through age 35, tapering to 10% by age 55; equity losses and debt duration remain possible.",
+          "pdfAndWebsiteListingCircularNumberDiscrepancyNoted": true,
+          "websiteListingShowsNumber": "PFRDA/2026/48/REG-PF/10",
+          "governmentSectorAccountsExcludedFromCircular": true,
+          "subscriberFacingComparisonIncludesRiskometerReturnsChargesAum": true,
+          "pensionFundSelectionAfterSchemeTypeAndCategory": true,
+          "lifecycleOrActiveChoiceOneAtATimePerPran": true,
+          "generalTwoSchemeOrFundChangeRequestsPerAccountPerFinancialYear": true,
+          "actualPensionFundAndSchemeVerified": false,
+          "currentSchemeSpecificRiskometerAndNavVerified": false,
+          "individualPranSectorAndEligibilityVerified": false,
+          "applicableChargesAndTransactionRightsVerified": false,
+          "licensedMarketDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "50% equity through age 35, tapering to 10% by age 55; equity losses and debt duration remain possible.",
+            "Published asset-allocation ceilings or lifecycle paths are not the actual pension-fund holdings, current NAV, historical return, or scheme-specific riskometer."
+          ],
+          "investorAccessConstraints": [
+            "The circular excludes Government-sector-tagged accounts; subscriber sector, PRAN, account type and actual choice eligibility are not verified.",
+            "The subscriber-facing comparison requirement does not authenticate any selected pension fund, scheme riskometer, NAV, fees, permissions or advice entitlement."
+          ]
         }
       }
     },
@@ -3381,6 +3441,36 @@
           "individualNavFeeImpactVerified": false,
           "commercialNavRightsVerified": false,
           "individualSuitabilityVerified": false
+        },
+        "schemePresentation2026Review": {
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Circular%2B-%2BStandardised%2Bframework%2Bfor%2Bclassification%2Band%2Bpresentation%2Bof%2BSchemes%2Bunder%2Bthe%2BNPS.pdf",
+          "circularNumberPrintedInPdf": "PFRDA/2026/47/REG-PF/10",
+          "issuedOn": "2026-08-28",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "PFRDA_SCHEME_PRESENTATION_AND_SELECTION_NOT_INDIVIDUAL_RISKOMETER_OR_ELIGIBILITY",
+          "categoryName": "Life Cycle 75 – High",
+          "schemeClassification": "LIFECYCLE",
+          "categoryInterpretation": "75% equity through age 35, tapering to 15% by age 55; a higher initial equity mandate may entail material market drawdowns.",
+          "pdfAndWebsiteListingCircularNumberDiscrepancyNoted": true,
+          "websiteListingShowsNumber": "PFRDA/2026/48/REG-PF/10",
+          "governmentSectorAccountsExcludedFromCircular": true,
+          "subscriberFacingComparisonIncludesRiskometerReturnsChargesAum": true,
+          "pensionFundSelectionAfterSchemeTypeAndCategory": true,
+          "lifecycleOrActiveChoiceOneAtATimePerPran": true,
+          "generalTwoSchemeOrFundChangeRequestsPerAccountPerFinancialYear": true,
+          "actualPensionFundAndSchemeVerified": false,
+          "currentSchemeSpecificRiskometerAndNavVerified": false,
+          "individualPranSectorAndEligibilityVerified": false,
+          "applicableChargesAndTransactionRightsVerified": false,
+          "licensedMarketDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "75% equity through age 35, tapering to 15% by age 55; a higher initial equity mandate may entail material market drawdowns.",
+            "Published asset-allocation ceilings or lifecycle paths are not the actual pension-fund holdings, current NAV, historical return, or scheme-specific riskometer."
+          ],
+          "investorAccessConstraints": [
+            "The circular excludes Government-sector-tagged accounts; subscriber sector, PRAN, account type and actual choice eligibility are not verified.",
+            "The subscriber-facing comparison requirement does not authenticate any selected pension fund, scheme riskometer, NAV, fees, permissions or advice entitlement."
+          ]
         }
       }
     },
@@ -3473,6 +3563,36 @@
           "individualNavFeeImpactVerified": false,
           "commercialNavRightsVerified": false,
           "individualSuitabilityVerified": false
+        },
+        "schemePresentation2026Review": {
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Circular%2B-%2BStandardised%2Bframework%2Bfor%2Bclassification%2Band%2Bpresentation%2Bof%2BSchemes%2Bunder%2Bthe%2BNPS.pdf",
+          "circularNumberPrintedInPdf": "PFRDA/2026/47/REG-PF/10",
+          "issuedOn": "2026-08-28",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "PFRDA_SCHEME_PRESENTATION_AND_SELECTION_NOT_INDIVIDUAL_RISKOMETER_OR_ELIGIBILITY",
+          "categoryName": "Life Cycle Aggressive",
+          "schemeClassification": "LIFECYCLE",
+          "categoryInterpretation": "50% equity through age 45, tapering to 35% by age 55; this differs from LC75 and can retain meaningful late-career equity risk.",
+          "pdfAndWebsiteListingCircularNumberDiscrepancyNoted": true,
+          "websiteListingShowsNumber": "PFRDA/2026/48/REG-PF/10",
+          "governmentSectorAccountsExcludedFromCircular": true,
+          "subscriberFacingComparisonIncludesRiskometerReturnsChargesAum": true,
+          "pensionFundSelectionAfterSchemeTypeAndCategory": true,
+          "lifecycleOrActiveChoiceOneAtATimePerPran": true,
+          "generalTwoSchemeOrFundChangeRequestsPerAccountPerFinancialYear": true,
+          "actualPensionFundAndSchemeVerified": false,
+          "currentSchemeSpecificRiskometerAndNavVerified": false,
+          "individualPranSectorAndEligibilityVerified": false,
+          "applicableChargesAndTransactionRightsVerified": false,
+          "licensedMarketDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "50% equity through age 45, tapering to 35% by age 55; this differs from LC75 and can retain meaningful late-career equity risk.",
+            "Published asset-allocation ceilings or lifecycle paths are not the actual pension-fund holdings, current NAV, historical return, or scheme-specific riskometer."
+          ],
+          "investorAccessConstraints": [
+            "The circular excludes Government-sector-tagged accounts; subscriber sector, PRAN, account type and actual choice eligibility are not verified.",
+            "The subscriber-facing comparison requirement does not authenticate any selected pension fund, scheme riskometer, NAV, fees, permissions or advice entitlement."
+          ]
         }
       }
     },
@@ -3565,6 +3685,36 @@
           "individualNavFeeImpactVerified": false,
           "commercialNavRightsVerified": false,
           "individualSuitabilityVerified": false
+        },
+        "schemePresentation2026Review": {
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Circular%2B-%2BStandardised%2Bframework%2Bfor%2Bclassification%2Band%2Bpresentation%2Bof%2BSchemes%2Bunder%2Bthe%2BNPS.pdf",
+          "circularNumberPrintedInPdf": "PFRDA/2026/47/REG-PF/10",
+          "issuedOn": "2026-08-28",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "PFRDA_SCHEME_PRESENTATION_AND_SELECTION_NOT_INDIVIDUAL_RISKOMETER_OR_ELIGIBILITY",
+          "categoryName": "Equity E",
+          "schemeClassification": "ACTIVE_CHOICE",
+          "categoryInterpretation": "Active Choice E is listed at up to 75% equity in Tier I and 100% in Tier II; neither cap verifies a specific subscriber allocation or NAV.",
+          "pdfAndWebsiteListingCircularNumberDiscrepancyNoted": true,
+          "websiteListingShowsNumber": "PFRDA/2026/48/REG-PF/10",
+          "governmentSectorAccountsExcludedFromCircular": true,
+          "subscriberFacingComparisonIncludesRiskometerReturnsChargesAum": true,
+          "pensionFundSelectionAfterSchemeTypeAndCategory": true,
+          "lifecycleOrActiveChoiceOneAtATimePerPran": true,
+          "generalTwoSchemeOrFundChangeRequestsPerAccountPerFinancialYear": true,
+          "actualPensionFundAndSchemeVerified": false,
+          "currentSchemeSpecificRiskometerAndNavVerified": false,
+          "individualPranSectorAndEligibilityVerified": false,
+          "applicableChargesAndTransactionRightsVerified": false,
+          "licensedMarketDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "Active Choice E is listed at up to 75% equity in Tier I and 100% in Tier II; neither cap verifies a specific subscriber allocation or NAV.",
+            "Published asset-allocation ceilings or lifecycle paths are not the actual pension-fund holdings, current NAV, historical return, or scheme-specific riskometer."
+          ],
+          "investorAccessConstraints": [
+            "The circular excludes Government-sector-tagged accounts; subscriber sector, PRAN, account type and actual choice eligibility are not verified.",
+            "The subscriber-facing comparison requirement does not authenticate any selected pension fund, scheme riskometer, NAV, fees, permissions or advice entitlement."
+          ]
         }
       }
     },
@@ -3657,6 +3807,36 @@
           "individualNavFeeImpactVerified": false,
           "commercialNavRightsVerified": false,
           "individualSuitabilityVerified": false
+        },
+        "schemePresentation2026Review": {
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Circular%2B-%2BStandardised%2Bframework%2Bfor%2Bclassification%2Band%2Bpresentation%2Bof%2BSchemes%2Bunder%2Bthe%2BNPS.pdf",
+          "circularNumberPrintedInPdf": "PFRDA/2026/47/REG-PF/10",
+          "issuedOn": "2026-08-28",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "PFRDA_SCHEME_PRESENTATION_AND_SELECTION_NOT_INDIVIDUAL_RISKOMETER_OR_ELIGIBILITY",
+          "categoryName": "Corporate Bonds C",
+          "schemeClassification": "ACTIVE_CHOICE",
+          "categoryInterpretation": "Active Choice C permits up to 100% corporate bonds; credit and interest-rate losses remain possible and no particular portfolio is authenticated.",
+          "pdfAndWebsiteListingCircularNumberDiscrepancyNoted": true,
+          "websiteListingShowsNumber": "PFRDA/2026/48/REG-PF/10",
+          "governmentSectorAccountsExcludedFromCircular": true,
+          "subscriberFacingComparisonIncludesRiskometerReturnsChargesAum": true,
+          "pensionFundSelectionAfterSchemeTypeAndCategory": true,
+          "lifecycleOrActiveChoiceOneAtATimePerPran": true,
+          "generalTwoSchemeOrFundChangeRequestsPerAccountPerFinancialYear": true,
+          "actualPensionFundAndSchemeVerified": false,
+          "currentSchemeSpecificRiskometerAndNavVerified": false,
+          "individualPranSectorAndEligibilityVerified": false,
+          "applicableChargesAndTransactionRightsVerified": false,
+          "licensedMarketDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "Active Choice C permits up to 100% corporate bonds; credit and interest-rate losses remain possible and no particular portfolio is authenticated.",
+            "Published asset-allocation ceilings or lifecycle paths are not the actual pension-fund holdings, current NAV, historical return, or scheme-specific riskometer."
+          ],
+          "investorAccessConstraints": [
+            "The circular excludes Government-sector-tagged accounts; subscriber sector, PRAN, account type and actual choice eligibility are not verified.",
+            "The subscriber-facing comparison requirement does not authenticate any selected pension fund, scheme riskometer, NAV, fees, permissions or advice entitlement."
+          ]
         }
       }
     },
@@ -3749,6 +3929,36 @@
           "individualNavFeeImpactVerified": false,
           "commercialNavRightsVerified": false,
           "individualSuitabilityVerified": false
+        },
+        "schemePresentation2026Review": {
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Circular%2B-%2BStandardised%2Bframework%2Bfor%2Bclassification%2Band%2Bpresentation%2Bof%2BSchemes%2Bunder%2Bthe%2BNPS.pdf",
+          "circularNumberPrintedInPdf": "PFRDA/2026/47/REG-PF/10",
+          "issuedOn": "2026-08-28",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "PFRDA_SCHEME_PRESENTATION_AND_SELECTION_NOT_INDIVIDUAL_RISKOMETER_OR_ELIGIBILITY",
+          "categoryName": "Government Securities G",
+          "schemeClassification": "ACTIVE_CHOICE",
+          "categoryInterpretation": "Active Choice G permits up to 100% government securities; duration and NAV losses remain possible despite government issuer exposure.",
+          "pdfAndWebsiteListingCircularNumberDiscrepancyNoted": true,
+          "websiteListingShowsNumber": "PFRDA/2026/48/REG-PF/10",
+          "governmentSectorAccountsExcludedFromCircular": true,
+          "subscriberFacingComparisonIncludesRiskometerReturnsChargesAum": true,
+          "pensionFundSelectionAfterSchemeTypeAndCategory": true,
+          "lifecycleOrActiveChoiceOneAtATimePerPran": true,
+          "generalTwoSchemeOrFundChangeRequestsPerAccountPerFinancialYear": true,
+          "actualPensionFundAndSchemeVerified": false,
+          "currentSchemeSpecificRiskometerAndNavVerified": false,
+          "individualPranSectorAndEligibilityVerified": false,
+          "applicableChargesAndTransactionRightsVerified": false,
+          "licensedMarketDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "Active Choice G permits up to 100% government securities; duration and NAV losses remain possible despite government issuer exposure.",
+            "Published asset-allocation ceilings or lifecycle paths are not the actual pension-fund holdings, current NAV, historical return, or scheme-specific riskometer."
+          ],
+          "investorAccessConstraints": [
+            "The circular excludes Government-sector-tagged accounts; subscriber sector, PRAN, account type and actual choice eligibility are not verified.",
+            "The subscriber-facing comparison requirement does not authenticate any selected pension fund, scheme riskometer, NAV, fees, permissions or advice entitlement."
+          ]
         }
       }
     },
@@ -3841,6 +4051,36 @@
           "individualNavFeeImpactVerified": false,
           "commercialNavRightsVerified": false,
           "individualSuitabilityVerified": false
+        },
+        "schemePresentation2026Review": {
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Circular%2B-%2BStandardised%2Bframework%2Bfor%2Bclassification%2Band%2Bpresentation%2Bof%2BSchemes%2Bunder%2Bthe%2BNPS.pdf",
+          "circularNumberPrintedInPdf": "PFRDA/2026/47/REG-PF/10",
+          "issuedOn": "2026-08-28",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "PFRDA_SCHEME_PRESENTATION_AND_SELECTION_NOT_INDIVIDUAL_RISKOMETER_OR_ELIGIBILITY",
+          "categoryName": "Alternatives A",
+          "schemeClassification": "ACTIVE_CHOICE_A_NOT_LISTED",
+          "categoryInterpretation": "The August 2026 standard Active Choice table lists E, C and G, not A. This omission alone neither bans A nor verifies its current availability, 5% cap or subscriber permissions; confirm applicable rules and channel.",
+          "pdfAndWebsiteListingCircularNumberDiscrepancyNoted": true,
+          "websiteListingShowsNumber": "PFRDA/2026/48/REG-PF/10",
+          "governmentSectorAccountsExcludedFromCircular": true,
+          "subscriberFacingComparisonIncludesRiskometerReturnsChargesAum": true,
+          "pensionFundSelectionAfterSchemeTypeAndCategory": true,
+          "lifecycleOrActiveChoiceOneAtATimePerPran": true,
+          "generalTwoSchemeOrFundChangeRequestsPerAccountPerFinancialYear": true,
+          "actualPensionFundAndSchemeVerified": false,
+          "currentSchemeSpecificRiskometerAndNavVerified": false,
+          "individualPranSectorAndEligibilityVerified": false,
+          "applicableChargesAndTransactionRightsVerified": false,
+          "licensedMarketDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "The August 2026 standard Active Choice table lists E, C and G, not A. This omission alone neither bans A nor verifies its current availability, 5% cap or subscriber permissions; confirm applicable rules and channel.",
+            "Published asset-allocation ceilings or lifecycle paths are not the actual pension-fund holdings, current NAV, historical return, or scheme-specific riskometer."
+          ],
+          "investorAccessConstraints": [
+            "The circular excludes Government-sector-tagged accounts; subscriber sector, PRAN, account type and actual choice eligibility are not verified.",
+            "The circular's Active Choice E/C/G table does not list A; do not presume an A option is available or forbidden without current PFRDA and subscriber-channel confirmation."
+          ]
         }
       }
     },
@@ -3972,6 +4212,36 @@
           "schemeNavRiskometerAndMarketDataRightsVerified": false,
           "personalizedAdviceAuthorizationVerified": false,
           "sourceScope": "EFFECTIVE_PFRDA_2026_SCHEME_RULES_AND_STALE_FAQ_CONFLICT_NOT_ACCOUNT_APPROVAL"
+        },
+        "schemePresentation2026Review": {
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Circular%2B-%2BStandardised%2Bframework%2Bfor%2Bclassification%2Band%2Bpresentation%2Bof%2BSchemes%2Bunder%2Bthe%2BNPS.pdf",
+          "circularNumberPrintedInPdf": "PFRDA/2026/47/REG-PF/10",
+          "issuedOn": "2026-08-28",
+          "reviewedOn": "2026-10-30",
+          "sourceScope": "PFRDA_SCHEME_PRESENTATION_AND_SELECTION_NOT_INDIVIDUAL_RISKOMETER_OR_ELIGIBILITY",
+          "categoryName": "NPS Vatsalya",
+          "schemeClassification": "FOUR_A",
+          "categoryInterpretation": "NPS Vatsalya is a 4A scheme with allocation, charges and eligibility governed by its own guidelines; it is not an ordinary adult Active Choice or lifecycle scheme.",
+          "pdfAndWebsiteListingCircularNumberDiscrepancyNoted": true,
+          "websiteListingShowsNumber": "PFRDA/2026/48/REG-PF/10",
+          "governmentSectorAccountsExcludedFromCircular": true,
+          "subscriberFacingComparisonIncludesRiskometerReturnsChargesAum": true,
+          "pensionFundSelectionAfterSchemeTypeAndCategory": true,
+          "lifecycleOrActiveChoiceOneAtATimePerPran": true,
+          "generalTwoSchemeOrFundChangeRequestsPerAccountPerFinancialYear": true,
+          "actualPensionFundAndSchemeVerified": false,
+          "currentSchemeSpecificRiskometerAndNavVerified": false,
+          "individualPranSectorAndEligibilityVerified": false,
+          "applicableChargesAndTransactionRightsVerified": false,
+          "licensedMarketDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "NPS Vatsalya is a 4A scheme with allocation, charges and eligibility governed by its own guidelines; it is not an ordinary adult Active Choice or lifecycle scheme.",
+            "4A terms, vesting and withdrawal rules must be assessed under NPS Vatsalya-specific guidelines; a general scheme comparison is not a personal risk score."
+          ],
+          "investorAccessConstraints": [
+            "NPS Vatsalya is a 4A category; guardian, minor-beneficiary, fund and account permissions require current scheme-specific verification.",
+            "The subscriber-facing comparison requirement does not authenticate any selected pension fund, scheme riskometer, NAV, fees, permissions or advice entitlement."
+          ]
         }
       }
     },

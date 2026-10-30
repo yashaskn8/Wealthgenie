@@ -900,3 +900,26 @@ test('October 2026 AIF dispute evidence remains educational and defensively copi
   assert.ok(!fresh.riskConsiderations.includes('FABRICATED GUARANTEE'),id);
  }
 });
+
+
+test('PFRDA scheme-presentation research for nine NPS archetypes is defensively copied',()=>{
+ const get=id=>listFinancialDiscoveryDirectory().items.find(row=>row.id===id);
+ const ids=['catalog_2026_nps_lc25','catalog_2026_nps_lc50','catalog_2026_nps_lc75',
+  'catalog_2026_nps_lc_aggressive','catalog_2026_nps_asset_e','catalog_2026_nps_asset_c',
+  'catalog_2026_nps_asset_g','catalog_2026_nps_asset_a','catalog_2026_nps_vatsalya'];
+ for(const id of ids){
+  const item=get(id),research=item.frameworkResearch;
+  const review=(research.npsCommonSchemeReview||research.npsVatsalyaAccessReview).schemePresentation2026Review;
+  assert.equal(review.currentSchemeSpecificRiskometerAndNavVerified,false,id);
+  assert.equal(review.individualPranSectorAndEligibilityVerified,false,id);
+  assert.equal(item.recommendationEligible,false,id);
+  assert.equal(item.dataRights,'NOT_VERIFIED',id);
+  assert.ok(Object.values(item.productData).every(value=>value===null),id);
+  review.currentSchemeSpecificRiskometerAndNavVerified=true;
+  review.investorAccessConstraints.push('FABRICATED ELIGIBILITY');
+  const fresh=get(id).frameworkResearch;
+  const clean=(fresh.npsCommonSchemeReview||fresh.npsVatsalyaAccessReview).schemePresentation2026Review;
+  assert.equal(clean.currentSchemeSpecificRiskometerAndNavVerified,false,id);
+  assert.ok(!clean.investorAccessConstraints.includes('FABRICATED ELIGIBILITY'),id);
+ }
+});

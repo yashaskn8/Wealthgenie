@@ -1628,3 +1628,36 @@ test('seven AIF categories distinguish October 2026 Regulation 25 from product a
  assert.equal(screen.size,95);
  assert.equal([...screen.values()].filter(row=>row.productQualified).length,0);
 });
+
+
+test('nine NPS categories distinguish August 2026 PFRDA scheme presentation from actual access',()=>{
+ const rows=listExtensionResearch().filter(row=>row.id.startsWith('catalog_2026_nps_'));
+ assert.equal(rows.length,9);
+ const screened=new Map(screenExtensionResearchForProfile(canonicalProfile())
+  .map(row=>[row.id,row]));
+ const interpretations=new Set();
+ for(const row of rows){
+  const r=(row.npsCommonSchemeReview||row.npsVatsalyaAccessReview).schemePresentation2026Review;
+  assert.equal(r.circularNumberPrintedInPdf,'PFRDA/2026/47/REG-PF/10',row.id);
+  assert.equal(r.websiteListingShowsNumber,'PFRDA/2026/48/REG-PF/10',row.id);
+  assert.equal(r.reviewedOn,'2026-10-30',row.id);
+  assert.equal(r.governmentSectorAccountsExcludedFromCircular,true,row.id);
+  assert.equal(r.currentSchemeSpecificRiskometerAndNavVerified,false,row.id);
+  assert.equal(r.actualPensionFundAndSchemeVerified,false,row.id);
+  assert.equal(r.individualPranSectorAndEligibilityVerified,false,row.id);
+  assert.equal(r.licensedMarketDataAndAdviceRightsVerified,false,row.id);
+  assert.ok(r.riskConsiderations.length>=2&&r.investorAccessConstraints.length>=2,row.id);
+  interpretations.add(r.categoryInterpretation);
+  const screen=screened.get(row.id);
+  assert.ok(screen.screeningReasonCodes.includes('PFRDA_AUG_2026_SCHEME_PRESENTATION_NOT_ACTUAL_RISKOMETER_NAV_OR_ELIGIBILITY'),row.id);
+  assert.equal(screen.productQualified,false,row.id);
+  assert.equal(screen.scoreAvailable,false,row.id);
+  assert.equal(screen.productRiskLevel,null,row.id);
+ }
+ assert.equal(interpretations.size,9);
+ assert.ok(screened.get('catalog_2026_nps_asset_a').screeningReasonCodes.includes(
+  'NPS_CLASS_A_NOT_IN_AUG_2026_ACTIVE_CHOICE_TABLE_VERIFY_CURRENT_AVAILABILITY'));
+ assert.ok(screened.get('catalog_2026_nps_vatsalya').screeningReasonCodes.includes(
+  'NPS_VATSALYA_FOUR_A_SPECIFIC_GUARDIAN_AND_SCHEME_TERMS_REQUIRED'));
+ assert.equal([...screened.values()].filter(row=>row.productQualified).length,0);
+});
