@@ -4,7 +4,7 @@ import { buildRiskShortlist, RISK_SHORTLIST_POLICY_VERSION } from '../services/r
 import { runPipeline } from '../services/RecommendationPipeline.js';
 import { investmentDatabase } from '../data/investmentDatabase.js';
 import { canonicalProfile } from './helpers/canonicalProfile.js';
-import {screenExtensionResearchForProfile,listExtensionResearch,isOfficialFrameworkReferenceUrl,hasCompleteCategoryRiskAccessResearch} from '../services/extensionFrameworkAssessment.js';
+import {screenExtensionResearchForProfile,listExtensionResearch,isOfficialFrameworkReferenceUrl,hasCompleteCategoryRiskAccessResearch,getFrameworkSourcePublisherType} from '../services/extensionFrameworkAssessment.js';
 
 test('Top 5 risk categories use the same eligibility and ranking policy as current recommendations',()=>{
   const profile=canonicalProfile();
@@ -1992,4 +1992,46 @@ test('silver ETF FoF has separate current scheme-risk and October 2026 regulator
  const fresh=get().preciousMetalsCategoryReview.october2026MutualFundRiskDisclosureReview;
  assert.equal(fresh.currentFoFSchemeRiskometerVerified,false);
  assert.ok(!fresh.riskConsiderations.includes('FORGED'));
+});
+
+// Official publisher identity is distinct from regulatory rule evidence and
+// cannot turn any of the 95 research archetypes into a qualified product.
+test('all 95 source publishers and exact evidence scopes remain explicit and fail closed',()=>{
+ const rows=listExtensionResearch();
+ const screened=new Map(screenExtensionResearchForProfile(canonicalProfile()).map(row=>[row.id,row]));
+ const counts={};
+ const notices={
+  GOVERNMENT_SCHEME_OPERATOR:'OFFICIAL_SCHEME_LISTING_NOT_INDIVIDUAL_ACCOUNT_OR_CURRENT_TERMS',
+  GOVERNMENT_POLICY_PUBLISHER:'GOVERNMENT_GREEN_BOND_FRAMEWORK_NOT_A_SPECIFIC_ISSUE_OR_IMPACT_APPROVAL',
+  DEPOSIT_INSURANCE_AUTHORITY:'DICGC_GENERAL_COVERAGE_NOT_A_VERIFIED_BANK_OR_ACCOUNT',
+  REGULATOR_INVESTOR_EDUCATION:'SEBI_INVESTOR_EDUCATION_NOT_AN_ISSUER_OFFER_OR_APPROVAL',
+  INDEX_PROVIDER_METHODOLOGY:'INDEX_PROVIDER_METHODOLOGY_NOT_A_SEBI_SCHEME_APPROVAL_OR_RISKOMETER',
+  NATIONAL_STANDARDS_BODY:'BIS_GENERAL_STANDARDS_NOT_A_SPECIFIC_BULLION_CERTIFICATION',
+ };
+ assert.equal(rows.length,95);
+ assert.equal(screened.size,95);
+ for(const row of rows){
+  const kind=getFrameworkSourcePublisherType(row.verifiedPublicFrameworkFact.officialSourceUrl);
+  assert.ok(kind,row.id);
+  counts[kind]=(counts[kind]||0)+1;
+  const item=screened.get(row.id);
+  assert.equal(item.frameworkPublisherType,kind,row.id);
+  assert.equal(item.evidenceScope,row.verifiedPublicFrameworkFact.scope,row.id);
+  if(notices[kind])assert.ok(item.screeningReasonCodes.includes(notices[kind]),row.id);
+  assert.equal(item.productQualified,false,row.id);
+  assert.equal(item.scoreAvailable,false,row.id);
+  assert.equal(item.productRiskLevel,null,row.id);
+ }
+ assert.deepEqual(counts,{
+  GOVERNMENT_SCHEME_OPERATOR:4,
+  FINANCIAL_REGULATOR:45,
+  GOVERNMENT_POLICY_PUBLISHER:1,
+  DEPOSIT_INSURANCE_AUTHORITY:7,
+  INDEX_PROVIDER_METHODOLOGY:24,
+  REGULATOR_INVESTOR_EDUCATION:12,
+  NATIONAL_STANDARDS_BODY:2,
+ });
+ assert.equal(getFrameworkSourcePublisherType('https://www.niftyindices.com.attacker.test/index'),null);
+ assert.equal(getFrameworkSourcePublisherType('https://investor.sebi.gov.in@attacker.test/bonds'),null);
+ assert.equal(getFrameworkSourcePublisherType('http://www.sebi.gov.in/legal/circulars'),null);
 });

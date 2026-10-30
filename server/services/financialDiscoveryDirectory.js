@@ -5,7 +5,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { investmentDatabase } from '../data/investmentDatabase.js';
-import { listExtensionResearch } from './extensionFrameworkAssessment.js';
+import { listExtensionResearch, getFrameworkSourcePublisherType } from './extensionFrameworkAssessment.js';
 import { validateFirstFamilyResearchPilot } from '../scripts/validateFirstFamilyResearchPilot.js';
 
 const extensions = JSON.parse(readFileSync(
@@ -137,6 +137,8 @@ function buildDirectory() {
         nominalMaturityMonths: research.nominalMaturityMonths,
         nominalMaturityDays: research.nominalMaturityDays,
         evidenceScope: research.verifiedPublicFrameworkFact?.scope ?? 'NOT_VERIFIED',
+        officialFrameworkPublisherType: getFrameworkSourcePublisherType(
+          research.verifiedPublicFrameworkFact?.officialSourceUrl),
         actualRiskScore: null,
         issuerTermsVerified: false,
         sourceRightsVerified: false,

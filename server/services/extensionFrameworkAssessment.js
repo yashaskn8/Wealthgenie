@@ -58,12 +58,24 @@ const nseAdditionalEtfBenchmarks=Object.freeze({"catalog_2026_etf_nifty200_quali
 const sebiEtfInvestorEducationUrl="https://investor.sebi.gov.in/exchange_traded_fund.html";
 // HTTPS alone is not evidence of an official framework source. Exact hosts
 // prevent lookalike domains and credential-bearing URLs from passing validation.
-const officialFrameworkHosts=new Set([
-  'www.indiapost.gov.in','www.rbi.org.in','m.rbi.org.in','rbi.org.in',
-  'dea.gov.in','www.dicgc.org.in','www.sebi.gov.in',
-  'investor.sebi.gov.in','www.niftyindices.com','niftyindices.com',
-  'pfrda.org.in','www.bis.gov.in',
-]);
+// Publisher identity is not the same as a binding regulation or an approved
+// product. In particular, index methodologies and investor education must not
+// be counted as a SEBI scheme approval or a scheme-specific risk-o-meter.
+const frameworkSourcePublishers=Object.freeze({
+  'www.indiapost.gov.in':'GOVERNMENT_SCHEME_OPERATOR',
+  'www.rbi.org.in':'FINANCIAL_REGULATOR',
+  'm.rbi.org.in':'FINANCIAL_REGULATOR',
+  'rbi.org.in':'FINANCIAL_REGULATOR',
+  'dea.gov.in':'GOVERNMENT_POLICY_PUBLISHER',
+  'www.dicgc.org.in':'DEPOSIT_INSURANCE_AUTHORITY',
+  'www.sebi.gov.in':'FINANCIAL_REGULATOR',
+  'investor.sebi.gov.in':'REGULATOR_INVESTOR_EDUCATION',
+  'www.niftyindices.com':'INDEX_PROVIDER_METHODOLOGY',
+  'niftyindices.com':'INDEX_PROVIDER_METHODOLOGY',
+  'pfrda.org.in':'FINANCIAL_REGULATOR',
+  'www.bis.gov.in':'NATIONAL_STANDARDS_BODY',
+});
+const officialFrameworkHosts=new Set(Object.keys(frameworkSourcePublishers));
 export function isOfficialFrameworkReferenceUrl(value) {
   if(typeof value!=='string')return false;
   try {
@@ -72,6 +84,10 @@ export function isOfficialFrameworkReferenceUrl(value) {
       && !url.username && !url.password && !url.port && !url.hash
       && url.pathname.length>1;
   } catch { return false; }
+}
+export function getFrameworkSourcePublisherType(value) {
+  return isOfficialFrameworkReferenceUrl(value)
+    ? frameworkSourcePublishers[new URL(value).hostname] ?? null : null;
 }
 // A framework citation without separate, nonempty category risk and access
 // research is incomplete. Exactly one category review must back each archetype.
@@ -941,10 +957,20 @@ export function listExtensionResearch() {
  * These are conservative, non-ranking profile screening FLAGS. Never call
  * an extension suitable merely because a broad investment structure is known.
  */
+const frameworkPublisherCautions=Object.freeze({
+  GOVERNMENT_SCHEME_OPERATOR:'OFFICIAL_SCHEME_LISTING_NOT_INDIVIDUAL_ACCOUNT_OR_CURRENT_TERMS',
+  GOVERNMENT_POLICY_PUBLISHER:'GOVERNMENT_GREEN_BOND_FRAMEWORK_NOT_A_SPECIFIC_ISSUE_OR_IMPACT_APPROVAL',
+  DEPOSIT_INSURANCE_AUTHORITY:'DICGC_GENERAL_COVERAGE_NOT_A_VERIFIED_BANK_OR_ACCOUNT',
+  REGULATOR_INVESTOR_EDUCATION:'SEBI_INVESTOR_EDUCATION_NOT_AN_ISSUER_OFFER_OR_APPROVAL',
+  INDEX_PROVIDER_METHODOLOGY:'INDEX_PROVIDER_METHODOLOGY_NOT_A_SEBI_SCHEME_APPROVAL_OR_RISKOMETER',
+  NATIONAL_STANDARDS_BODY:'BIS_GENERAL_STANDARDS_NOT_A_SPECIFIC_BULLION_CERTIFICATION',
+});
 export function screenExtensionResearchForProfile(profileInput) {
  const profile=buildRecommendationProfile(profileInput);
  return research.entries.map(row=>{
    const reasons=['INDIVIDUAL_PRODUCT_RISK_ELIGIBILITY_NOT_ESTABLISHED'];
+   const frameworkPublisherType=getFrameworkSourcePublisherType(
+     row.verifiedPublicFrameworkFact.officialSourceUrl);
    if(row.npsCommonSchemeReview?.schemePresentation2026Review
      ||row.npsVatsalyaAccessReview?.schemePresentation2026Review){
      reasons.push('PFRDA_AUG_2026_SCHEME_PRESENTATION_NOT_ACTUAL_RISKOMETER_NAV_OR_ELIGIBILITY');
@@ -1476,6 +1502,10 @@ export function screenExtensionResearchForProfile(profileInput) {
      if(row.id==='catalog_2026_silver_fof')
        reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_SILVER_FOF_NAV_AND_REDEMPTION_REVIEW');
    }
+   // This publisher-provenance caution is category evidence, not a
+   // personalized access decision. Keep it separate from profile-fact notices.
+   if(frameworkPublisherCautions[frameworkPublisherType])
+     reasons.push(frameworkPublisherCautions[frameworkPublisherType]);
    return {
      id:row.id,
      profileAssessment:'MISSING_SUITABILITY_EVIDENCE',
@@ -1485,7 +1515,8 @@ export function screenExtensionResearchForProfile(profileInput) {
      source:'EXTENDED_95_DISCOVERY',
      scoreAvailable:false,productQualified:false,
      productRiskLevel:null,
-     evidenceScope:'REGULATORY_STRUCTURE_ONLY',
+     evidenceScope:row.verifiedPublicFrameworkFact.scope,
+     frameworkPublisherType,
    };
  });
 }

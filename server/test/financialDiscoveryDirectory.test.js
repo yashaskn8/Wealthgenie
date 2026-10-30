@@ -1054,3 +1054,33 @@ test('silver ETF FoF educational disclosure remains deep-copied and never a purc
  assert.equal(fresh.currentFoFSchemeRiskometerVerified,false);
  assert.ok(!fresh.riskConsiderations.includes('FABRICATED SCHEME RISK'));
 });
+
+// A first-party index page, BIS standard, DICGC guide or India Post scheme
+// listing is not an issuer-specific price, approval, riskometer or eligibility.
+test('educational directory labels source publishers across all 95 unapproved categories',()=>{
+ const rows=listFinancialDiscoveryDirectory().items.filter(x=>x.origin==='EXTENDED_95');
+ const counts={};
+ for(const row of rows){
+  const research=row.frameworkResearch;
+  const kind=research.officialFrameworkPublisherType;
+  assert.ok(kind,row.id);
+  counts[kind]=(counts[kind]||0)+1;
+  assert.equal(research.evidenceScope,research.reviewedOfficialFrameworkFact.scope,row.id);
+  assert.equal(research.actualRiskScore,null,row.id);
+  assert.equal(research.issuerTermsVerified,false,row.id);
+  assert.equal(research.sourceRightsVerified,false,row.id);
+  assert.equal(row.recommendationEligible,false,row.id);
+  assert.equal(row.productAvailability,'NOT_VERIFIED',row.id);
+  assert.equal(row.dataRights,'NOT_VERIFIED',row.id);
+  assert.ok(Object.values(row.productData).every(value=>value===null),row.id);
+ }
+ assert.deepEqual(counts,{
+  GOVERNMENT_SCHEME_OPERATOR:4,
+  FINANCIAL_REGULATOR:45,
+  GOVERNMENT_POLICY_PUBLISHER:1,
+  DEPOSIT_INSURANCE_AUTHORITY:7,
+  INDEX_PROVIDER_METHODOLOGY:24,
+  REGULATOR_INVESTOR_EDUCATION:12,
+  NATIONAL_STANDARDS_BODY:2,
+ });
+});
