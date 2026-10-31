@@ -2721,8 +2721,10 @@ test('RBI commercial-bank investment restrictions do not establish zero-coupon o
    assert.ok(a.screeningReasonCodes.includes(code),id+':'+code);
    assert.ok(!b.screeningReasonCodes.includes(code),id+':'+code);
   }
-  assert.equal(a.recommendationEligible,false);
-  assert.equal(b.recommendationEligible,false);
+  assert.equal(a.productQualified,false);
+  assert.equal(b.productQualified,false);
+  assert.equal(a.scoreAvailable,false);
+  assert.equal(b.scoreAvailable,false);
  }
  const zero=rows.find(x=>x.id===ids[0]);
  zero.debtInstrumentReview.bankPortfolioRuleScopeReview.investorAccessConstraints.push('fabricated approval');
