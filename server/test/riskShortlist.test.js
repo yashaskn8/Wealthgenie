@@ -2731,3 +2731,54 @@ test('RBI commercial-bank investment restrictions do not establish zero-coupon o
  assert.ok(!listExtensionResearch().find(x=>x.id===ids[0])
   .debtInstrumentReview.bankPortfolioRuleScopeReview.investorAccessConstraints.includes('fabricated approval'));
 });
+
+
+test('SEBI September 2026 debenture-trustee security-cover duties remain issue-scoped for three distinct debt archetypes',()=>{
+ const ids=['catalog_2026_ncd_secured','catalog_2026_ncd_unsecured','catalog_2026_bond_subordinated'];
+ const rows=listExtensionResearch();
+ assert.equal(rows.filter(x=>x.debtInstrumentReview?.sebiDebentureTrusteeSep2026Review).length,3);
+ const make=overrides=>screenExtensionResearchForProfile(canonicalProfile({
+   investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+   emergencyFundMonths:null,riskTolerance:'Moderate',...overrides,
+ }));
+ const unknown=make({}),short=make({investmentHorizonYears:2}),
+   emergency=make({investmentGoals:['Emergency Fund']}),
+   zero=make({emergencyFundMonths:0});
+ for(const [i,id] of ids.entries()){
+   const row=rows.find(x=>x.id===id),r=row.debtInstrumentReview.sebiDebentureTrusteeSep2026Review;
+   assert.equal(r.officialSebiMasterCircularUrl,
+     'https://www.sebi.gov.in/sebi_data/attachdocs/sep-2026/1790593347737.pdf');
+   assert.equal(r.circularIssuedOn,'2026-09-28');
+   assert.equal(r.supersedesDebentureTrusteeMasterCircularOf,'2025-08-13');
+   assert.equal(r.sourceClause,i===0?'CHAPTER_II_2_1_AND_CHAPTER_V_1_1_2_1':'CHAPTER_V_1_9');
+   assert.equal(r.chapterIIAssetChargeDueDiligence,i===0);
+   assert.equal(r.chapterVUnsecuredDebtColumn,i!==0);
+   assert.equal(r.securityCoverIsActualRecoveryGuarantee,false);
+   for(const key of ['actualIssuerIsinAndListingVerified','namedRegisteredDebentureTrusteeVerified',
+    'issueTrustDeedSecurityPriorityAndCovenantsVerified',
+    'currentIssueSecurityCoverAndDefaultDisclosuresVerified',
+    'personalRetailAccessKycAndMinimumVerified',
+    'currentPriceRatingAndCommercialDataRightsVerified','personalizedAdviceAuthorizationVerified'])
+     assert.equal(r[key],false,id+':'+key);
+   assert.ok(r.riskConsiderations.length>=2&&r.investorAccessConstraints.length>=2);
+   for(const arr of [unknown,short,emergency,zero]){
+     const a=arr.find(x=>x.id===id);
+     assert.equal(a.profileAssessment,'MISSING_SUITABILITY_EVIDENCE',id);
+     assert.equal(a.productQualified,false,id);
+     assert.equal(a.scoreAvailable,false,id);
+     assert.equal(a.productRiskLevel,null,id);
+     assert.ok(a.screeningReasonCodes.includes('SEBI_SEPT_2026_DEBENTURE_TRUSTEE_CIRCULAR_NOT_ISSUE_OR_RETAIL_APPROVAL'));
+   }
+   for(const [arr,code] of [
+     [short,'SHORT_HORIZON_REQUIRES_DEBENTURE_TRUST_DEED_AND_RESALE_REVIEW'],
+     [emergency,'EMERGENCY_FUND_GOAL_REQUIRES_DEBENTURE_DEFAULT_RECOVERY_AND_EXIT_REVIEW'],
+     [zero,'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_DEBENTURE_CREDIT_AND_EXIT_REVIEW']]){
+     assert.ok(arr.find(x=>x.id===id).screeningReasonCodes.includes(code),id+':'+code);
+     assert.ok(!unknown.find(x=>x.id===id).screeningReasonCodes.includes(code),id+':unknown:'+code);
+   }
+ }
+ const copy=rows.find(x=>x.id===ids[0]);
+ copy.debtInstrumentReview.sebiDebentureTrusteeSep2026Review.riskConsiderations.push('fabricated');
+ assert.ok(!listExtensionResearch().find(x=>x.id===ids[0])
+  .debtInstrumentReview.sebiDebentureTrusteeSep2026Review.riskConsiderations.includes('fabricated'));
+});

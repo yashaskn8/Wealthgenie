@@ -5074,13 +5074,17 @@
           "Security interests may prove insufficient or difficult to enforce after issuer default; 'secured' does not guarantee full recovery.",
           "Interest-rate movements, issuer downgrade and thin secondary-market bids can cause losses before maturity.",
           "Increased issuer ISIN capacity does not reduce the specific bond's credit, interest-rate or early-sale liquidity risks.",
-          "RBI's secured short-term money-market NCD definition does not establish maturity or exit liquidity for every listed secured NCD."
+          "RBI's secured short-term money-market NCD definition does not establish maturity or exit liquidity for every listed secured NCD.",
+          "A reported security cover depends on identifiable charged assets, their valuation, other encumbrances and enforcement; the cover certificate is not a promise of full recovery.",
+          "Quarterly security-cover and trustee due-diligence duties do not eliminate issuer default, delayed enforcement or secondary-market price losses."
         ],
         "investorAccessConstraints": [
           "Verify actual listed ISIN, collateral description/charge perfection, trustee and issue disclosure; category wording is not proof of secured priority.",
           "Confirm issue route, eligible investor and denomination, demat/broker access, live quote, rating and lawful market-data rights.",
           "SEBI's October 7, 2026 issuer-level ISIN maturity-year caps do not establish a specific retail offering, minimum subscription or tradable security.",
-          "Confirm an actual issue falls within RBI's short-term secured NCD scope before applying the ₹5 lakh issue denomination."
+          "Confirm an actual issue falls within RBI's short-term secured NCD scope before applying the ₹5 lakh issue denomination.",
+          "Verify the named listed issue, ISIN, registered debenture trustee, trust deed, charge records, collateral valuation and the actual issue-specific security-cover disclosures.",
+          "Check offering route, KYC and retail allocation, transfer restrictions, current permitted quote and licensed reuse rights; general trustee rules cannot qualify a personal purchase."
         ],
         "specificInstrumentOrSchemeVerified": false,
         "currentPriceOrNavVerified": false,
@@ -5217,6 +5221,35 @@
           "rbiShortTermNcdIssuerBuybackEarliestDays": 90,
           "issuerBuybackIsNotInvestorPutRight": true,
           "actualShortTermNcdIssuerBuybackOfferAndPriceVerified": false
+        },
+        "sebiDebentureTrusteeSep2026Review": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/sep-2026/1790593347737.pdf",
+          "circularIssuedOn": "2026-09-28",
+          "reviewedOn": "2026-10-31",
+          "supersedesDebentureTrusteeMasterCircularOf": "2025-08-13",
+          "sourceScope": "SEBI_LISTED_DEBT_TRUSTEE_DUE_DILIGENCE_AND_COVER_DISCLOSURE_NOT_ISSUER_COLLATERAL_OR_RETAIL_APPROVAL",
+          "categoryCode": "SECURED_LISTED_NCD",
+          "sourceClause": "CHAPTER_II_2_1_AND_CHAPTER_V_1_1_2_1",
+          "sourceFact": "CHAPTER_II_SECURITY_CREATION_DUE_DILIGENCE_AND_CHAPTER_V_QUARTERLY_SECURED_COVER",
+          "categoryInterpretation": "For a verified secured listed issue, Chapter II requires the debenture trustee to examine security-creation documents and consents; Chapter V addresses issuer quarterly security-cover certificates and trustee certification. Neither a category label nor trustee duties prove actual collateral, perfected charge, recovery or an offer to this investor.",
+          "chapterIIAssetChargeDueDiligence": true,
+          "chapterVUnsecuredDebtColumn": false,
+          "securityCoverIsActualRecoveryGuarantee": false,
+          "actualIssuerIsinAndListingVerified": false,
+          "namedRegisteredDebentureTrusteeVerified": false,
+          "issueTrustDeedSecurityPriorityAndCovenantsVerified": false,
+          "currentIssueSecurityCoverAndDefaultDisclosuresVerified": false,
+          "personalRetailAccessKycAndMinimumVerified": false,
+          "currentPriceRatingAndCommercialDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "A reported security cover depends on identifiable charged assets, their valuation, other encumbrances and enforcement; the cover certificate is not a promise of full recovery.",
+            "Quarterly security-cover and trustee due-diligence duties do not eliminate issuer default, delayed enforcement or secondary-market price losses."
+          ],
+          "investorAccessConstraints": [
+            "Verify the named listed issue, ISIN, registered debenture trustee, trust deed, charge records, collateral valuation and the actual issue-specific security-cover disclosures.",
+            "Check offering route, KYC and retail allocation, transfer restrictions, current permitted quote and licensed reuse rights; general trustee rules cannot qualify a personal purchase."
+          ]
         }
       }
     },
@@ -5263,13 +5296,17 @@
           "Unsecured creditors may have weaker recovery than secured claims if the issuer defaults.",
           "Credit-spread widening, interest-rate changes and thin trading can reduce secondary sale proceeds.",
           "Increased issuer ISIN capacity does not reduce the specific bond's credit, interest-rate or early-sale liquidity risks.",
-          "RBI's secured short-term money-market NCD definition cannot establish collateral or recovery rights for an unsecured listed NCD."
+          "RBI's secured short-term money-market NCD definition cannot establish collateral or recovery rights for an unsecured listed NCD.",
+          "The required unsecured-debt disclosure column does not create a charge over assets or improve an unsecured holder's recovery priority.",
+          "Issuer insolvency, debt covenants and thin secondary trading may cause losses; a trustee reporting framework does not provide a guaranteed exit."
         ],
         "investorAccessConstraints": [
           "Check actual issuer/ISIN, seniority, covenants, default events, offer route and credit rating; a listed label is not a retail approval.",
           "Verify KYC/demat, denomination, transfer rules, current quote, issuer terms and licensed data/financial-advice permissions.",
           "SEBI's October 7, 2026 issuer-level ISIN maturity-year caps do not establish a specific retail offering, minimum subscription or tradable security.",
-          "RBI's ₹5 lakh short-term secured-NCD denomination is not a universal retail minimum or ban on unsecured listed NCDs."
+          "RBI's ₹5 lakh short-term secured-NCD denomination is not a universal retail minimum or ban on unsecured listed NCDs.",
+          "Confirm the actual ISIN, issue ranking, trustee appointment, offer document, covenants, events of default and the issuer's applicable public disclosures.",
+          "Verify legal offering route, investor eligibility and KYC, current price and data permissions; an unsecured-debt column is not a verified retail invitation."
         ],
         "specificInstrumentOrSchemeVerified": false,
         "currentPriceOrNavVerified": false,
@@ -5406,6 +5443,35 @@
           "rbiShortTermNcdIssuerBuybackEarliestDays": 90,
           "issuerBuybackIsNotInvestorPutRight": true,
           "actualShortTermNcdIssuerBuybackOfferAndPriceVerified": false
+        },
+        "sebiDebentureTrusteeSep2026Review": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/sep-2026/1790593347737.pdf",
+          "circularIssuedOn": "2026-09-28",
+          "reviewedOn": "2026-10-31",
+          "supersedesDebentureTrusteeMasterCircularOf": "2025-08-13",
+          "sourceScope": "SEBI_LISTED_DEBT_TRUSTEE_DUE_DILIGENCE_AND_COVER_DISCLOSURE_NOT_ISSUER_COLLATERAL_OR_RETAIL_APPROVAL",
+          "categoryCode": "UNSECURED_LISTED_NCD",
+          "sourceClause": "CHAPTER_V_1_9",
+          "sourceFact": "CHAPTER_V_1_9_UNSECURED_DEBT_DISCLOSURE_NOT_COLLATERAL",
+          "categoryInterpretation": "Chapter V paragraph 1.9 requires unsecured debentures and lower-priority debts to appear in the security-cover certificate column for debt not backed by assets offered as security. This is a disclosure classification, not collateral, an investor priority determination or permission to purchase an unsecured issue.",
+          "chapterIIAssetChargeDueDiligence": false,
+          "chapterVUnsecuredDebtColumn": true,
+          "securityCoverIsActualRecoveryGuarantee": false,
+          "actualIssuerIsinAndListingVerified": false,
+          "namedRegisteredDebentureTrusteeVerified": false,
+          "issueTrustDeedSecurityPriorityAndCovenantsVerified": false,
+          "currentIssueSecurityCoverAndDefaultDisclosuresVerified": false,
+          "personalRetailAccessKycAndMinimumVerified": false,
+          "currentPriceRatingAndCommercialDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "The required unsecured-debt disclosure column does not create a charge over assets or improve an unsecured holder's recovery priority.",
+            "Issuer insolvency, debt covenants and thin secondary trading may cause losses; a trustee reporting framework does not provide a guaranteed exit."
+          ],
+          "investorAccessConstraints": [
+            "Confirm the actual ISIN, issue ranking, trustee appointment, offer document, covenants, events of default and the issuer's applicable public disclosures.",
+            "Verify legal offering route, investor eligibility and KYC, current price and data permissions; an unsecured-debt column is not a verified retail invitation."
+          ]
         }
       }
     },
@@ -5560,11 +5626,15 @@
         "officialRiskAccessEvidenceUrl": "https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html",
         "riskConsiderations": [
           "Contractual subordination may leave recoveries behind senior creditors in distress.",
-          "Issuer downgrade, coupon conditions and thin market liquidity may cause substantial price loss."
+          "Issuer downgrade, coupon conditions and thin market liquidity may cause substantial price loss.",
+          "The subordinate-debt disclosure category cannot establish an issue's actual insolvency waterfall, recovery ranking or protection against issuer default.",
+          "Lower contractual priority and limited trading depth can impair exit proceeds; trustee reporting does not guarantee redemption or a bid."
         ],
         "investorAccessConstraints": [
           "Read the actual priority waterfall, security, regulatory capital classification if any and issue prospectus; do not infer generic ranking.",
-          "Verify investor eligibility, demat access, lot size, current price, rating, loss-absorption clauses and authorised data source."
+          "Verify investor eligibility, demat access, lot size, current price, rating, loss-absorption clauses and authorised data source.",
+          "Read the actual issue trust deed, subordination clauses, ISIN, trustee disclosures, ranking relative to other creditors and applicable resolution terms.",
+          "Verify issuance route, investor qualification, denomination, KYC, live authorized price and signed rights before any individual offer."
         ],
         "specificInstrumentOrSchemeVerified": false,
         "currentPriceOrNavVerified": false,
@@ -5623,6 +5693,35 @@
             "The 2023 UCB framework describes issuance to members or persons resident within the UCB area of operation, subject to bank issuance conditions; this is not blanket retail eligibility.",
             "The issuing UCB must satisfy prescribed financial criteria or obtain RBI permission; an investor must verify the current issuer, lawful offer, document, KYC, rights and specific ISIN.",
             "The RBI requires disclosure that these regulatory capital instruments differ from fixed deposits and are not covered by deposit insurance."
+          ]
+        },
+        "sebiDebentureTrusteeSep2026Review": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/sep-2026/1790593347737.pdf",
+          "circularIssuedOn": "2026-09-28",
+          "reviewedOn": "2026-10-31",
+          "supersedesDebentureTrusteeMasterCircularOf": "2025-08-13",
+          "sourceScope": "SEBI_LISTED_DEBT_TRUSTEE_DUE_DILIGENCE_AND_COVER_DISCLOSURE_NOT_ISSUER_COLLATERAL_OR_RETAIL_APPROVAL",
+          "categoryCode": "SUBORDINATED_CORPORATE_BOND",
+          "sourceClause": "CHAPTER_V_1_9",
+          "sourceFact": "CHAPTER_V_1_9_SUBORDINATED_DEBT_DISCLOSURE_NOT_ISSUE_PRIORITY",
+          "categoryInterpretation": "Chapter V paragraph 1.9 identifies subordinated debt and other lower-priority debt for the security-cover certificate's column for debt not backed by assets offered as security. The disclosure rule does not establish the contractual ranking, loss-absorption terms or lawful retail access of any particular corporate subordinated bond.",
+          "chapterIIAssetChargeDueDiligence": false,
+          "chapterVUnsecuredDebtColumn": true,
+          "securityCoverIsActualRecoveryGuarantee": false,
+          "actualIssuerIsinAndListingVerified": false,
+          "namedRegisteredDebentureTrusteeVerified": false,
+          "issueTrustDeedSecurityPriorityAndCovenantsVerified": false,
+          "currentIssueSecurityCoverAndDefaultDisclosuresVerified": false,
+          "personalRetailAccessKycAndMinimumVerified": false,
+          "currentPriceRatingAndCommercialDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "The subordinate-debt disclosure category cannot establish an issue's actual insolvency waterfall, recovery ranking or protection against issuer default.",
+            "Lower contractual priority and limited trading depth can impair exit proceeds; trustee reporting does not guarantee redemption or a bid."
+          ],
+          "investorAccessConstraints": [
+            "Read the actual issue trust deed, subordination clauses, ISIN, trustee disclosures, ranking relative to other creditors and applicable resolution terms.",
+            "Verify issuance route, investor qualification, denomination, KYC, live authorized price and signed rights before any individual offer."
           ]
         }
       }

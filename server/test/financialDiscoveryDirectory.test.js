@@ -1318,3 +1318,24 @@ test('bank-only RBI zero-coupon and convertible rules are copied without implyin
    .frameworkResearch.debtInstrumentReview.bankPortfolioRuleScopeReview.riskConsiderations.includes('fabricated'));
  }
 });
+
+
+test('September 2026 SEBI debenture trustee reviews remain educational and defensively copied',()=>{
+ for(const id of ['catalog_2026_ncd_secured','catalog_2026_ncd_unsecured',
+  'catalog_2026_bond_subordinated']){
+   const find=()=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+   const item=find(),r=item.frameworkResearch.debtInstrumentReview.sebiDebentureTrusteeSep2026Review;
+   assert.equal(r.circularIssuedOn,'2026-09-28');
+   assert.equal(r.actualIssuerIsinAndListingVerified,false);
+   assert.equal(r.personalRetailAccessKycAndMinimumVerified,false);
+   assert.equal(item.recommendationEligible,false);
+   assert.equal(item.productAvailability,'NOT_VERIFIED');
+   assert.equal(item.dataRights,'NOT_VERIFIED');
+   assert.equal(item.productData.currentPrice,null);
+   r.investorAccessConstraints.push('fabricated');
+   r.actualIssuerIsinAndListingVerified=true;
+   const fresh=find().frameworkResearch.debtInstrumentReview.sebiDebentureTrusteeSep2026Review;
+   assert.equal(fresh.actualIssuerIsinAndListingVerified,false);
+   assert.ok(!fresh.investorAccessConstraints.includes('fabricated'));
+ }
+});

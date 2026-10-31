@@ -711,6 +711,34 @@ if(!smReitEvidence
  ||research.entries.some(row=>row.id!=='catalog_2026_sm_reit_scheme'
    &&row.individualCategoryReview?.smReitTrustAndDraft2026Review!==undefined))
  throw new Error('FINANCIAL_SM_REIT_2026_TRUST_DRAFT_SCHEME_EVIDENCE_INVALID');
+
+const trustee2026Source='https://www.sebi.gov.in/sebi_data/attachdocs/sep-2026/1790593347737.pdf';
+const trustee2026Specs=Object.freeze({
+ 'catalog_2026_ncd_secured':['SECURED_LISTED_NCD','CHAPTER_II_2_1_AND_CHAPTER_V_1_1_2_1',true,false],
+ 'catalog_2026_ncd_unsecured':['UNSECURED_LISTED_NCD','CHAPTER_V_1_9',false,true],
+ 'catalog_2026_bond_subordinated':['SUBORDINATED_CORPORATE_BOND','CHAPTER_V_1_9',false,true],
+});
+if(research.entries.filter(row=>row.debtInstrumentReview?.sebiDebentureTrusteeSep2026Review).length!==3
+ ||Object.entries(trustee2026Specs).some(([id,spec])=>{
+  const r=research.entries.find(row=>row.id===id)?.debtInstrumentReview?.sebiDebentureTrusteeSep2026Review;
+  return !r||r.officialSebiMasterCircularUrl!==trustee2026Source
+   ||r.circularIssuedOn!=='2026-09-28'||r.reviewedOn!=='2026-10-31'
+   ||r.supersedesDebentureTrusteeMasterCircularOf!=='2025-08-13'
+   ||r.sourceScope!=='SEBI_LISTED_DEBT_TRUSTEE_DUE_DILIGENCE_AND_COVER_DISCLOSURE_NOT_ISSUER_COLLATERAL_OR_RETAIL_APPROVAL'
+   ||r.categoryCode!==spec[0]||r.sourceClause!==spec[1]
+   ||r.chapterIIAssetChargeDueDiligence!==spec[2]
+   ||r.chapterVUnsecuredDebtColumn!==spec[3]
+   ||r.securityCoverIsActualRecoveryGuarantee!==false
+   ||!distinctConsiderations(r.riskConsiderations)
+   ||!distinctConsiderations(r.investorAccessConstraints)
+   ||['actualIssuerIsinAndListingVerified','namedRegisteredDebentureTrusteeVerified',
+     'issueTrustDeedSecurityPriorityAndCovenantsVerified',
+     'currentIssueSecurityCoverAndDefaultDisclosuresVerified',
+     'personalRetailAccessKycAndMinimumVerified',
+     'currentPriceRatingAndCommercialDataRightsVerified',
+     'personalizedAdviceAuthorizationVerified'].some(key=>r[key]!==false);
+ }))throw new Error('FINANCIAL_SEBI_2026_DEBENTURE_TRUSTEE_SOURCE_SCOPE_INVALID');
+
 // October 2026 PMS replacement regulations have a future commencement date.
 // They must never be mistaken for a currently registered manager or client offer.
 if(research.entries.filter(row=>row.individualCategoryReview?.pmsRegulatoryTransitionReview).length!==2
@@ -1721,6 +1749,22 @@ export function screenExtensionResearchForProfile(profileInput) {
 
    if(row.debtInstrumentReview){
      reasons.push('DEBT_ISSUER_ISIN_RATING_COVENANTS_MARKET_PRICE_AND_RETAIL_ACCESS_UNVERIFIED');
+     const trustee=row.debtInstrumentReview.sebiDebentureTrusteeSep2026Review;
+     if(trustee){
+       reasons.push('SEBI_SEPT_2026_DEBENTURE_TRUSTEE_CIRCULAR_NOT_ISSUE_OR_RETAIL_APPROVAL');
+       const issueScope={
+         catalog_2026_ncd_secured:'SECURED_NCD_ACTUAL_CHARGE_COLLATERAL_AND_TRUSTEE_COVER_UNVERIFIED',
+         catalog_2026_ncd_unsecured:'UNSECURED_NCD_SECURITY_COVER_COLUMN_NOT_COLLATERAL_OR_RECOVERY_PRIORITY',
+         catalog_2026_bond_subordinated:'SUBORDINATED_BOND_COVER_COLUMN_NOT_ACTUAL_CREDITOR_WATERFALL',
+       };
+       reasons.push(issueScope[row.id]);
+       if(profile.investmentGoals.includes('Emergency Fund'))
+         reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_DEBENTURE_DEFAULT_RECOVERY_AND_EXIT_REVIEW');
+       if(Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
+         reasons.push('SHORT_HORIZON_REQUIRES_DEBENTURE_TRUST_DEED_AND_RESALE_REVIEW');
+       if(profile.emergencyFundMonths===0)
+         reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_DEBENTURE_CREDIT_AND_EXIT_REVIEW');
+     }
      const creditMeter=row.debtInstrumentReview.creditRiskometerOct2026Review;
      if(creditMeter){
        reasons.push('SEBI_DEBT_CREDIT_METER_EFFECTIVE_DATE_AND_ISSUE_EVIDENCE_REVIEW');
