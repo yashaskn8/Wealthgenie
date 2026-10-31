@@ -850,6 +850,34 @@ if(research.entries.filter(row=>row.aifCategoryAccessReview?.garudaPpmFilingRevi
     ||!Array.isArray(r.riskConsiderations)||r.riskConsiderations.length<2
     ||!Array.isArray(r.investorAccessConstraints)||r.investorAccessConstraints.length<2;
   }))throw new Error('FINANCIAL_AIF_OCT_2026_DISPUTE_PROCEDURE_NOT_PRODUCT_APPROVAL');
+const bankPortfolioRuleScopeIds=Object.freeze({
+ 'catalog_2026_bond_corporate_zero':['30(d)','COMMERCIAL_BANK_LONG_TERM_CORPORATE_ZCB_SINKING_FUND_EXCEPTION',true],
+ 'catalog_2026_bond_convertible':['30(b)(vi)(11)','COMMERCIAL_BANK_UNLISTED_CONVERTIBLE_PRUDENTIAL_LIMIT_EXCLUSION',false],
+});
+if(research.entries.filter(row=>row.debtInstrumentReview?.bankPortfolioRuleScopeReview).length!==2
+ ||research.entries.some(row=>{
+  const r=row.debtInstrumentReview?.bankPortfolioRuleScopeReview;
+  const expected=bankPortfolioRuleScopeIds[row.id];
+  if(!expected)return r!==undefined;
+  return !r||r.officialRbiDirectionsUrl!=='https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12534'
+   ||r.officialSebiHistoricalFaqUrl!=='https://www.sebi.gov.in/sebi_data/faqfiles/jan-2017/1485843476566.pdf'
+   ||r.rbiDirectionsUpdatedAsOf!=='2025-04-01'
+   ||r.sebiFaqInformationUpdatedThrough!=='2009-02-28'
+   ||r.reviewedOn!=='2026-10-31'||r.clause!==expected[0]
+   ||r.specificRuleCode!==expected[1]
+   ||r.bankInvestmentRestrictionHasConditionalException!==expected[2]
+   ||r.institutionalUnlistedExposureExclusionNotRetailApproval===expected[2]
+   ||r.regulatoryAudience!=='COMMERCIAL_BANKS_EXCLUDING_REGIONAL_RURAL_BANKS'
+   ||r.sourceScope!=='BANK_INVESTMENT_PORTFOLIO_RULE_NOT_RETAIL_OFFER_OR_PRODUCT_RISKOMETER'
+   ||r.institutionalBankRuleNotIndividualRetailProhibition!==true
+   ||r.historicalSebiFaqNotCurrentRegulatoryTerms!==true
+   ||['actualIssuerIsinAndOfferDocumentVerified','applicableRetailEligibilityAndKycVerified',
+      'individualConversionOrRedemptionTermsVerified','issuerSinkingFundAndSecurityVerified',
+      'currentMarketPriceAndCommercialDataRightsVerified','individualRiskMeterOrAdviceAuthorizationVerified',
+      'subsequentRbiAmendmentsAfter2025Reconciled'].some(key=>r[key]!==false)
+   ||!Array.isArray(r.riskConsiderations)||r.riskConsiderations.length<2
+   ||!Array.isArray(r.investorAccessConstraints)||r.investorAccessConstraints.length<2;
+ }))throw new Error('FINANCIAL_BANK_PORTFOLIO_RULE_SCOPE_NOT_RETAIL_ACCESS');
 const octoberDebtIds=new Set(["catalog_2026_ncd_secured","catalog_2026_ncd_unsecured","catalog_2026_ncd_unlisted","catalog_2026_bond_subordinated","catalog_2026_bond_perpetual","catalog_2026_bond_corporate_floating","catalog_2026_bond_corporate_zero","catalog_2026_bond_convertible","catalog_2026_psu_bond_taxable","catalog_2026_infra_corporate_bond","catalog_2026_commercial_paper"]);
 if(octoberDebtIds.size!==11||research.entries.filter(row=>row.debtInstrumentReview).length!==11
  ||research.entries.some(row=>octoberDebtIds.has(row.id)!==Boolean(row.debtInstrumentReview?.creditRiskometerOct2026Review))
@@ -1712,6 +1740,27 @@ export function screenExtensionResearchForProfile(profileInput) {
          reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_UNLISTED_NCD_LAWFUL_TRANSFER_AND_EXIT_REVIEW');
        if(Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
          reasons.push('SHORT_HORIZON_REQUIRES_UNLISTED_NCD_MATURITY_AND_RESALE_REVIEW');
+     }
+     if(row.debtInstrumentReview.bankPortfolioRuleScopeReview){
+       reasons.push('RBI_COMMERCIAL_BANK_PORTFOLIO_RULE_NOT_RETAIL_ELIGIBILITY_OR_ISSUE_APPROVAL');
+       reasons.push('SEBI_HISTORICAL_BOND_FAQ_NOT_CURRENT_OFFER_OR_CONVERSION_TERMS');
+       if(row.id==='catalog_2026_bond_corporate_zero'){
+         reasons.push('RBI_BANK_LONG_TERM_ZERO_COUPON_SINKING_FUND_EXCEPTION_NOT_RETAIL_GUARANTEE');
+         if(profile.investmentGoals.includes('Emergency Fund'))
+           reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_ZERO_COUPON_CASH_FLOW_AND_EXIT_REVIEW');
+         if(profile.emergencyFundMonths===0)
+           reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_ZERO_COUPON_MATURITY_AND_EXIT_REVIEW');
+         if(Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
+           reasons.push('SHORT_HORIZON_REQUIRES_ZERO_COUPON_MATURITY_AND_MARKET_PRICE_REVIEW');
+       }else{
+         reasons.push('RBI_BANK_UNLISTED_CONVERTIBLE_EXCLUSION_NOT_RETAIL_PLACEMENT_APPROVAL');
+         if(profile.investmentGoals.includes('Emergency Fund'))
+           reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_CONVERTIBLE_EXIT_AND_CONVERSION_REVIEW');
+         if(profile.riskTolerance==='Conservative')
+           reasons.push('CONSERVATIVE_PROFILE_REQUIRES_CONVERTIBLE_EQUITY_AND_CREDIT_LOSS_REVIEW');
+         if(Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
+           reasons.push('SHORT_HORIZON_REQUIRES_CONVERTIBLE_CONVERSION_AND_RESALE_REVIEW');
+       }
      }
      if(row.id==='catalog_2026_bond_perpetual')
        reasons.push('PERPETUAL_BOND_CALL_COUPON_DEFERRAL_AND_NO_FIXED_MATURITY_REVIEW');

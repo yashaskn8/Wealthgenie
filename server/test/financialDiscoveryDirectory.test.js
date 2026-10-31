@@ -1303,3 +1303,18 @@ test('RBI historical UCB capital-bond reviews are defensively copied and remain 
      .frameworkResearch.debtInstrumentReview.bankCapitalInstrumentScopeReview.investorAccessConstraints.includes('forged'),id);
  }
 });
+
+test('bank-only RBI zero-coupon and convertible rules are copied without implying retail product access',()=>{
+ for(const id of ['catalog_2026_bond_corporate_zero','catalog_2026_bond_convertible']){
+  const row=listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+  const r=row.frameworkResearch.debtInstrumentReview.bankPortfolioRuleScopeReview;
+  assert.equal(r.regulatoryAudience,'COMMERCIAL_BANKS_EXCLUDING_REGIONAL_RURAL_BANKS');
+  assert.equal(r.institutionalBankRuleNotIndividualRetailProhibition,true);
+  assert.equal(r.applicableRetailEligibilityAndKycVerified,false);
+  assert.equal(row.recommendationEligible,false);
+  assert.equal(row.productData.currentPrice,null);
+  r.riskConsiderations.push('fabricated');
+  assert.ok(!listFinancialDiscoveryDirectory().items.find(x=>x.id===id)
+   .frameworkResearch.debtInstrumentReview.bankPortfolioRuleScopeReview.riskConsiderations.includes('fabricated'));
+ }
+});

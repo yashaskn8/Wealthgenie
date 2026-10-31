@@ -2674,3 +2674,58 @@ test('RBI UCB capital-instrument examples do not become generic corporate bond t
  assert.ok(!listExtensionResearch().find(r=>r.id===ids[0])
    .debtInstrumentReview.bankCapitalInstrumentScopeReview.riskConsiderations.includes('forged'));
 });
+
+test('RBI commercial-bank investment restrictions do not establish zero-coupon or convertible retail eligibility',()=>{
+ const ids=['catalog_2026_bond_corporate_zero','catalog_2026_bond_convertible'];
+ const rows=listExtensionResearch();
+ const short=screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:2,investmentGoals:['Emergency Fund'],
+  emergencyFundMonths:0,riskTolerance:'Conservative',
+ }));
+ const long=screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:10,investmentGoals:['Retirement'],
+  emergencyFundMonths:null,riskTolerance:'Aggressive',
+ }));
+ const expected={
+  catalog_2026_bond_corporate_zero:['30(d)',true,
+   'EMERGENCY_FUND_GOAL_REQUIRES_ZERO_COUPON_CASH_FLOW_AND_EXIT_REVIEW',
+   'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_ZERO_COUPON_MATURITY_AND_EXIT_REVIEW',
+   'SHORT_HORIZON_REQUIRES_ZERO_COUPON_MATURITY_AND_MARKET_PRICE_REVIEW'],
+  catalog_2026_bond_convertible:['30(b)(vi)(11)',false,
+   'EMERGENCY_FUND_GOAL_REQUIRES_CONVERTIBLE_EXIT_AND_CONVERSION_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_CONVERTIBLE_EQUITY_AND_CREDIT_LOSS_REVIEW',
+   'SHORT_HORIZON_REQUIRES_CONVERTIBLE_CONVERSION_AND_RESALE_REVIEW'],
+ };
+ for(const id of ids){
+  const row=rows.find(r=>r.id===id);
+  const r=row.debtInstrumentReview.bankPortfolioRuleScopeReview;
+  const [clause,exception,...profileCodes]=expected[id];
+  assert.equal(r.officialRbiDirectionsUrl,'https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12534');
+  assert.equal(r.rbiDirectionsUpdatedAsOf,'2025-04-01');
+  assert.equal(r.officialSebiHistoricalFaqUrl,'https://www.sebi.gov.in/sebi_data/faqfiles/jan-2017/1485843476566.pdf');
+  assert.equal(r.sebiFaqInformationUpdatedThrough,'2009-02-28');
+  assert.equal(r.clause,clause);
+  assert.equal(r.bankInvestmentRestrictionHasConditionalException,exception);
+  assert.equal(r.institutionalUnlistedExposureExclusionNotRetailApproval,!exception);
+  assert.equal(r.institutionalBankRuleNotIndividualRetailProhibition,true);
+  assert.equal(r.actualIssuerIsinAndOfferDocumentVerified,false);
+  assert.equal(r.applicableRetailEligibilityAndKycVerified,false);
+  assert.equal(r.individualRiskMeterOrAdviceAuthorizationVerified,false);
+  assert.equal(row.actualRetailProductEligible,false);
+  assert.equal(row.productRiskScore,null);
+  assert.equal(row.suitabilityRankingPermitted,false);
+  const a=short.find(x=>x.id===id),b=long.find(x=>x.id===id);
+  assert.ok(a.screeningReasonCodes.includes('RBI_COMMERCIAL_BANK_PORTFOLIO_RULE_NOT_RETAIL_ELIGIBILITY_OR_ISSUE_APPROVAL'));
+  assert.ok(b.screeningReasonCodes.includes('RBI_COMMERCIAL_BANK_PORTFOLIO_RULE_NOT_RETAIL_ELIGIBILITY_OR_ISSUE_APPROVAL'));
+  for(const code of profileCodes){
+   assert.ok(a.screeningReasonCodes.includes(code),id+':'+code);
+   assert.ok(!b.screeningReasonCodes.includes(code),id+':'+code);
+  }
+  assert.equal(a.recommendationEligible,false);
+  assert.equal(b.recommendationEligible,false);
+ }
+ const zero=rows.find(x=>x.id===ids[0]);
+ zero.debtInstrumentReview.bankPortfolioRuleScopeReview.investorAccessConstraints.push('fabricated approval');
+ assert.ok(!listExtensionResearch().find(x=>x.id===ids[0])
+  .debtInstrumentReview.bankPortfolioRuleScopeReview.investorAccessConstraints.includes('fabricated approval'));
+});

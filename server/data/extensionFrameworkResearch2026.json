@@ -5857,7 +5857,7 @@
       "scenarioDescription": "Zero-Coupon Corporate Bond: Corporate Coupon Structures category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
       "referenceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": "2026-10-29",
+      "referenceReviewedAt": "2026-10-31",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -5964,6 +5964,37 @@
             "The October 7, 2026 SEBI ISIN limits govern certain issuers' privately placed debt maturing in a financial year; they do not establish any investor minimum or retail eligibility.",
             "Verify issuer listing, private-placement route, exact ISIN and terms, account/KYC permissions, lawful current quote and advice authorization independently."
           ]
+        },
+        "bankPortfolioRuleScopeReview": {
+          "officialRbiDirectionsUrl": "https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12534",
+          "rbiDirectionsUpdatedAsOf": "2025-04-01",
+          "reviewedOn": "2026-10-31",
+          "officialSebiHistoricalFaqUrl": "https://www.sebi.gov.in/sebi_data/faqfiles/jan-2017/1485843476566.pdf",
+          "sebiFaqInformationUpdatedThrough": "2009-02-28",
+          "clause": "30(d)",
+          "regulatoryAudience": "COMMERCIAL_BANKS_EXCLUDING_REGIONAL_RURAL_BANKS",
+          "sourceScope": "BANK_INVESTMENT_PORTFOLIO_RULE_NOT_RETAIL_OFFER_OR_PRODUCT_RISKOMETER",
+          "specificRuleCode": "COMMERCIAL_BANK_LONG_TERM_CORPORATE_ZCB_SINKING_FUND_EXCEPTION",
+          "ruleInterpretation": "The RBI's commercial-bank portfolio directions restrict banks investing in long-term corporate zero- or low-coupon bonds unless the issuer maintains a sinking fund for accrued interest invested in liquid securities. This is a rule for investing banks, not a ban on individual retail investors or a guarantee of payment.",
+          "institutionalBankRuleNotIndividualRetailProhibition": true,
+          "bankInvestmentRestrictionHasConditionalException": true,
+          "institutionalUnlistedExposureExclusionNotRetailApproval": false,
+          "historicalSebiFaqNotCurrentRegulatoryTerms": true,
+          "actualIssuerIsinAndOfferDocumentVerified": false,
+          "applicableRetailEligibilityAndKycVerified": false,
+          "individualConversionOrRedemptionTermsVerified": false,
+          "issuerSinkingFundAndSecurityVerified": false,
+          "currentMarketPriceAndCommercialDataRightsVerified": false,
+          "individualRiskMeterOrAdviceAuthorizationVerified": false,
+          "subsequentRbiAmendmentsAfter2025Reconciled": false,
+          "riskConsiderations": [
+            "A bank-specific sinking-fund exception is not proof that a particular issuer maintains one or that a retail holder will be repaid.",
+            "Zero periodic coupons leave cash-flow and issuer-default exposure concentrated toward contractual redemption; early resale can realize market-price losses."
+          ],
+          "investorAccessConstraints": [
+            "Clause 30(d) governs covered commercial banks, not retail investor eligibility; obtain the issuer's actual terms, redemption amount, security, offer route and ISIN.",
+            "The SEBI historical secondary-market FAQ describes discount-to-face-value zero coupons but was current only through February 2009; it is not a current offer, rate or applicable tax determination."
+          ]
         }
       }
     },
@@ -5973,7 +6004,7 @@
       "scenarioDescription": "Convertible Debenture: Convertible Securities category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
       "referenceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": "2026-10-29",
+      "referenceReviewedAt": "2026-10-31",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -6044,6 +6075,37 @@
           "investorAccessConstraints": [
             "A convertible debenture cannot be presumed covered by the circular's enumerated NCS/CP/SDI/SR/MLD classes; confirm the specific security's legal classification.",
             "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
+          ]
+        },
+        "bankPortfolioRuleScopeReview": {
+          "officialRbiDirectionsUrl": "https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12534",
+          "rbiDirectionsUpdatedAsOf": "2025-04-01",
+          "reviewedOn": "2026-10-31",
+          "officialSebiHistoricalFaqUrl": "https://www.sebi.gov.in/sebi_data/faqfiles/jan-2017/1485843476566.pdf",
+          "sebiFaqInformationUpdatedThrough": "2009-02-28",
+          "clause": "30(b)(vi)(11)",
+          "regulatoryAudience": "COMMERCIAL_BANKS_EXCLUDING_REGIONAL_RURAL_BANKS",
+          "sourceScope": "BANK_INVESTMENT_PORTFOLIO_RULE_NOT_RETAIL_OFFER_OR_PRODUCT_RISKOMETER",
+          "specificRuleCode": "COMMERCIAL_BANK_UNLISTED_CONVERTIBLE_PRUDENTIAL_LIMIT_EXCLUSION",
+          "ruleInterpretation": "RBI's commercial-bank investment directions exclude unlisted convertible debentures from the specified bank unlisted non-SLR exposure-limit calculation. This does not establish that an unlisted convertible is available to, or lawful for, a particular retail investor.",
+          "institutionalBankRuleNotIndividualRetailProhibition": true,
+          "bankInvestmentRestrictionHasConditionalException": false,
+          "institutionalUnlistedExposureExclusionNotRetailApproval": true,
+          "historicalSebiFaqNotCurrentRegulatoryTerms": true,
+          "actualIssuerIsinAndOfferDocumentVerified": false,
+          "applicableRetailEligibilityAndKycVerified": false,
+          "individualConversionOrRedemptionTermsVerified": false,
+          "issuerSinkingFundAndSecurityVerified": false,
+          "currentMarketPriceAndCommercialDataRightsVerified": false,
+          "individualRiskMeterOrAdviceAuthorizationVerified": false,
+          "subsequentRbiAmendmentsAfter2025Reconciled": false,
+          "riskConsiderations": [
+            "A bank portfolio-limit calculation exception does not protect a convertible holder from issuer default, conversion dilution or equity price declines.",
+            "Conversion price, ratio, date, optional or compulsory treatment and any remaining debt claim require the specific offer document."
+          ],
+          "investorAccessConstraints": [
+            "Clause 30(b)(vi)(11) concerns the investing bank's prudential exposure classification, not a retail placement exemption or authorization to solicit the public.",
+            "SEBI's historical FAQ describes an optional conversion example but cannot prove every convertible has a holder option; verify current ICDR/company-law rules, invitation, demat, eligibility and issue terms."
           ]
         }
       }
