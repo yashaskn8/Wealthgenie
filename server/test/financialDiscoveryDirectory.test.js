@@ -1648,3 +1648,21 @@ test('four passive debt index research profiles remain discovery-only and defens
   assert.equal(clean.currentSchemeRiskometerVerified,false);assert.ok(!clean.investorAccessConstraints.includes('FORGED ACCESS'));
  }
 });
+
+test('SEBI debt FoF expense and G-Sec debt ETF conditional exit research remain unqualified and deeply copied',()=>{
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id==='catalog_2026_'+id);
+ const specs=[['domestic_debt_fof','sebiMarch2026FoFExpenseReview','currentFofAndUnderlyingExpenseRatiosVerified'],
+  ['gsec_debt_etf','sebiMarch2026EtfDirectExitReview','actualExchangeOrderbookAndNavVerified']];
+ for(const [id,key,missingField] of specs){
+  const item=get(id),v=item.frameworkResearch.sebiDebtSchemeStructureReview[key];
+  assert.equal(v[missingField],false);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.ok(Object.values(item.productData).every(x=>x===null));
+  v[missingField]=true;v.investorAccessConstraints.push('FORGED RETAIL ACCESS');
+  const clean=get(id).frameworkResearch.sebiDebtSchemeStructureReview[key];
+  assert.equal(clean[missingField],false);
+  assert.ok(!clean.investorAccessConstraints.includes('FORGED RETAIL ACCESS'));
+ }
+});
