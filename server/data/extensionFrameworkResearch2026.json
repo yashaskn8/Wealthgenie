@@ -5195,7 +5195,6 @@
           "sourceScope": "RBI_2024_SECURED_MONEY_MARKET_NCD_ORIGINAL_MATURITY_UP_TO_ONE_YEAR_NOT_ALL_LISTED_NCDS",
           "listedCategoryType": "SECURED",
           "rbiDefinitionRequiresSecuredInstrument": true,
-          "rbiDefinitionOriginalMaturityMaximumDays": 365,
           "rbiShortTermNcdMinimumTenorDays": 90,
           "rbiShortTermNcdMinimumIssueDenominationInr": 500000,
           "rbiMinimumIsUniversalListedNcdRetailMinimum": false,
@@ -5206,12 +5205,18 @@
           "individualAdviceAuthorizationVerified": false,
           "riskConsiderations": [
             "RBI's short-term money-market NCD definition requires security and original maturity of at most one year; issuer loss remains possible.",
-            "The RBI 90-day tenor floor and ₹5 lakh denomination do not describe every listed secured NCD or guarantee liquidity."
+            "The RBI 90-day tenor floor and ₹5 lakh denomination do not describe every listed secured NCD or guarantee liquidity.",
+            "For an issue actually within RBI's short-term NCD scope, an issuer buyback is allowed only after 90 days and at market price; this is not a holder put."
           ],
           "investorAccessConstraints": [
             "Verify issue-specific security and original maturity before applying RBI's 2024 short-term NCD rules to a listed secured NCD.",
-            "The ₹5 lakh issue denomination applies only within the RBI short-term directions; no actual issue, investor KYC, eligibility, current quote or rights are verified."
-          ]
+            "The ₹5 lakh issue denomination applies only within the RBI short-term directions; no actual issue, investor KYC, eligibility, current quote or rights are verified.",
+            "Check issue-specific applicability and an actual issuer offer; the 90-day RBI issuer-buyback permission does not guarantee an investor exit."
+          ],
+          "rbiDefinitionOriginalMaturityMaximum": "ONE_YEAR",
+          "rbiShortTermNcdIssuerBuybackEarliestDays": 90,
+          "issuerBuybackIsNotInvestorPutRight": true,
+          "actualShortTermNcdIssuerBuybackOfferAndPriceVerified": false
         }
       }
     },
@@ -5379,7 +5384,6 @@
           "sourceScope": "RBI_2024_SECURED_MONEY_MARKET_NCD_ORIGINAL_MATURITY_UP_TO_ONE_YEAR_NOT_ALL_LISTED_NCDS",
           "listedCategoryType": "UNSECURED",
           "rbiDefinitionRequiresSecuredInstrument": true,
-          "rbiDefinitionOriginalMaturityMaximumDays": 365,
           "rbiShortTermNcdMinimumTenorDays": 90,
           "rbiShortTermNcdMinimumIssueDenominationInr": 500000,
           "rbiMinimumIsUniversalListedNcdRetailMinimum": false,
@@ -5390,12 +5394,18 @@
           "individualAdviceAuthorizationVerified": false,
           "riskConsiderations": [
             "RBI's 2024 short-term money-market NCD definition requires security; this does not establish an unsecured listed NCD's legal route or risk.",
-            "An unsecured listed NCD can have weaker recovery and poor early-sale liquidity; this RBI definition does not itself ban other unsecured NCDs."
+            "An unsecured listed NCD can have weaker recovery and poor early-sale liquidity; this RBI definition does not itself ban other unsecured NCDs.",
+            "RBI's 90-day earliest issuer buyback for secured short-term NCDs does not establish early-redemption rights for an unsecured listed NCD."
           ],
           "investorAccessConstraints": [
             "Do not infer a ₹5 lakh investor minimum or 90-day maturity floor for unsecured listed NCDs from RBI's secured short-term definition.",
-            "Verify SEBI issuance route, issuer, ISIN, seniority, KYC, retail permissions, credit and licensed price rights independently."
-          ]
+            "Verify SEBI issuance route, issuer, ISIN, seniority, KYC, retail permissions, credit and licensed price rights independently.",
+            "Check issue-specific applicability and an actual issuer offer; the 90-day RBI issuer-buyback permission does not guarantee an investor exit."
+          ],
+          "rbiDefinitionOriginalMaturityMaximum": "ONE_YEAR",
+          "rbiShortTermNcdIssuerBuybackEarliestDays": 90,
+          "issuerBuybackIsNotInvestorPutRight": true,
+          "actualShortTermNcdIssuerBuybackOfferAndPriceVerified": false
         }
       }
     },

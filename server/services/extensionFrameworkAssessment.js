@@ -986,8 +986,11 @@ if(research.entries.some(row=>{
   ||e.reviewedOn!=='2026-10-31'
   ||e.sourceScope!=='RBI_2024_SECURED_MONEY_MARKET_NCD_ORIGINAL_MATURITY_UP_TO_ONE_YEAR_NOT_ALL_LISTED_NCDS'
   ||e.listedCategoryType!==(row.id==='catalog_2026_ncd_secured'?'SECURED':'UNSECURED')
-  ||e.rbiDefinitionRequiresSecuredInstrument!==true||e.rbiDefinitionOriginalMaturityMaximumDays!==365
+  ||e.rbiDefinitionRequiresSecuredInstrument!==true||e.rbiDefinitionOriginalMaturityMaximum!=='ONE_YEAR'
   ||e.rbiShortTermNcdMinimumTenorDays!==90||e.rbiShortTermNcdMinimumIssueDenominationInr!==500000
+  ||e.rbiShortTermNcdIssuerBuybackEarliestDays!==90
+  ||e.issuerBuybackIsNotInvestorPutRight!==true
+  ||e.actualShortTermNcdIssuerBuybackOfferAndPriceVerified!==false
   ||e.rbiMinimumIsUniversalListedNcdRetailMinimum!==false
   ||['actualListedNcdFallsWithinRbiShortTermDefinitionVerified',
    'actualIssuerIsinSecurityMaturityAndTermsVerified','investorDematKycOfferRouteAndPermissionsVerified',
@@ -1673,6 +1676,8 @@ export function screenExtensionResearchForProfile(profileInput) {
    }
    if(row.debtInstrumentReview?.rbiShortTermNcd2024ScopeReview){
      reasons.push('RBI_SHORT_TERM_SECURED_NCD_DEFINITION_NOT_UNIVERSAL_LISTED_NCD_RULE');
+     if(row.id==='catalog_2026_ncd_secured')
+       reasons.push('RBI_2024_SECURED_SHORT_NCD_90_DAY_ISSUER_BUYBACK_NOT_HOLDER_PUT');
      reasons.push(row.id==='catalog_2026_ncd_secured'
        ? 'LISTED_SECURED_NCD_ORIGINAL_MATURITY_AND_COLLATERAL_UNVERIFIED'
        : 'UNSECURED_LISTED_NCD_NOT_APPROVED_OR_BANNED_BY_RBI_SECURED_SHORT_NCD_DEFINITION');

@@ -2503,6 +2503,10 @@ test('RBI 2024 CP issuer buyback and listed NCD subset rules cannot imply retail
   assert.equal(r.listedCategoryType,kind);
   assert.equal(r.rbiDefinitionRequiresSecuredInstrument,true);
   assert.equal(r.rbiShortTermNcdMinimumTenorDays,90);
+  assert.equal(r.rbiDefinitionOriginalMaturityMaximum,'ONE_YEAR');
+  assert.equal(r.rbiShortTermNcdIssuerBuybackEarliestDays,90);
+  assert.equal(r.issuerBuybackIsNotInvestorPutRight,true);
+  assert.equal(r.actualShortTermNcdIssuerBuybackOfferAndPriceVerified,false);
   assert.equal(r.rbiShortTermNcdMinimumIssueDenominationInr,500000);
   assert.equal(r.rbiMinimumIsUniversalListedNcdRetailMinimum,false);
   assert.equal(r.actualListedNcdFallsWithinRbiShortTermDefinitionVerified,false);
@@ -2521,6 +2525,10 @@ test('RBI 2024 CP issuer buyback and listed NCD subset rules cannot imply retail
   assert.ok(!unknown.get(key).screeningReasonCodes.includes(flag));
   assert.ok(!positive.get(key).screeningReasonCodes.includes(flag));
   if(id!=='commercial_paper'){
+   if(id==='ncd_secured')assert.ok(unknown.get(key).screeningReasonCodes.includes(
+    'RBI_2024_SECURED_SHORT_NCD_90_DAY_ISSUER_BUYBACK_NOT_HOLDER_PUT'));
+   if(id==='ncd_unsecured')assert.ok(!unknown.get(key).screeningReasonCodes.includes(
+    'RBI_2024_SECURED_SHORT_NCD_90_DAY_ISSUER_BUYBACK_NOT_HOLDER_PUT'));
    assert.ok(emergency.get(key).screeningReasonCodes.includes('EMERGENCY_FUND_REQUIRES_LISTED_NCD_CREDIT_AND_SECONDARY_EXIT_REVIEW'));
    assert.ok(!unknown.get(key).screeningReasonCodes.includes('EMERGENCY_FUND_REQUIRES_LISTED_NCD_CREDIT_AND_SECONDARY_EXIT_REVIEW'));
   }else assert.ok(unknown.get(key).screeningReasonCodes.includes('RBI_CP_ISSUER_BUYBACK_NOT_INVESTOR_PUT_OR_GUARANTEED_EXIT'));
