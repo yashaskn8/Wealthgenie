@@ -2950,3 +2950,52 @@ test('three RBI 2025 bank FAQ category reviews preserve conditional emergency sc
    .rbiDepositInterest2025FaqDetailReview.riskConsiderations.includes('FORGED RATE'));
  }
 });
+
+// SEBI Annexure A: issue-level CRA and OBPP obligations never confer a product score.
+test('three further debt archetypes retain guarded CRA and liquidity screening',()=>{
+ const ids=['catalog_2026_bond_corporate_floating','catalog_2026_psu_bond_taxable','catalog_2026_infra_corporate_bond'];
+ const codes=['FLOATING_CORPORATE_CRA_METER_NOT_COUPON_RESET_OR_RESALE_GUARANTEE',
+  'PSU_BOND_CRA_METER_NOT_SOVEREIGN_GUARANTEE_OR_TAX_APPROVAL',
+  'INFRA_BOND_CRA_METER_NOT_PROJECT_CASHFLOW_OR_SECURITY_GUARANTEE'];
+ const shortCodes=['SHORT_HORIZON_REQUIRES_FLOATING_CORPORATE_RESET_AND_RESALE_REVIEW',
+  'SHORT_HORIZON_REQUIRES_PSU_BOND_MATURITY_AND_RESALE_REVIEW',
+  'SHORT_HORIZON_REQUIRES_INFRA_BOND_PROJECT_CASHFLOW_AND_RESALE_REVIEW'];
+ const screen=changes=>screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],investmentHorizonYears:10,emergencyFundMonths:null,
+  riskTolerance:'Moderate',...changes,
+ }));
+ const base=screen({}),short=screen({investmentHorizonYears:2}),
+  zero=screen({emergencyFundMonths:0}),goal=screen({investmentGoals:['Emergency Fund']});
+ for(const [i,id] of ids.entries()){
+  const row=listExtensionResearch().find(x=>x.id===id);
+  const r=row.debtInstrumentReview.creditRiskometerOct2026Review.issueSpecificDisclosureAnnexureReview;
+  assert.equal(r.effectiveFrom,'2026-11-21');
+  assert.equal(r.effectiveOnResearchDate,false);
+  for(const key of ['obppRatingsOnlyFromSebiRegisteredCras','obppRatingChangeUpdateWithin24HoursOfNsdlCdslIntimation',
+   'obppManualMeterOverrideProhibited','obppRatingChangeAuditTrailRequired'])assert.equal(r[key],true,id+':'+key);
+  for(const key of ['actualIsinAndCraRatingVerified','actualIssueSecurityAndTermsVerified',
+   'actualCreditMeterAndDisclaimersVerified','actualRetailKycEligibilityVerified',
+   'currentPriceAndLicensedDataRightsVerified','personalizedAdviceAuthorizationVerified',
+   'actualObppCurrentFeedAndPermissionsVerified'])assert.equal(r[key],false,id+':'+key);
+  for(const arr of [base,short,zero,goal]){
+   const x=arr.find(y=>y.id===id);
+   assert.equal(x.productQualified,false);assert.equal(x.scoreAvailable,false);
+   assert.equal(x.productRiskLevel,null);
+   assert.ok(x.screeningReasonCodes.includes(codes[i]));
+   assert.ok(x.screeningReasonCodes.includes('SEBI_OCT_2026_OBPP_CRA_SOURCE_UPDATE_AUDIT_NOT_VERIFIED_LIVE_FEED'));
+  }
+  assert.ok(short.find(x=>x.id===id).screeningReasonCodes.includes(shortCodes[i]));
+  assert.ok(!base.find(x=>x.id===id).screeningReasonCodes.includes(shortCodes[i]));
+  assert.ok(zero.find(x=>x.id===id).screeningReasonCodes.includes(
+   'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_CORPORATE_BOND_RESALE_AND_SETTLEMENT_REVIEW'));
+  assert.ok(!base.find(x=>x.id===id).screeningReasonCodes.includes(
+   'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_CORPORATE_BOND_RESALE_AND_SETTLEMENT_REVIEW'));
+  assert.ok(goal.find(x=>x.id===id).screeningReasonCodes.includes(
+   'EMERGENCY_FUND_GOAL_REQUIRES_DEBT_NONCREDIT_EXIT_AND_SETTLEMENT_REVIEW'));
+ }
+ const row=listExtensionResearch().find(x=>x.id===ids[0]);
+ row.debtInstrumentReview.creditRiskometerOct2026Review.issueSpecificDisclosureAnnexureReview
+  .riskConsiderations.push('FAKE');
+ assert.ok(!listExtensionResearch().find(x=>x.id===ids[0]).debtInstrumentReview
+  .creditRiskometerOct2026Review.issueSpecificDisclosureAnnexureReview.riskConsiderations.includes('FAKE'));
+});

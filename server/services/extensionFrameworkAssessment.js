@@ -955,8 +955,8 @@ if(octoberDebtIds.size!==11||research.entries.filter(row=>row.debtInstrumentRevi
      ||!Array.isArray(r.investorAccessConstraints)||r.investorAccessConstraints.length<2;
  }))throw new Error('FINANCIAL_OCTOBER_DEBT_CREDIT_METER_SCOPE_INVALID');
 // October 2026 SEBI Annexure A is an issue-level CRA disclosure rule, not an archetype rating.
-const debtMeterAnnexureSpecs={"catalog_2026_ncd_secured":"SECURED_LISTED_NCD","catalog_2026_ncd_unsecured":"UNSECURED_LISTED_NCD","catalog_2026_bond_perpetual":"PERPETUAL_CORPORATE_BOND"};
-if(research.entries.filter(row=>row.debtInstrumentReview?.creditRiskometerOct2026Review?.issueSpecificDisclosureAnnexureReview).length!==3
+const debtMeterAnnexureSpecs={"catalog_2026_ncd_secured":"SECURED_LISTED_NCD","catalog_2026_ncd_unsecured":"UNSECURED_LISTED_NCD","catalog_2026_bond_perpetual":"PERPETUAL_CORPORATE_BOND","catalog_2026_bond_corporate_floating":"FLOATING_RATE_CORPORATE_BOND","catalog_2026_psu_bond_taxable":"TAXABLE_PSU_BOND","catalog_2026_infra_corporate_bond":"INFRASTRUCTURE_CORPORATE_BOND"};
+if(research.entries.filter(row=>row.debtInstrumentReview?.creditRiskometerOct2026Review?.issueSpecificDisclosureAnnexureReview).length!==6
  ||Object.entries(debtMeterAnnexureSpecs).some(([id,categoryCode])=>{
    const r=research.entries.find(row=>row.id===id)?.debtInstrumentReview?.creditRiskometerOct2026Review?.issueSpecificDisclosureAnnexureReview;
    return !r||r.officialSebiSignedCircularPdfUrl!=='https://www.sebi.gov.in/sebi_data/attachdocs/oct-2026/1791436170839.pdf'
@@ -971,6 +971,13 @@ if(research.entries.filter(row=>row.debtInstrumentReview?.creditRiskometerOct202
        'actualIssuerNonCooperationVerified','actualIssueSecurityAndTermsVerified',
        'actualCreditMeterAndDisclaimersVerified','actualRetailKycEligibilityVerified',
        'currentPriceAndLicensedDataRightsVerified','personalizedAdviceAuthorizationVerified'].some(k=>r[k]!==false)
+    ||(['catalog_2026_bond_corporate_floating','catalog_2026_psu_bond_taxable',
+         'catalog_2026_infra_corporate_bond'].includes(id)
+       &&(['obppRatingsOnlyFromSebiRegisteredCras',
+            'obppRatingChangeUpdateWithin24HoursOfNsdlCdslIntimation',
+            'obppManualMeterOverrideProhibited','obppRatingChangeAuditTrailRequired'].some(k=>r[k]!==true)
+          ||r.actualObppCurrentFeedAndPermissionsVerified!==false
+          ||!r.categorySpecificNonCreditRisk))
     ||r.riskConsiderations?.length<2||r.investorAccessConstraints?.length<2;
  }))throw new Error('FINANCIAL_DEBT_CREDIT_METER_ISSUE_DISCLOSURE_INVALID');
 // SEBI's 2017 investor caution is historical evidence of disguised-public-offer
@@ -1870,6 +1877,9 @@ export function screenExtensionResearchForProfile(profileInput) {
           catalog_2026_ncd_secured:'SECURED_NCD_CREDIT_METER_NOT_COLLATERAL_RECOVERY_GUARANTEE',
           catalog_2026_ncd_unsecured:'UNSECURED_NCD_CREDIT_METER_RED_WARNING_NOT_COLLATERAL',
           catalog_2026_bond_perpetual:'PERPETUAL_BOND_UNSECURED_AT1_WARNING_REQUIRES_ACTUAL_ISSUE_VERIFICATION',
+          catalog_2026_bond_corporate_floating:'FLOATING_CORPORATE_CRA_METER_NOT_COUPON_RESET_OR_RESALE_GUARANTEE',
+          catalog_2026_psu_bond_taxable:'PSU_BOND_CRA_METER_NOT_SOVEREIGN_GUARANTEE_OR_TAX_APPROVAL',
+          catalog_2026_infra_corporate_bond:'INFRA_BOND_CRA_METER_NOT_PROJECT_CASHFLOW_OR_SECURITY_GUARANTEE',
         }[row.id]);
         if(profile.investmentGoals.includes('Emergency Fund'))
           reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_DEBT_NONCREDIT_EXIT_AND_SETTLEMENT_REVIEW');
@@ -1879,6 +1889,18 @@ export function screenExtensionResearchForProfile(profileInput) {
           if(profile.emergencyFundMonths===0)
             reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_PERPETUAL_MARKET_EXIT_REVIEW');
         }
+      }
+      if(['catalog_2026_bond_corporate_floating','catalog_2026_psu_bond_taxable',
+          'catalog_2026_infra_corporate_bond'].includes(row.id)){
+        reasons.push('SEBI_OCT_2026_OBPP_CRA_SOURCE_UPDATE_AUDIT_NOT_VERIFIED_LIVE_FEED');
+        if(profile.emergencyFundMonths===0)
+          reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_CORPORATE_BOND_RESALE_AND_SETTLEMENT_REVIEW');
+        if(Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
+          reasons.push({
+            catalog_2026_bond_corporate_floating:'SHORT_HORIZON_REQUIRES_FLOATING_CORPORATE_RESET_AND_RESALE_REVIEW',
+            catalog_2026_psu_bond_taxable:'SHORT_HORIZON_REQUIRES_PSU_BOND_MATURITY_AND_RESALE_REVIEW',
+            catalog_2026_infra_corporate_bond:'SHORT_HORIZON_REQUIRES_INFRA_BOND_PROJECT_CASHFLOW_AND_RESALE_REVIEW',
+          }[row.id]);
       }
       if(row.id==='catalog_2026_ncd_unlisted'){
        reasons.push('UNLISTED_NCD_TRANSFER_RESTRICTIONS_AND_EXIT_COUNTERPARTY_UNVERIFIED');

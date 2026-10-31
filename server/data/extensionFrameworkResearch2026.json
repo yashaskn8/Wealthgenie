@@ -6164,7 +6164,44 @@
           "investorAccessConstraints": [
             "The October 7 SEBI disclosure circular applies to listed or proposed-to-be-listed specified debt issues; this category alone does not prove listing or an eligible retail offer.",
             "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
-          ]
+          ],
+          "issueSpecificDisclosureAnnexureReview": {
+            "officialSebiSignedCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/oct-2026/1791436170839.pdf",
+            "circularIssuedOn": "2026-10-07",
+            "effectiveFrom": "2026-11-21",
+            "reviewedOn": "2026-10-31",
+            "sourceScope": "ANNEXURE_A_ISSUE_LEVEL_CRA_DISCLOSURE_NOT_SCHEME_RISKOMETER_OR_MARKET_LIQUIDITY",
+            "categoryCode": "FLOATING_RATE_CORPORATE_BOND",
+            "categorySpecificNonCreditRisk": "FLOATING_RATE_CORPORATE_BOND_NONCREDIT_RISKS_NOT_IN_METER",
+            "appliesOnlyToListedOrProposedListedSpecifiedDebt": true,
+            "actualCraNameAndIssueRatingRequired": true,
+            "lowestMultipleCraRatingControls": true,
+            "issuerNotCooperatingDisclosureConditionalOnCraNotice": true,
+            "unsecuredRedWarningConditionalOnActualUnsecuredIssue": true,
+            "specialPerpetualWarningConditionalOnActualUnsecuredPerpetualIssue": true,
+            "everyPerpetualBondAssumedUnsecured": false,
+            "effectiveOnResearchDate": false,
+            "obppRatingsOnlyFromSebiRegisteredCras": true,
+            "obppRatingChangeUpdateWithin24HoursOfNsdlCdslIntimation": true,
+            "obppManualMeterOverrideProhibited": true,
+            "obppRatingChangeAuditTrailRequired": true,
+            "actualIsinAndCraRatingVerified": false,
+            "actualIssuerNonCooperationVerified": false,
+            "actualIssueSecurityAndTermsVerified": false,
+            "actualCreditMeterAndDisclaimersVerified": false,
+            "actualRetailKycEligibilityVerified": false,
+            "currentPriceAndLicensedDataRightsVerified": false,
+            "personalizedAdviceAuthorizationVerified": false,
+            "actualObppCurrentFeedAndPermissionsVerified": false,
+            "riskConsiderations": [
+              "A floating coupon does not remove issuer default, benchmark reset-basis and spread risk.",
+              "A CRA credit meter cannot establish future coupon resets, executable prices or resale liquidity."
+            ],
+            "investorAccessConstraints": [
+              "Verify actual floating-rate ISIN, benchmark, spread, listing, CRA rating and issuer cooperation.",
+              "OBPP disclosure duties do not establish current prices, retail KYC or licensed data rights."
+            ]
+          }
         },
         "privatePlacementIsinOct2026Review": {
           "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/oct-2026/review-of-provisions-related-to-international-securities-identification-number-isin-for-debt-securities-issued-on-private-placement-basis_105076.html",
@@ -6537,7 +6574,44 @@
           "investorAccessConstraints": [
             "The October 7 SEBI disclosure circular applies to listed or proposed-to-be-listed specified debt issues; this category alone does not prove listing or an eligible retail offer.",
             "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
-          ]
+          ],
+          "issueSpecificDisclosureAnnexureReview": {
+            "officialSebiSignedCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/oct-2026/1791436170839.pdf",
+            "circularIssuedOn": "2026-10-07",
+            "effectiveFrom": "2026-11-21",
+            "reviewedOn": "2026-10-31",
+            "sourceScope": "ANNEXURE_A_ISSUE_LEVEL_CRA_DISCLOSURE_NOT_SCHEME_RISKOMETER_OR_MARKET_LIQUIDITY",
+            "categoryCode": "TAXABLE_PSU_BOND",
+            "categorySpecificNonCreditRisk": "TAXABLE_PSU_BOND_NONCREDIT_RISKS_NOT_IN_METER",
+            "appliesOnlyToListedOrProposedListedSpecifiedDebt": true,
+            "actualCraNameAndIssueRatingRequired": true,
+            "lowestMultipleCraRatingControls": true,
+            "issuerNotCooperatingDisclosureConditionalOnCraNotice": true,
+            "unsecuredRedWarningConditionalOnActualUnsecuredIssue": true,
+            "specialPerpetualWarningConditionalOnActualUnsecuredPerpetualIssue": true,
+            "everyPerpetualBondAssumedUnsecured": false,
+            "effectiveOnResearchDate": false,
+            "obppRatingsOnlyFromSebiRegisteredCras": true,
+            "obppRatingChangeUpdateWithin24HoursOfNsdlCdslIntimation": true,
+            "obppManualMeterOverrideProhibited": true,
+            "obppRatingChangeAuditTrailRequired": true,
+            "actualIsinAndCraRatingVerified": false,
+            "actualIssuerNonCooperationVerified": false,
+            "actualIssueSecurityAndTermsVerified": false,
+            "actualCreditMeterAndDisclaimersVerified": false,
+            "actualRetailKycEligibilityVerified": false,
+            "currentPriceAndLicensedDataRightsVerified": false,
+            "personalizedAdviceAuthorizationVerified": false,
+            "actualObppCurrentFeedAndPermissionsVerified": false,
+            "riskConsiderations": [
+              "Public-sector ownership does not imply a sovereign repayment guarantee.",
+              "A CRA credit meter does not verify current tax treatment, price losses or liquidity."
+            ],
+            "investorAccessConstraints": [
+              "Verify actual PSU issuer, ISIN, offer route, CRA rating and explicit guarantee if any.",
+              "An OBPP meter is not evidence of retail eligibility, tax outcome or advice authority."
+            ]
+          }
         },
         "merchantBankerExemptionOct2026Review": {
           "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/oct-2026/exemption-from-the-requirement-of-mandatory-merchant-banker-appointment-for-debt-issued-through-private-placement-by-certain-listed-issuers_105080.html",
@@ -6658,7 +6732,44 @@
           "investorAccessConstraints": [
             "The October 7 SEBI disclosure circular applies to listed or proposed-to-be-listed specified debt issues; this category alone does not prove listing or an eligible retail offer.",
             "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
-          ]
+          ],
+          "issueSpecificDisclosureAnnexureReview": {
+            "officialSebiSignedCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/oct-2026/1791436170839.pdf",
+            "circularIssuedOn": "2026-10-07",
+            "effectiveFrom": "2026-11-21",
+            "reviewedOn": "2026-10-31",
+            "sourceScope": "ANNEXURE_A_ISSUE_LEVEL_CRA_DISCLOSURE_NOT_SCHEME_RISKOMETER_OR_MARKET_LIQUIDITY",
+            "categoryCode": "INFRASTRUCTURE_CORPORATE_BOND",
+            "categorySpecificNonCreditRisk": "INFRASTRUCTURE_CORPORATE_BOND_NONCREDIT_RISKS_NOT_IN_METER",
+            "appliesOnlyToListedOrProposedListedSpecifiedDebt": true,
+            "actualCraNameAndIssueRatingRequired": true,
+            "lowestMultipleCraRatingControls": true,
+            "issuerNotCooperatingDisclosureConditionalOnCraNotice": true,
+            "unsecuredRedWarningConditionalOnActualUnsecuredIssue": true,
+            "specialPerpetualWarningConditionalOnActualUnsecuredPerpetualIssue": true,
+            "everyPerpetualBondAssumedUnsecured": false,
+            "effectiveOnResearchDate": false,
+            "obppRatingsOnlyFromSebiRegisteredCras": true,
+            "obppRatingChangeUpdateWithin24HoursOfNsdlCdslIntimation": true,
+            "obppManualMeterOverrideProhibited": true,
+            "obppRatingChangeAuditTrailRequired": true,
+            "actualIsinAndCraRatingVerified": false,
+            "actualIssuerNonCooperationVerified": false,
+            "actualIssueSecurityAndTermsVerified": false,
+            "actualCreditMeterAndDisclaimersVerified": false,
+            "actualRetailKycEligibilityVerified": false,
+            "currentPriceAndLicensedDataRightsVerified": false,
+            "personalizedAdviceAuthorizationVerified": false,
+            "actualObppCurrentFeedAndPermissionsVerified": false,
+            "riskConsiderations": [
+              "Infrastructure project delays, cash-flow shortfalls and refinancing may impair repayment.",
+              "A CRA credit meter does not verify collateral enforcement, project recourse or resale depth."
+            ],
+            "investorAccessConstraints": [
+              "Verify actual infrastructure issuer, project covenants, recourse, security, ISIN and CRA rating.",
+              "OBPP controls do not verify a retail offering, current quote or commercial data rights."
+            ]
+          }
         }
       }
     },

@@ -1419,3 +1419,26 @@ test('three bank FAQ details remain educational, unpriced and defensively copied
   assert.ok(!fresh.riskConsiderations.includes('FAKE PAYOUT'));
  }
 });
+
+// Discovery-only data must not turn public CRA rules into prices or retail approvals.
+test('three further CRA Annexure reviews remain unpriced and defensively copied',()=>{
+ for(const id of ['catalog_2026_bond_corporate_floating','catalog_2026_psu_bond_taxable',
+  'catalog_2026_infra_corporate_bond']){
+  const get=()=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+  const item=get(),r=item.frameworkResearch.debtInstrumentReview
+   .creditRiskometerOct2026Review.issueSpecificDisclosureAnnexureReview;
+  assert.equal(r.reviewedOn,'2026-10-31');
+  assert.equal(r.actualIsinAndCraRatingVerified,false);
+  assert.equal(r.actualObppCurrentFeedAndPermissionsVerified,false);
+  assert.equal(r.obppManualMeterOverrideProhibited,true);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.ok(Object.values(item.productData).every(v=>v===null));
+  r.riskConsiderations.push('FAKE RATING');r.actualIsinAndCraRatingVerified=true;
+  const fresh=get().frameworkResearch.debtInstrumentReview
+   .creditRiskometerOct2026Review.issueSpecificDisclosureAnnexureReview;
+  assert.equal(fresh.actualIsinAndCraRatingVerified,false);
+  assert.ok(!fresh.riskConsiderations.includes('FAKE RATING'));
+ }
+});
