@@ -2487,3 +2487,49 @@ test('India Post 2021 Basic Savings exception is not blanket zero-balance retail
  assert.ok(!positive.screeningReasonCodes.includes(zeroCode));
  assert.equal(rows.filter(x=>x.postalSavingsAccessReview?.basicSavings2021AmendmentReview).length,1);
 });
+
+test('RBI 2024 CP issuer buyback and listed NCD subset rules cannot imply retail approval',()=>{
+ const research=listExtensionResearch(),find=id=>research.find(x=>x.id==='catalog_2026_'+id);
+ const cp=find('commercial_paper').debtInstrumentReview.rbiCpDirectionSpecificReview;
+ assert.equal(cp.buybackPermittedOnlyAfterIssueDays,7);
+ assert.equal(cp.issuerBuybackOfferMustBeMadeToAllHoldersOnIdenticalTerms,true);
+ assert.equal(cp.investorMayDeclineBuybackOffer,true);
+ assert.equal(cp.buybackAtPrevailingMarketPrice,true);
+ assert.equal(cp.issuerBuybackIsNotInvestorPutRight,true);
+ assert.equal(cp.actualIssuerBuybackOfferAndPriceVerified,false);
+ for(const [id,kind] of [['ncd_secured','SECURED'],['ncd_unsecured','UNSECURED']]){
+  const r=find(id).debtInstrumentReview.rbiShortTermNcd2024ScopeReview;
+  assert.equal(r.officialRbiDirectionUrl,'https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12592');
+  assert.equal(r.listedCategoryType,kind);
+  assert.equal(r.rbiDefinitionRequiresSecuredInstrument,true);
+  assert.equal(r.rbiShortTermNcdMinimumTenorDays,90);
+  assert.equal(r.rbiShortTermNcdMinimumIssueDenominationInr,500000);
+  assert.equal(r.rbiMinimumIsUniversalListedNcdRetailMinimum,false);
+  assert.equal(r.actualListedNcdFallsWithinRbiShortTermDefinitionVerified,false);
+  assert.equal(r.individualAdviceAuthorizationVerified,false);
+ }
+ const make=overrides=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],emergencyFundMonths:null,investmentHorizonYears:10,...overrides,
+ })).map(x=>[x.id,x]));
+ const unknown=make({}),zero=make({emergencyFundMonths:0}),positive=make({emergencyFundMonths:6});
+ const emergency=make({investmentGoals:['Emergency Fund']});
+ for(const id of ['commercial_paper','ncd_secured','ncd_unsecured']){
+  const key='catalog_2026_'+id;
+  const flag=id==='commercial_paper'?'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_CP_CREDIT_AND_EXIT_REVIEW':
+   'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_LISTED_NCD_CREDIT_AND_EXIT_REVIEW';
+  assert.ok(zero.get(key).screeningReasonCodes.includes(flag));
+  assert.ok(!unknown.get(key).screeningReasonCodes.includes(flag));
+  assert.ok(!positive.get(key).screeningReasonCodes.includes(flag));
+  if(id!=='commercial_paper'){
+   assert.ok(emergency.get(key).screeningReasonCodes.includes('EMERGENCY_FUND_REQUIRES_LISTED_NCD_CREDIT_AND_SECONDARY_EXIT_REVIEW'));
+   assert.ok(!unknown.get(key).screeningReasonCodes.includes('EMERGENCY_FUND_REQUIRES_LISTED_NCD_CREDIT_AND_SECONDARY_EXIT_REVIEW'));
+  }else assert.ok(unknown.get(key).screeningReasonCodes.includes('RBI_CP_ISSUER_BUYBACK_NOT_INVESTOR_PUT_OR_GUARANTEED_EXIT'));
+  for(const views of [unknown,zero,positive,emergency]){
+   const row=views.get(key);
+   assert.equal(row.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(row.productQualified,false);
+   assert.equal(row.scoreAvailable,false);
+   assert.equal(row.productRiskLevel,null);
+  }
+ }
+});

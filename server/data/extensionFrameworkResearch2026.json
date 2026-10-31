@@ -5073,12 +5073,14 @@
         "riskConsiderations": [
           "Security interests may prove insufficient or difficult to enforce after issuer default; 'secured' does not guarantee full recovery.",
           "Interest-rate movements, issuer downgrade and thin secondary-market bids can cause losses before maturity.",
-          "Increased issuer ISIN capacity does not reduce the specific bond's credit, interest-rate or early-sale liquidity risks."
+          "Increased issuer ISIN capacity does not reduce the specific bond's credit, interest-rate or early-sale liquidity risks.",
+          "RBI's secured short-term money-market NCD definition does not establish maturity or exit liquidity for every listed secured NCD."
         ],
         "investorAccessConstraints": [
           "Verify actual listed ISIN, collateral description/charge perfection, trustee and issue disclosure; category wording is not proof of secured priority.",
           "Confirm issue route, eligible investor and denomination, demat/broker access, live quote, rating and lawful market-data rights.",
-          "SEBI's October 7, 2026 issuer-level ISIN maturity-year caps do not establish a specific retail offering, minimum subscription or tradable security."
+          "SEBI's October 7, 2026 issuer-level ISIN maturity-year caps do not establish a specific retail offering, minimum subscription or tradable security.",
+          "Confirm an actual issue falls within RBI's short-term secured NCD scope before applying the ₹5 lakh issue denomination."
         ],
         "specificInstrumentOrSchemeVerified": false,
         "currentPriceOrNavVerified": false,
@@ -5184,6 +5186,32 @@
             "The October 7, 2026 SEBI ISIN limits govern certain issuers' privately placed debt maturing in a financial year; they do not establish any investor minimum or retail eligibility.",
             "Verify issuer listing, private-placement route, exact ISIN and terms, account/KYC permissions, lawful current quote and advice authorization independently."
           ]
+        },
+        "rbiShortTermNcd2024ScopeReview": {
+          "officialRbiDirectionUrl": "https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12592",
+          "directionsIssuedOn": "2024-01-03",
+          "effectiveFrom": "2024-04-01",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "RBI_2024_SECURED_MONEY_MARKET_NCD_ORIGINAL_MATURITY_UP_TO_ONE_YEAR_NOT_ALL_LISTED_NCDS",
+          "listedCategoryType": "SECURED",
+          "rbiDefinitionRequiresSecuredInstrument": true,
+          "rbiDefinitionOriginalMaturityMaximumDays": 365,
+          "rbiShortTermNcdMinimumTenorDays": 90,
+          "rbiShortTermNcdMinimumIssueDenominationInr": 500000,
+          "rbiMinimumIsUniversalListedNcdRetailMinimum": false,
+          "actualListedNcdFallsWithinRbiShortTermDefinitionVerified": false,
+          "actualIssuerIsinSecurityMaturityAndTermsVerified": false,
+          "investorDematKycOfferRouteAndPermissionsVerified": false,
+          "livePriceLiquidityAndCommercialDataRightsVerified": false,
+          "individualAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "RBI's short-term money-market NCD definition requires security and original maturity of at most one year; issuer loss remains possible.",
+            "The RBI 90-day tenor floor and ₹5 lakh denomination do not describe every listed secured NCD or guarantee liquidity."
+          ],
+          "investorAccessConstraints": [
+            "Verify issue-specific security and original maturity before applying RBI's 2024 short-term NCD rules to a listed secured NCD.",
+            "The ₹5 lakh issue denomination applies only within the RBI short-term directions; no actual issue, investor KYC, eligibility, current quote or rights are verified."
+          ]
         }
       }
     },
@@ -5229,12 +5257,14 @@
         "riskConsiderations": [
           "Unsecured creditors may have weaker recovery than secured claims if the issuer defaults.",
           "Credit-spread widening, interest-rate changes and thin trading can reduce secondary sale proceeds.",
-          "Increased issuer ISIN capacity does not reduce the specific bond's credit, interest-rate or early-sale liquidity risks."
+          "Increased issuer ISIN capacity does not reduce the specific bond's credit, interest-rate or early-sale liquidity risks.",
+          "RBI's secured short-term money-market NCD definition cannot establish collateral or recovery rights for an unsecured listed NCD."
         ],
         "investorAccessConstraints": [
           "Check actual issuer/ISIN, seniority, covenants, default events, offer route and credit rating; a listed label is not a retail approval.",
           "Verify KYC/demat, denomination, transfer rules, current quote, issuer terms and licensed data/financial-advice permissions.",
-          "SEBI's October 7, 2026 issuer-level ISIN maturity-year caps do not establish a specific retail offering, minimum subscription or tradable security."
+          "SEBI's October 7, 2026 issuer-level ISIN maturity-year caps do not establish a specific retail offering, minimum subscription or tradable security.",
+          "RBI's ₹5 lakh short-term secured-NCD denomination is not a universal retail minimum or ban on unsecured listed NCDs."
         ],
         "specificInstrumentOrSchemeVerified": false,
         "currentPriceOrNavVerified": false,
@@ -5339,6 +5369,32 @@
           "investorAccessConstraints": [
             "The October 7, 2026 SEBI ISIN limits govern certain issuers' privately placed debt maturing in a financial year; they do not establish any investor minimum or retail eligibility.",
             "Verify issuer listing, private-placement route, exact ISIN and terms, account/KYC permissions, lawful current quote and advice authorization independently."
+          ]
+        },
+        "rbiShortTermNcd2024ScopeReview": {
+          "officialRbiDirectionUrl": "https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12592",
+          "directionsIssuedOn": "2024-01-03",
+          "effectiveFrom": "2024-04-01",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "RBI_2024_SECURED_MONEY_MARKET_NCD_ORIGINAL_MATURITY_UP_TO_ONE_YEAR_NOT_ALL_LISTED_NCDS",
+          "listedCategoryType": "UNSECURED",
+          "rbiDefinitionRequiresSecuredInstrument": true,
+          "rbiDefinitionOriginalMaturityMaximumDays": 365,
+          "rbiShortTermNcdMinimumTenorDays": 90,
+          "rbiShortTermNcdMinimumIssueDenominationInr": 500000,
+          "rbiMinimumIsUniversalListedNcdRetailMinimum": false,
+          "actualListedNcdFallsWithinRbiShortTermDefinitionVerified": false,
+          "actualIssuerIsinSecurityMaturityAndTermsVerified": false,
+          "investorDematKycOfferRouteAndPermissionsVerified": false,
+          "livePriceLiquidityAndCommercialDataRightsVerified": false,
+          "individualAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "RBI's 2024 short-term money-market NCD definition requires security; this does not establish an unsecured listed NCD's legal route or risk.",
+            "An unsecured listed NCD can have weaker recovery and poor early-sale liquidity; this RBI definition does not itself ban other unsecured NCDs."
+          ],
+          "investorAccessConstraints": [
+            "Do not infer a ₹5 lakh investor minimum or 90-day maturity floor for unsecured listed NCDs from RBI's secured short-term definition.",
+            "Verify SEBI issuance route, issuer, ISIN, seniority, KYC, retail permissions, credit and licensed price rights independently."
           ]
         }
       }
@@ -6263,11 +6319,13 @@
         "officialRiskAccessEvidenceUrl": "https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12592",
         "riskConsiderations": [
           "Unsecured short-term promissory notes expose holders to issuer default and refinancing/rollover risk.",
-          "A maturity under one year does not guarantee secondary liquidity or a safe early exit price."
+          "A maturity under one year does not guarantee secondary liquidity or a safe early exit price.",
+          "RBI permits issuer buyback only after seven days, not investor-demand early redemption; resale proceeds and execution remain uncertain."
         ],
         "investorAccessConstraints": [
           "RBI 2024 CP directions specify 7-day to one-year tenor, demat and ₹5 lakh denominations; they do not prove a particular issuer/ISIN or individual purchase access.",
-          "Verify residency and related-party restrictions, the combined 25% primary-issue subscription ceiling for all individuals including HUFs (not a per-person allowance), rating, demat/IPA route, quote and data rights."
+          "Verify residency and related-party restrictions, the combined 25% primary-issue subscription ceiling for all individuals including HUFs (not a per-person allowance), rating, demat/IPA route, quote and data rights.",
+          "Verify actual issuer buyback offers and prevailing market price; do not infer a put right or a guaranteed secondary buyer."
         ],
         "specificInstrumentOrSchemeVerified": false,
         "currentPriceOrNavVerified": false,
@@ -6326,13 +6384,23 @@
           "personalizedAdviceAuthorizationVerified": false,
           "riskConsiderations": [
             "Commercial paper is unsecured short-term issuer debt; its RBI minimum issue rating is not a guarantee of payment or preservation of principal.",
-            "A short contractual tenor and issuer buyback permissions do not guarantee an investor can sell early at a fair or executable market price."
+            "A short contractual tenor and issuer buyback permissions do not guarantee an investor can sell early at a fair or executable market price.",
+            "An issuer buyback after seven days at prevailing market price is not an investor put or guaranteed exit."
           ],
           "investorAccessConstraints": [
             "The RBI's 25% limit applies to combined primary subscriptions by all individuals including HUFs, not a 25% personal allocation, entitlement or blanket retail approval.",
             "Verify actual CP ISIN, ₹5 lakh denomination, 7-day to one-year tenor, rating, residency/FEMA and related-party rules, demat/IPA access, offer route and licensed price rights.",
-            "The 2024 directions' special definition of a secured NCD with initial maturity up to one year must not be generalized to all long-dated or unsecured NCD categories."
-          ]
+            "The 2024 directions' special definition of a secured NCD with initial maturity up to one year must not be generalized to all long-dated or unsecured NCD categories.",
+            "Issuer buyback offers must extend to all holders on identical terms and may be declined; actual offers, prices and investor exit remain unverified."
+          ],
+          "buybackPermittedOnlyAfterIssueDays": 7,
+          "issuerBuybackOfferMustBeMadeToAllHoldersOnIdenticalTerms": true,
+          "investorMayDeclineBuybackOffer": true,
+          "buybackAtPrevailingMarketPrice": true,
+          "issuerBuybackIsNotInvestorPutRight": true,
+          "buybackTermsReviewedOn": "2026-10-31",
+          "actualIssuerBuybackOfferAndPriceVerified": false,
+          "investorEarlyExitOrExecutableSecondaryBidVerified": false
         }
       }
     },

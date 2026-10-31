@@ -1217,3 +1217,29 @@ test('postal Basic Savings historical welfare exception remains educational and 
  assert.ok(!fresh.frameworkResearch.postalSavingsAccessReview.basicSavings2021AmendmentReview
    .investorAccessConstraints.includes('FABRICATED POSTAL ACCESS'));
 });
+
+test('RBI CP buyback and short-term NCD scope remain educational and defensively copied',()=>{
+ const find=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id==='catalog_2026_'+id);
+ const cp=find('commercial_paper');
+ const buyback=cp.frameworkResearch.debtInstrumentReview.rbiCpDirectionSpecificReview;
+ assert.equal(buyback.issuerBuybackIsNotInvestorPutRight,true);
+ assert.equal(buyback.actualIssuerBuybackOfferAndPriceVerified,false);
+ assert.ok(cp.frameworkResearch.categoryRiskConsiderations.some(s=>s.includes('buyback')));
+ for(const [id,kind] of [['ncd_secured','SECURED'],['ncd_unsecured','UNSECURED']]){
+  const row=find(id),review=row.frameworkResearch.debtInstrumentReview.rbiShortTermNcd2024ScopeReview;
+  assert.equal(review.listedCategoryType,kind);
+  assert.equal(review.rbiMinimumIsUniversalListedNcdRetailMinimum,false);
+  assert.equal(review.actualListedNcdFallsWithinRbiShortTermDefinitionVerified,false);
+  assert.ok(row.frameworkResearch.categoryInvestorAccessConstraints.some(s=>s.includes('RBI')));
+  assert.equal(row.productData.verifiedMinimumInvestment,null);
+  assert.equal(row.recommendationEligible,false);
+  assert.equal(row.productAvailability,'NOT_VERIFIED');
+  assert.equal(row.dataRights,'NOT_VERIFIED');
+  review.actualListedNcdFallsWithinRbiShortTermDefinitionVerified=true;
+  assert.equal(find(id).frameworkResearch.debtInstrumentReview.rbiShortTermNcd2024ScopeReview
+   .actualListedNcdFallsWithinRbiShortTermDefinitionVerified,false);
+ }
+ buyback.issuerBuybackIsNotInvestorPutRight=false;
+ assert.equal(find('commercial_paper').frameworkResearch.debtInstrumentReview.rbiCpDirectionSpecificReview
+  .issuerBuybackIsNotInvestorPutRight,true);
+});

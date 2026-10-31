@@ -975,6 +975,33 @@ if(cpDirectionRows.length!==1||cpDirectionRows[0].id!=='catalog_2026_commercial_
   ||cpInstrument.rbiCpPrimaryIndividualSubscriptionAggregateCapPct
     !==cpDirection.primaryAllIndividualsIncludingHufsAggregateSubscriptionCapPct)
   throw new Error('FINANCIAL_RBI_CP_AGGREGATE_PRIMARY_LIMIT_SCOPE_INVALID');
+// RBI 2024 short-term NCD directions define a secured money-market instrument;
+// these requirements do not apply indiscriminately to all listed NCDs.
+const shortNcdIds=new Set(['catalog_2026_ncd_secured','catalog_2026_ncd_unsecured']);
+if(research.entries.some(row=>{
+ const e=row.debtInstrumentReview?.rbiShortTermNcd2024ScopeReview;
+ if(!shortNcdIds.has(row.id))return e!==undefined;
+ return !e||e.officialRbiDirectionUrl!=='https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12592'
+  ||e.directionsIssuedOn!=='2024-01-03'||e.effectiveFrom!=='2024-04-01'
+  ||e.reviewedOn!=='2026-10-31'
+  ||e.sourceScope!=='RBI_2024_SECURED_MONEY_MARKET_NCD_ORIGINAL_MATURITY_UP_TO_ONE_YEAR_NOT_ALL_LISTED_NCDS'
+  ||e.listedCategoryType!==(row.id==='catalog_2026_ncd_secured'?'SECURED':'UNSECURED')
+  ||e.rbiDefinitionRequiresSecuredInstrument!==true||e.rbiDefinitionOriginalMaturityMaximumDays!==365
+  ||e.rbiShortTermNcdMinimumTenorDays!==90||e.rbiShortTermNcdMinimumIssueDenominationInr!==500000
+  ||e.rbiMinimumIsUniversalListedNcdRetailMinimum!==false
+  ||['actualListedNcdFallsWithinRbiShortTermDefinitionVerified',
+   'actualIssuerIsinSecurityMaturityAndTermsVerified','investorDematKycOfferRouteAndPermissionsVerified',
+   'livePriceLiquidityAndCommercialDataRightsVerified','individualAdviceAuthorizationVerified'].some(key=>e[key]!==false)
+  ||!Array.isArray(e.riskConsiderations)||e.riskConsiderations.length<2
+  ||!Array.isArray(e.investorAccessConstraints)||e.investorAccessConstraints.length<2;
+}))throw new Error('FINANCIAL_RBI_SHORT_TERM_NCD_SCOPE_INVALID');
+if(cpDirection.buybackPermittedOnlyAfterIssueDays!==7
+  ||cpDirection.issuerBuybackOfferMustBeMadeToAllHoldersOnIdenticalTerms!==true
+  ||cpDirection.investorMayDeclineBuybackOffer!==true||cpDirection.buybackAtPrevailingMarketPrice!==true
+  ||cpDirection.issuerBuybackIsNotInvestorPutRight!==true||cpDirection.buybackTermsReviewedOn!=='2026-10-31'
+  ||cpDirection.actualIssuerBuybackOfferAndPriceVerified!==false
+  ||cpDirection.investorEarlyExitOrExecutableSecondaryBidVerified!==false)
+ throw new Error('FINANCIAL_RBI_CP_BUYBACK_NOT_INVESTOR_PUT_INVALID');
 // Vatsalya 2026 effective scheme rules outrank an older still-live FAQ.
 const vatsalyaResearch=research.entries.find(x=>x.id==='catalog_2026_nps_vatsalya');
 const v=vatsalyaResearch?.npsVatsalyaAccessReview, e=v?.guidelines2026EvidenceReview;
@@ -1635,11 +1662,24 @@ export function screenExtensionResearchForProfile(profileInput) {
        reasons.push('CP_RBI_2024_DEMAT_MINIMUM_DENOMINATION_AND_RELATED_PARTY_REVIEW');
        reasons.push('CP_RBI_2024_INDIVIDUAL_PRIMARY_SUBSCRIPTION_CAP_NOT_PERSONAL_APPROVAL');
        reasons.push('CP_RBI_2024_25_PERCENT_PRIMARY_LIMIT_IS_ALL_INDIVIDUALS_AND_HUFS_COMBINED');
+       reasons.push('RBI_CP_ISSUER_BUYBACK_NOT_INVESTOR_PUT_OR_GUARANTEED_EXIT');
+       if(profile.emergencyFundMonths===0)
+         reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_CP_CREDIT_AND_EXIT_REVIEW');
        // Reported lump sum is not total resources or a verified subscription.
        if(profile.hasLumpSum===true&&nonnegative(profile.lumpSumAmount)
          &&profile.lumpSumAmount<row.debtInstrumentReview.rbiCpDirectionSpecificReview.minimumDenominationInr)
          reasons.push('REPORTED_CP_LUMP_SUM_BELOW_5_LAKH_DENOMINATION_REQUIRES_ACCESS_REVIEW_NOT_REJECTION');
      }
+   }
+   if(row.debtInstrumentReview?.rbiShortTermNcd2024ScopeReview){
+     reasons.push('RBI_SHORT_TERM_SECURED_NCD_DEFINITION_NOT_UNIVERSAL_LISTED_NCD_RULE');
+     reasons.push(row.id==='catalog_2026_ncd_secured'
+       ? 'LISTED_SECURED_NCD_ORIGINAL_MATURITY_AND_COLLATERAL_UNVERIFIED'
+       : 'UNSECURED_LISTED_NCD_NOT_APPROVED_OR_BANNED_BY_RBI_SECURED_SHORT_NCD_DEFINITION');
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_REQUIRES_LISTED_NCD_CREDIT_AND_SECONDARY_EXIT_REVIEW');
+     if(profile.emergencyFundMonths===0)
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_LISTED_NCD_CREDIT_AND_EXIT_REVIEW');
    }
    if(row.debtInstrumentReview?.privatePlacementIsinOct2026Review)
      reasons.push('SEBI_OCT_2026_PRIVATE_PLACEMENT_ISIN_CAP_NOT_RETAIL_ELIGIBILITY');
