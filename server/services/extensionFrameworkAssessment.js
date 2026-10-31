@@ -729,8 +729,12 @@ if(research.entries.filter(row=>row.debtInstrumentReview?.sebiDebentureTrusteeSe
    ||r.chapterIIAssetChargeDueDiligence!==spec[2]
    ||r.chapterVUnsecuredDebtColumn!==spec[3]
    ||r.securityCoverIsActualRecoveryGuarantee!==false
-   ||!distinctConsiderations(r.riskConsiderations)
-   ||!distinctConsiderations(r.investorAccessConstraints)
+   ||!Array.isArray(r.riskConsiderations)||r.riskConsiderations.length<2
+   ||new Set(r.riskConsiderations).size!==r.riskConsiderations.length
+   ||r.riskConsiderations.some(v=>typeof v!=='string'||v.trim().length<12)
+   ||!Array.isArray(r.investorAccessConstraints)||r.investorAccessConstraints.length<2
+   ||new Set(r.investorAccessConstraints).size!==r.investorAccessConstraints.length
+   ||r.investorAccessConstraints.some(v=>typeof v!=='string'||v.trim().length<12)
    ||['actualIssuerIsinAndListingVerified','namedRegisteredDebentureTrusteeVerified',
      'issueTrustDeedSecurityPriorityAndCovenantsVerified',
      'currentIssueSecurityCoverAndDefaultDisclosuresVerified',
