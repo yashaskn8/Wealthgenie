@@ -1243,3 +1243,27 @@ test('RBI CP buyback and short-term NCD scope remain educational and defensively
  assert.equal(find('commercial_paper').frameworkResearch.debtInstrumentReview.rbiCpDirectionSpecificReview
   .issuerBuybackIsNotInvestorPutRight,true);
 });
+
+test('six FoFs expose March 2026 underlying-riskometer methodology without a scheme score or mutable source',()=>{
+ const suffixes=['equity_diversified_fof','equity_sector_fof','fof_aggressive_hybrid',
+  'fof_conservative_hybrid','fof_income_arbitrage','fof_dynamic_allocation'];
+ const find=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id==='catalog_2026_'+id);
+ for(const suffix of suffixes){
+  const row=find(suffix);
+  const review=row.frameworkResearch.fundOfFundsCategoryReview.sebiMarch2026UnderlyingRiskometerReview;
+  assert.equal(review.officialSebiMasterCircularUrl,
+   'https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf');
+  assert.equal(review.sourceScope,
+   'REGULATORY_RISKOMETER_CALCULATION_AND_DISCLOSURE_ONLY_NOT_A_SCHEME_SCORE_OR_LIVE_NAV');
+  assert.equal(review.actualFoFSchemeRiskometerVerified,false);
+  assert.equal(row.frameworkResearch.actualRiskScore,null);
+  assert.equal(row.recommendationEligible,false);
+  assert.equal(row.productAvailability,'NOT_VERIFIED');
+  assert.equal(row.productData.currentPrice,null);
+  review.actualFoFSchemeRiskometerVerified=true;
+  review.riskConsiderations.push('FABRICATED LOW RISK');
+  const fresh=find(suffix).frameworkResearch.fundOfFundsCategoryReview.sebiMarch2026UnderlyingRiskometerReview;
+  assert.equal(fresh.actualFoFSchemeRiskometerVerified,false);
+  assert.ok(!fresh.riskConsiderations.includes('FABRICATED LOW RISK'));
+ }
+});

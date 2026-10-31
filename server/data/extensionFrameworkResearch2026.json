@@ -7903,6 +7903,29 @@
           "currentNavAndLicensedDataRightsVerified": false,
           "investorKycAndRetailEligibilityVerified": false,
           "taxAndPersonalizedAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026UnderlyingRiskometerReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-10-31",
+          "riskometerMonthlyDisclosureWithinCalendarDays": 10,
+          "underlyingMutualFundUnitRiskUsesUnderlyingSchemeRiskometer": true,
+          "weightedUnderlyingRiskValuesUseHoldingWeights": true,
+          "sourceScope": "REGULATORY_RISKOMETER_CALCULATION_AND_DISCLOSURE_ONLY_NOT_A_SCHEME_SCORE_OR_LIVE_NAV",
+          "riskConsiderations": [
+            "Underlying equity schemes across market caps can decline together; a FoF label does not establish a low scheme risk-o-meter.",
+            "Changes in underlying scheme weights and layered expenses can alter actual FoF risk and redemption proceeds."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual FoF and each underlying equity scheme, current riskometers, portfolio weights, NAV, redemption rules and KYC.",
+            "SEBI's monthly risk-o-meter disclosure rule does not establish a named FoF's risk level, current NAV, subscription eligibility or commercial reuse rights."
+          ],
+          "actualFoFSchemeRiskometerVerified": false,
+          "underlyingSchemeRiskometersVerified": false,
+          "currentSchemePortfolioWeightsVerified": false,
+          "actualInvestorEligibilityAndKycVerified": false,
+          "commercialNavAndRiskometerRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -7993,6 +8016,29 @@
           "currentNavAndLicensedDataRightsVerified": false,
           "investorKycAndRetailEligibilityVerified": false,
           "taxAndPersonalizedAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026UnderlyingRiskometerReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-10-31",
+          "riskometerMonthlyDisclosureWithinCalendarDays": 10,
+          "underlyingMutualFundUnitRiskUsesUnderlyingSchemeRiskometer": true,
+          "weightedUnderlyingRiskValuesUseHoldingWeights": true,
+          "sourceScope": "REGULATORY_RISKOMETER_CALCULATION_AND_DISCLOSURE_ONLY_NOT_A_SCHEME_SCORE_OR_LIVE_NAV",
+          "riskConsiderations": [
+            "Correlated sector and thematic funds may experience joint drawdowns even when held through multiple underlying schemes.",
+            "Changes in concentrated underlying holdings can change the FoF's monthly disclosed risk-o-meter."
+          ],
+          "investorAccessConstraints": [
+            "Verify named sector/theme holdings and correlated underlying exposures, monthly scheme riskometer, investor KYC and licensed NAV.",
+            "SEBI's monthly risk-o-meter disclosure rule does not establish a named FoF's risk level, current NAV, subscription eligibility or commercial reuse rights."
+          ],
+          "actualFoFSchemeRiskometerVerified": false,
+          "underlyingSchemeRiskometersVerified": false,
+          "currentSchemePortfolioWeightsVerified": false,
+          "actualInvestorEligibilityAndKycVerified": false,
+          "commercialNavAndRiskometerRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -8083,6 +8129,29 @@
           "currentNavAndLicensedDataRightsVerified": false,
           "investorKycAndRetailEligibilityVerified": false,
           "taxAndPersonalizedAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026UnderlyingRiskometerReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-10-31",
+          "riskometerMonthlyDisclosureWithinCalendarDays": 10,
+          "underlyingMutualFundUnitRiskUsesUnderlyingSchemeRiskometer": true,
+          "weightedUnderlyingRiskValuesUseHoldingWeights": true,
+          "sourceScope": "REGULATORY_RISKOMETER_CALCULATION_AND_DISCLOSURE_ONLY_NOT_A_SCHEME_SCORE_OR_LIVE_NAV",
+          "riskConsiderations": [
+            "Equity-heavy underlying allocations expose capital to drawdowns alongside debt credit and interest-rate risks.",
+            "A regulatory allocation band is not a current portfolio weight or a current scheme-level risk-o-meter."
+          ],
+          "investorAccessConstraints": [
+            "Verify named scheme equity/debt underlying weights, credit exposure, current FoF riskometer, exit load and settlement.",
+            "SEBI's monthly risk-o-meter disclosure rule does not establish a named FoF's risk level, current NAV, subscription eligibility or commercial reuse rights."
+          ],
+          "actualFoFSchemeRiskometerVerified": false,
+          "underlyingSchemeRiskometersVerified": false,
+          "currentSchemePortfolioWeightsVerified": false,
+          "actualInvestorEligibilityAndKycVerified": false,
+          "commercialNavAndRiskometerRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -8173,6 +8242,29 @@
           "currentNavAndLicensedDataRightsVerified": false,
           "investorKycAndRetailEligibilityVerified": false,
           "taxAndPersonalizedAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026UnderlyingRiskometerReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-10-31",
+          "riskometerMonthlyDisclosureWithinCalendarDays": 10,
+          "underlyingMutualFundUnitRiskUsesUnderlyingSchemeRiskometer": true,
+          "weightedUnderlyingRiskValuesUseHoldingWeights": true,
+          "sourceScope": "REGULATORY_RISKOMETER_CALCULATION_AND_DISCLOSURE_ONLY_NOT_A_SCHEME_SCORE_OR_LIVE_NAV",
+          "riskConsiderations": [
+            "Debt-oriented underlying schemes retain credit and interest-rate risk; the word conservative is not a principal guarantee.",
+            "Equity underlying funds, shifting allocations and layered costs can change risk despite a conservative category name."
+          ],
+          "investorAccessConstraints": [
+            "Do not infer low risk from the category label; verify actual debt credit/duration, equity exposure, riskometer and retail access.",
+            "SEBI's monthly risk-o-meter disclosure rule does not establish a named FoF's risk level, current NAV, subscription eligibility or commercial reuse rights."
+          ],
+          "actualFoFSchemeRiskometerVerified": false,
+          "underlyingSchemeRiskometersVerified": false,
+          "currentSchemePortfolioWeightsVerified": false,
+          "actualInvestorEligibilityAndKycVerified": false,
+          "commercialNavAndRiskometerRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -8263,6 +8355,29 @@
           "currentNavAndLicensedDataRightsVerified": false,
           "investorKycAndRetailEligibilityVerified": false,
           "taxAndPersonalizedAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026UnderlyingRiskometerReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-10-31",
+          "riskometerMonthlyDisclosureWithinCalendarDays": 10,
+          "underlyingMutualFundUnitRiskUsesUnderlyingSchemeRiskometer": true,
+          "weightedUnderlyingRiskValuesUseHoldingWeights": true,
+          "sourceScope": "REGULATORY_RISKOMETER_CALCULATION_AND_DISCLOSURE_ONLY_NOT_A_SCHEME_SCORE_OR_LIVE_NAV",
+          "riskConsiderations": [
+            "Debt credit or duration losses and arbitrage-spread compression can reduce NAV; this is not insured cash.",
+            "Changing underlying arbitrage and debt weights affect the monthly scheme risk-o-meter and settlement exposure."
+          ],
+          "investorAccessConstraints": [
+            "Verify the actual debt/arbitrage holdings, NAV, riskometer, redemption timing and applicable investor and data rights.",
+            "SEBI's monthly risk-o-meter disclosure rule does not establish a named FoF's risk level, current NAV, subscription eligibility or commercial reuse rights."
+          ],
+          "actualFoFSchemeRiskometerVerified": false,
+          "underlyingSchemeRiskometersVerified": false,
+          "currentSchemePortfolioWeightsVerified": false,
+          "actualInvestorEligibilityAndKycVerified": false,
+          "commercialNavAndRiskometerRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -8353,6 +8468,29 @@
           "currentNavAndLicensedDataRightsVerified": false,
           "investorKycAndRetailEligibilityVerified": false,
           "taxAndPersonalizedAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026UnderlyingRiskometerReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-10-31",
+          "riskometerMonthlyDisclosureWithinCalendarDays": 10,
+          "underlyingMutualFundUnitRiskUsesUnderlyingSchemeRiskometer": true,
+          "weightedUnderlyingRiskValuesUseHoldingWeights": true,
+          "sourceScope": "REGULATORY_RISKOMETER_CALCULATION_AND_DISCLOSURE_ONLY_NOT_A_SCHEME_SCORE_OR_LIVE_NAV",
+          "riskConsiderations": [
+            "Dynamic equity/debt shifts can mis-time market movements, changing both equity and debt loss exposures.",
+            "Portfolio turnover and changing underlying scheme riskometers mean no static category risk score is justified."
+          ],
+          "investorAccessConstraints": [
+            "Verify current scheme asset-allocation policy, portfolio weights, monthly riskometer, redemption conditions and lawful data access.",
+            "SEBI's monthly risk-o-meter disclosure rule does not establish a named FoF's risk level, current NAV, subscription eligibility or commercial reuse rights."
+          ],
+          "actualFoFSchemeRiskometerVerified": false,
+          "underlyingSchemeRiskometersVerified": false,
+          "currentSchemePortfolioWeightsVerified": false,
+          "actualInvestorEligibilityAndKycVerified": false,
+          "commercialNavAndRiskometerRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
         }
       }
     }

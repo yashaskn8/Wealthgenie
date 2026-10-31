@@ -1071,6 +1071,28 @@ if(research.entries.some(row=>{
   ||row.suitabilityRankingPermitted!==false||row.sourcePermissionVerified!==false;
 }))throw new Error('FINANCIAL_FOF_ANNEXURE_C_MULTIPLE_UNDERLYING_EVIDENCE_INVALID');
 
+
+const fofMarch2026RiskometerSource='https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf';
+if(research.entries.some(row=>{
+ const review=row.fundOfFundsCategoryReview?.sebiMarch2026UnderlyingRiskometerReview;
+ if(!fofIds.has(row.id))return review!==undefined;
+ return !review||review.officialSebiMasterCircularUrl!==fofMarch2026RiskometerSource
+  ||!isOfficialFrameworkReferenceUrl(review.officialSebiMasterCircularUrl)
+  ||review.masterCircularAsOf!=='2026-03-20'||review.reviewedOn!=='2026-10-31'
+  ||review.riskometerMonthlyDisclosureWithinCalendarDays!==10
+  ||review.underlyingMutualFundUnitRiskUsesUnderlyingSchemeRiskometer!==true
+  ||review.weightedUnderlyingRiskValuesUseHoldingWeights!==true
+  ||review.sourceScope!=='REGULATORY_RISKOMETER_CALCULATION_AND_DISCLOSURE_ONLY_NOT_A_SCHEME_SCORE_OR_LIVE_NAV'
+  ||!Array.isArray(review.riskConsiderations)||review.riskConsiderations.length<2
+  ||!Array.isArray(review.investorAccessConstraints)||review.investorAccessConstraints.length<2
+  ||['actualFoFSchemeRiskometerVerified','underlyingSchemeRiskometersVerified',
+   'currentSchemePortfolioWeightsVerified','actualInvestorEligibilityAndKycVerified',
+   'commercialNavAndRiskometerRightsVerified','personalizedAdviceAuthorizationVerified']
+    .some(key=>review[key]!==false)
+  ||row.productRiskScore!==null||row.actualRetailProductEligible!==false
+  ||row.suitabilityRankingPermitted!==false||row.sourcePermissionVerified!==false;
+}))throw new Error('FINANCIAL_FOF_MARCH_2026_RISKOMETER_SOURCE_SCOPE_INVALID');
+
 const etfTrading2026Classes=Object.freeze({
  "catalog_2026_etf_nifty100":"EQUITY_ETF",
  "catalog_2026_etf_nifty500":"EQUITY_ETF",
@@ -1583,6 +1605,17 @@ export function screenExtensionResearchForProfile(profileInput) {
      if(themeNotices[row.id])reasons.push(themeNotices[row.id]);
    }
 
+
+   if(row.fundOfFundsCategoryReview?.sebiMarch2026UnderlyingRiskometerReview){
+     reasons.push('SEBI_MARCH_2026_FOF_UNDERLYING_RISKOMETER_METHOD_NOT_ACTUAL_SCHEME_RATING');
+     reasons.push('FOF_MONTHLY_RISKOMETER_DISCLOSURE_NOT_VERIFIED_CURRENT_SCHEME_OBSERVATION');
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_FOF_CURRENT_RISKOMETER_AND_REDEMPTION_REVIEW');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_FOF_UNDERLYING_RISK_AND_LOSS_REVIEW');
+     if(profile.emergencyFundMonths===0)
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_FOF_MONTHLY_RISK_AND_EXIT_REVIEW');
+   }
    if(row.fundOfFundsCategoryReview?.sebiMultiUnderlyingFoFAnnexureC2026Review){
      reasons.push('SEBI_FOF_ANNEXURE_C_APPLIES_TO_MULTIPLE_UNDERLYING_FUNDS_ONLY');
      reasons.push('ACTUAL_FOF_UNDERLYING_COUNT_ALLOCATIONS_AND_RETAIL_ACCESS_UNVERIFIED');

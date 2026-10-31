@@ -2541,3 +2541,47 @@ test('RBI 2024 CP issuer buyback and listed NCD subset rules cannot imply retail
   }
  }
 });
+
+test('SEBI March 2026 FoF riskometer method is source-scoped and profile notices are fact-dependent',()=>{
+ const suffixes=['equity_diversified_fof','equity_sector_fof','fof_aggressive_hybrid',
+  'fof_conservative_hybrid','fof_income_arbitrage','fof_dynamic_allocation'];
+ const research=listExtensionResearch();
+ const make=overrides=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],riskTolerance:'Moderate',
+  emergencyFundMonths:null,investmentHorizonYears:10,...overrides,
+ })).map(row=>[row.id,row]));
+ const unknown=make({}),zero=make({emergencyFundMonths:0});
+ const emergency=make({investmentGoals:['Emergency Fund']});
+ const conservative=make({riskTolerance:'Conservative'});
+ for(const suffix of suffixes){
+  const id='catalog_2026_'+suffix;
+  const row=research.find(x=>x.id===id);
+  const review=row.fundOfFundsCategoryReview.sebiMarch2026UnderlyingRiskometerReview;
+  assert.equal(review.masterCircularAsOf,'2026-03-20');
+  assert.equal(review.riskometerMonthlyDisclosureWithinCalendarDays,10);
+  assert.equal(review.underlyingMutualFundUnitRiskUsesUnderlyingSchemeRiskometer,true);
+  assert.equal(review.weightedUnderlyingRiskValuesUseHoldingWeights,true);
+  assert.equal(review.actualFoFSchemeRiskometerVerified,false);
+  assert.equal(review.underlyingSchemeRiskometersVerified,false);
+  assert.equal(review.currentSchemePortfolioWeightsVerified,false);
+  assert.equal(review.commercialNavAndRiskometerRightsVerified,false);
+  assert.equal(row.productRiskScore,null);
+  for(const item of [unknown,zero,emergency,conservative].map(view=>view.get(id))){
+   assert.ok(item.screeningReasonCodes.includes('SEBI_MARCH_2026_FOF_UNDERLYING_RISKOMETER_METHOD_NOT_ACTUAL_SCHEME_RATING'));
+   assert.equal(item.productQualified,false);
+   assert.equal(item.scoreAvailable,false);
+   assert.equal(item.productRiskLevel,null);
+  }
+  const check=(view,code)=>view.get(id).screeningReasonCodes.includes(code);
+  const zeroCode='RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_FOF_MONTHLY_RISK_AND_EXIT_REVIEW';
+  const goalCode='EMERGENCY_FUND_GOAL_REQUIRES_FOF_CURRENT_RISKOMETER_AND_REDEMPTION_REVIEW';
+  const riskCode='CONSERVATIVE_PROFILE_REQUIRES_FOF_UNDERLYING_RISK_AND_LOSS_REVIEW';
+  assert.ok(check(zero,zeroCode));
+  assert.ok(!check(unknown,zeroCode));
+  assert.ok(check(emergency,goalCode));
+  assert.ok(!check(unknown,goalCode));
+  assert.ok(check(conservative,riskCode));
+  assert.ok(!check(unknown,riskCode));
+ }
+ assert.equal(research.filter(x=>x.fundOfFundsCategoryReview?.sebiMarch2026UnderlyingRiskometerReview).length,6);
+});
