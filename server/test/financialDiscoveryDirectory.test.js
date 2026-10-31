@@ -1555,3 +1555,27 @@ test('June 2026 AIF source research is defensively copied without current data o
   assert.equal(fresh.actualSchemeAndPpmVerified,false);assert.ok(!fresh.riskConsiderations.includes('forged evidence'));
  }
 });
+
+
+test('October 2026 AIF subcategory research remains unpriced and defensively copied in directory',()=>{
+ const ids=['catalog_2026_aif1_sme','catalog_2026_aif1_social','catalog_2026_aif1_infra'];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(row=>row.id===id);
+ const codes=new Set();
+ for(const id of ids){
+  const item=get(id),v=item.frameworkResearch.aifCategoryAccessReview.october2026SubcategoryAllocationReview;
+  assert.equal(v.minimumSpecifiedInvestableFundsPct,75);
+  assert.equal(v.actualFundRegistrationAndPpmVerified,false);
+  assert.equal(v.actualUnderlyingPortfolioAndEncumbranceVerified,false);
+  assert.equal(v.actualSchemeRiskAndCurrentNavVerified,false);
+  assert.equal(v.investorKycAccreditationAndSubscriptionVerified,false);
+  assert.equal(v.commercialDataRightsVerified,false);assert.equal(v.personalizedAdviceAuthorizationVerified,false);
+  assert.equal(item.recommendationEligible,false);assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.equal(item.dataRights,'NOT_VERIFIED');assert.ok(Object.values(item.productData).every(x=>x===null));
+  codes.add(v.categorySpecificFactCode);
+  v.actualFundRegistrationAndPpmVerified=true;v.investorAccessConstraints.push('FORGED ACCESS');
+  const fresh=get(id).frameworkResearch.aifCategoryAccessReview.october2026SubcategoryAllocationReview;
+  assert.equal(fresh.actualFundRegistrationAndPpmVerified,false);
+  assert.ok(!fresh.investorAccessConstraints.includes('FORGED ACCESS'));
+ }
+ assert.equal(codes.size,3);
+});

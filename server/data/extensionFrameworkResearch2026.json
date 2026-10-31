@@ -7308,6 +7308,46 @@
             "Verify the registered manager, actual placement memorandum, dispute route and subscriber agreement before relying on any scheme-specific remedy.",
             "Regulation 25 is not evidence of an investor invitation, accreditation, KYC, licensed data permission or personalized-advice authorization."
           ]
+        },
+        "october2026SubcategoryAllocationReview": {
+          "officialSebiConsolidatedRegulationsPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/oct-2026/1792668513871.pdf",
+          "officialSebiJuneUpdatedMasterCircularPdfUrl": null,
+          "regulationsAmendedThrough": "2026-10-15",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "OCT_2026_AIF_SUBCATEGORY_INVESTABLE_FUNDS_RULE_NOT_ACTUAL_FUND_HOLDINGS_OR_SUBSCRIPTION_APPROVAL",
+          "categoryStructure": "CATEGORY_I_SME",
+          "regulationClausesReviewed": [
+            "2(1)(t)",
+            "10(c)",
+            "11",
+            "16(3)(a)",
+            "16(3)(b)-(c)"
+          ],
+          "categorySpecificFactCode": "CATEGORY_I_SME_75PCT_AND_CONDITIONAL_MARKET_MAKING_LOCK",
+          "minimumSpecifiedInvestableFundsPct": 75,
+          "categoryInterpretation": "Category I SME funds allocate at least 75% of investable funds to specified SME securities or qualifying Category II AIF units. A one-year security lock-in applies only to trades under the conditional SME-exchange due-diligence exemption, not every SME holding or fund-unit redemption.",
+          "conditionalRegulatoryFinding": "Regulation 16(3) permits conditional SME exchange underwriting and market-making. The conditional due-diligence exemption requires exchange trade disclosure and a one-year security lock; it does not guarantee secondary-market liquidity.",
+          "npoOnlySseExceptionCanUseAllInvestableFunds": false,
+          "conditionalIndividualNpoOnlyMinimumInr": null,
+          "socialUnitsCarryNoFinancialReturn": false,
+          "conditionalSmeDueDiligenceTradeLockInYears": 1,
+          "infrastructureInvesteeEquityEncumbranceConditional": false,
+          "regulatoryRuleIsNotActualFundAllocation": true,
+          "actualFundRegistrationAndPpmVerified": false,
+          "actualUnderlyingPortfolioAndEncumbranceVerified": false,
+          "actualSchemeRiskAndCurrentNavVerified": false,
+          "investorKycAccreditationAndSubscriptionVerified": false,
+          "schemeFeesCapitalCallsAndExitVerified": false,
+          "commercialDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "SME issuer failures and concentrated private holdings can cause losses.",
+            "Thin SME trading and conditional security lock-ins can delay exit; the fund-unit redemption window is separately governed by the PPM."
+          ],
+          "investorAccessConstraints": [
+            "Verify registered SME fund, PPM, actual SME investees, market-making activity and whether the conditional security lock applies.",
+            "General private-placement minimum exceptions do not establish individual KYC, accreditation, invitation, NAV or data rights."
+          ]
         }
       }
     },
@@ -7419,6 +7459,45 @@
             "Verify the registered manager, actual placement memorandum, dispute route and subscriber agreement before relying on any scheme-specific remedy.",
             "Regulation 25 is not evidence of an investor invitation, accreditation, KYC, licensed data permission or personalized-advice authorization."
           ]
+        },
+        "october2026SubcategoryAllocationReview": {
+          "officialSebiConsolidatedRegulationsPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/oct-2026/1792668513871.pdf",
+          "officialSebiJuneUpdatedMasterCircularPdfUrl": null,
+          "regulationsAmendedThrough": "2026-10-15",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "OCT_2026_AIF_SUBCATEGORY_INVESTABLE_FUNDS_RULE_NOT_ACTUAL_FUND_HOLDINGS_OR_SUBSCRIPTION_APPROVAL",
+          "categoryStructure": "CATEGORY_I_SOCIAL_IMPACT",
+          "regulationClausesReviewed": [
+            "2(1)(tb)-(td)",
+            "10(b)-(c)",
+            "11",
+            "16(4)(a)-(c)"
+          ],
+          "categorySpecificFactCode": "CATEGORY_I_SOCIAL_75PCT_NPO_ONLY_EXCEPTION_AND_SOCIAL_UNITS",
+          "minimumSpecifiedInvestableFundsPct": 75,
+          "categoryInterpretation": "Social Impact Funds ordinarily invest at least 75% of investable funds in eligible social ventures or enterprises; an NPO-only scheme has a separate 100% route. The INR 1,000 individual minimum applies only to qualifying social-stock-exchange NPO-only funds. Social units provide no financial returns.",
+          "conditionalRegulatoryFinding": "Regulations 10(c) and 16(4) distinguish the NPO-only investor minimum from other social schemes, permit certain grants without profit to the grant provider, and define no-financial-return social units.",
+          "npoOnlySseExceptionCanUseAllInvestableFunds": true,
+          "conditionalIndividualNpoOnlyMinimumInr": 1000,
+          "socialUnitsCarryNoFinancialReturn": true,
+          "conditionalSmeDueDiligenceTradeLockInYears": null,
+          "infrastructureInvesteeEquityEncumbranceConditional": false,
+          "regulatoryRuleIsNotActualFundAllocation": true,
+          "actualFundRegistrationAndPpmVerified": false,
+          "actualUnderlyingPortfolioAndEncumbranceVerified": false,
+          "actualSchemeRiskAndCurrentNavVerified": false,
+          "investorKycAccreditationAndSubscriptionVerified": false,
+          "schemeFeesCapitalCallsAndExitVerified": false,
+          "commercialDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Social units provide social benefit rather than financial return, so a growth goal cannot assume a payout.",
+            "Social-project execution, impact measurement and transferability vary by scheme and instrument."
+          ],
+          "investorAccessConstraints": [
+            "Confirm whether the actual registered scheme is exclusively eligible social-stock-exchange NPO securities and whether interests are grants, social units or return-bearing units.",
+            "The special INR 1,000 minimum is not general retail approval; verify PPM, subscription, KYC, valuation and permissions."
+          ]
         }
       }
     },
@@ -7528,6 +7607,46 @@
           "investorAccessConstraints": [
             "Verify the registered manager, actual placement memorandum, dispute route and subscriber agreement before relying on any scheme-specific remedy.",
             "Regulation 25 is not evidence of an investor invitation, accreditation, KYC, licensed data permission or personalized-advice authorization."
+          ]
+        },
+        "october2026SubcategoryAllocationReview": {
+          "officialSebiConsolidatedRegulationsPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/oct-2026/1792668513871.pdf",
+          "officialSebiJuneUpdatedMasterCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/jun-2026/1781668468627.pdf",
+          "regulationsAmendedThrough": "2026-10-15",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "OCT_2026_AIF_SUBCATEGORY_INVESTABLE_FUNDS_RULE_NOT_ACTUAL_FUND_HOLDINGS_OR_SUBSCRIPTION_APPROVAL",
+          "categoryStructure": "CATEGORY_I_INFRASTRUCTURE",
+          "regulationClausesReviewed": [
+            "2(1)(m)",
+            "10(c)",
+            "11",
+            "16(5)(a)-(b)",
+            "16(1)(c)"
+          ],
+          "categorySpecificFactCode": "CATEGORY_I_INFRA_75PCT_PROJECT_EXPOSURE_AND_CONDITIONAL_EQUITY_ENCUMBRANCE",
+          "minimumSpecifiedInvestableFundsPct": 75,
+          "categoryInterpretation": "Category I infrastructure funds direct at least 75% of investable funds toward specified project investments or qualifying Category II AIF units; certain listed project debt is permitted. Chapter 14.2 conditionally permits encumbrance of investee equity for that company's borrowing, not a fund guarantee or liquid exit.",
+          "conditionalRegulatoryFinding": "Regulation 16(5) defines qualifying infrastructure exposures; the updated June 2026 Master Circular Chapter 14.2 requires disclosure of permitted investee-equity encumbrance risks and restricts use, liability and duration.",
+          "npoOnlySseExceptionCanUseAllInvestableFunds": false,
+          "conditionalIndividualNpoOnlyMinimumInr": null,
+          "socialUnitsCarryNoFinancialReturn": false,
+          "conditionalSmeDueDiligenceTradeLockInYears": null,
+          "infrastructureInvesteeEquityEncumbranceConditional": true,
+          "regulatoryRuleIsNotActualFundAllocation": true,
+          "actualFundRegistrationAndPpmVerified": false,
+          "actualUnderlyingPortfolioAndEncumbranceVerified": false,
+          "actualSchemeRiskAndCurrentNavVerified": false,
+          "investorKycAccreditationAndSubscriptionVerified": false,
+          "schemeFeesCapitalCallsAndExitVerified": false,
+          "commercialDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Construction delay, refinancing and concession risk can reduce project values and distributions.",
+            "Investee-equity encumbrance may expose fund capital to project borrowing; listed project debt does not ensure liquid fund units."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual registered infrastructure mandate, project assets, PPM encumbrance terms, borrowing purpose and fund tenure.",
+            "Confirm private-placement invitation, KYC and accreditation if applicable, fund-unit exit, valuation, and licensed data rights."
           ]
         }
       }

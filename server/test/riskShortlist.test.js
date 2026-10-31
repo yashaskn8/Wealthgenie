@@ -3236,3 +3236,39 @@ test('June 2026 SEBI AIF master circular differentiates VC, private debt and hed
   assert.ok(get(short,'aif3_hedge').screeningReasonCodes.includes(code));assert.ok(!get(long,'aif3_hedge').screeningReasonCodes.includes(code));
  }
 });
+
+
+test('October 2026 SEBI AIF SME, social and infrastructure rules remain source-scoped and non-ranking',()=>{
+ const ids=['aif1_sme','aif1_social','aif1_infra'];
+ const get=(rows,id)=>rows.find(row=>row.id==='catalog_2026_'+id);
+ const base=screenExtensionResearchForProfile(canonicalProfile({investmentHorizonYears:10,investmentGoals:['Retirement'],riskTolerance:'Moderate',emergencyFundMonths:null}));
+ const flagged=screenExtensionResearchForProfile(canonicalProfile({investmentHorizonYears:2,investmentGoals:['Emergency Fund','Wealth Growth'],riskTolerance:'Conservative',emergencyFundMonths:0}));
+ const codes=['AIF_SME_CONDITIONAL_DUE_DILIGENCE_TRADE_LOCK_NOT_FUND_UNIT_EXIT_APPROVAL','AIF_SOCIAL_NPO_ONLY_MINIMUM_AND_NO_RETURN_SOCIAL_UNITS_NOT_GENERAL_INVESTMENT_ACCESS','AIF_INFRA_CONDITIONAL_INVESTEE_EQUITY_ENCUMBRANCE_NOT_FUND_GUARANTEE'];
+ const conditional=['EMERGENCY_FUND_GOAL_REQUIRES_SME_AIF_UNLISTED_AND_EXIT_REVIEW','RECORDED_WEALTH_GROWTH_GOAL_REQUIRES_SOCIAL_UNIT_NO_FINANCIAL_RETURN_REVIEW','SHORT_HORIZON_REQUIRES_INFRA_AIF_PROJECT_EXIT_AND_ENCUMBRANCE_REVIEW'];
+ const factCodes=new Set();
+ for(const [i,id] of ids.entries()){
+  const v=get(listExtensionResearch(),id).aifCategoryAccessReview.october2026SubcategoryAllocationReview;
+  assert.equal(v.officialSebiConsolidatedRegulationsPdfUrl,'https://www.sebi.gov.in/sebi_data/attachdocs/oct-2026/1792668513871.pdf');
+  assert.equal(v.regulationsAmendedThrough,'2026-10-15');assert.equal(v.reviewedOn,'2026-11-01');
+  assert.equal(v.minimumSpecifiedInvestableFundsPct,75);
+  assert.equal(v.npoOnlySseExceptionCanUseAllInvestableFunds,id==='aif1_social');
+  assert.equal(v.conditionalIndividualNpoOnlyMinimumInr,id==='aif1_social'?1000:null);
+  assert.equal(v.conditionalSmeDueDiligenceTradeLockInYears,id==='aif1_sme'?1:null);
+  assert.equal(v.infrastructureInvesteeEquityEncumbranceConditional,id==='aif1_infra');
+  assert.ok(v.regulationClausesReviewed.length>=4&&v.riskConsiderations.length>=2&&v.investorAccessConstraints.length>=2);
+  factCodes.add(v.categorySpecificFactCode);
+  for(const key of ['actualFundRegistrationAndPpmVerified','actualUnderlyingPortfolioAndEncumbranceVerified','actualSchemeRiskAndCurrentNavVerified','investorKycAccreditationAndSubscriptionVerified','schemeFeesCapitalCallsAndExitVerified','commercialDataRightsVerified','personalizedAdviceAuthorizationVerified'])assert.equal(v[key],false,id+':'+key);
+  for(const assessed of [base,flagged]){
+   const x=get(assessed,id);assert.equal(x.productQualified,false);assert.equal(x.scoreAvailable,false);assert.equal(x.productRiskLevel,null);
+   assert.ok(x.screeningReasonCodes.includes('AIF_OCT_2026_SUBCATEGORY_75PCT_RULE_NOT_VERIFIED_FUND_HOLDINGS'));
+   assert.ok(x.screeningReasonCodes.includes(codes[i]));
+  }
+  assert.ok(get(flagged,id).screeningReasonCodes.includes(conditional[i]));
+  assert.ok(!get(base,id).screeningReasonCodes.includes(conditional[i]));
+ }
+ assert.equal(factCodes.size,3);
+ const edited=get(listExtensionResearch(),'aif1_social').aifCategoryAccessReview.october2026SubcategoryAllocationReview;
+ edited.actualSchemeRiskAndCurrentNavVerified=true;edited.riskConsiderations.push('FORGED RISK');
+ const fresh=get(listExtensionResearch(),'aif1_social').aifCategoryAccessReview.october2026SubcategoryAllocationReview;
+ assert.equal(fresh.actualSchemeRiskAndCurrentNavVerified,false);assert.ok(!fresh.riskConsiderations.includes('FORGED RISK'));
+});

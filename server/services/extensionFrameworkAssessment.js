@@ -127,6 +127,13 @@ const aifJune2026CategoryFacts=Object.freeze({
  'catalog_2026_aif2_debt':['CATEGORY_II_DEBT_AIF_CONDITIONAL_CDS_HEDGING_AND_EARMARKING',['2.2.1','3.2.2-3.2.4','4.2.1','4.2.4-4.2.5']],
  'catalog_2026_aif3_hedge':['CATEGORY_III_CDS_LEVERAGE_AND_CONDITIONAL_REDEMPTION_SUSPENSION',['2.2.1','3.2.2-3.2.4','4.2.2-4.2.3','7.5.6-7.5.9']],
 });
+const aifOct2026AllocationPdfUrl='https://www.sebi.gov.in/sebi_data/attachdocs/oct-2026/1792668513871.pdf';
+const aifOct2026UpdatedMasterPdfUrl='https://www.sebi.gov.in/sebi_data/attachdocs/jun-2026/1781668468627.pdf';
+const aifOct2026SubcategoryFacts=Object.freeze({
+ 'catalog_2026_aif1_sme':['CATEGORY_I_SME_75PCT_AND_CONDITIONAL_MARKET_MAKING_LOCK',['2(1)(t)','10(c)','11','16(3)(a)','16(3)(b)-(c)']],
+ 'catalog_2026_aif1_social':['CATEGORY_I_SOCIAL_75PCT_NPO_ONLY_EXCEPTION_AND_SOCIAL_UNITS',['2(1)(tb)-(td)','10(b)-(c)','11','16(4)(a)-(c)']],
+ 'catalog_2026_aif1_infra':['CATEGORY_I_INFRA_75PCT_PROJECT_EXPOSURE_AND_CONDITIONAL_EQUITY_ENCUMBRANCE',['2(1)(m)','10(c)','11','16(5)(a)-(b)','16(1)(c)']],
+});
 const aifGarudaCircularUrl="https://www.sebi.gov.in/legal/circulars/jul-2026/-green-channel-aif-rollout-upon-document-acknowledgement-garuda-mechanism-for-processing-of-placement-memorandum-of-alternative-investment-funds-aifs-filed-with-sebi_103241.html";
 const sifMinimumThresholdMonitoringUrl="https://www.sebi.gov.in/legal/circulars/jul-2025/monitoring-of-minimum-investment-threshold-under-specialized-investment-funds-sif-_95676.html";
 const sifDistributorCertificationUrl="https://www.sebi.gov.in/legal/circulars/jul-2026/certification-requirements-for-distribution-of-specialized-investment-funds-sifs-_102986.html";
@@ -942,6 +949,35 @@ if(research.entries.filter(row=>row.aifCategoryAccessReview?.garudaPpmFilingRevi
     ||!Array.isArray(v.investorAccessConstraints)||v.investorAccessConstraints.length<2;
   }))throw new Error('FINANCIAL_AIF_JUNE_2026_MASTER_CIRCULAR_CATEGORY_SCOPE_INVALID');
 
+ // SEBI's October 2026 consolidated AIF rules describe subcategory allocation,
+ // not verified portfolio holdings, current NAV, investor eligibility or advice rights.
+ if(research.entries.filter(r=>r.aifCategoryAccessReview?.october2026SubcategoryAllocationReview).length!==3
+  ||research.entries.some(row=>{
+   const expected=aifOct2026SubcategoryFacts[row.id],v=row.aifCategoryAccessReview?.october2026SubcategoryAllocationReview;
+   if(!expected)return v!==undefined;
+   return !v||v.officialSebiConsolidatedRegulationsPdfUrl!==aifOct2026AllocationPdfUrl
+    ||!isOfficialFrameworkReferenceUrl(v.officialSebiConsolidatedRegulationsPdfUrl)
+    ||v.officialSebiJuneUpdatedMasterCircularPdfUrl!==(row.id==='catalog_2026_aif1_infra'?aifOct2026UpdatedMasterPdfUrl:null)
+    ||v.regulationsAmendedThrough!=='2026-10-15'||v.reviewedOn!=='2026-11-01'
+    ||v.sourceScope!=='OCT_2026_AIF_SUBCATEGORY_INVESTABLE_FUNDS_RULE_NOT_ACTUAL_FUND_HOLDINGS_OR_SUBSCRIPTION_APPROVAL'
+    ||v.categoryStructure!==aifCategoryStructures[row.id]||v.categorySpecificFactCode!==expected[0]
+    ||JSON.stringify(v.regulationClausesReviewed)!==JSON.stringify(expected[1])
+    ||v.minimumSpecifiedInvestableFundsPct!==75
+    ||typeof v.categoryInterpretation!=='string'||v.categoryInterpretation.length<120
+    ||typeof v.conditionalRegulatoryFinding!=='string'||v.conditionalRegulatoryFinding.length<100
+    ||v.npoOnlySseExceptionCanUseAllInvestableFunds!==(row.id==='catalog_2026_aif1_social')
+    ||v.conditionalIndividualNpoOnlyMinimumInr!==(row.id==='catalog_2026_aif1_social'?1000:null)
+    ||v.socialUnitsCarryNoFinancialReturn!==(row.id==='catalog_2026_aif1_social')
+    ||v.conditionalSmeDueDiligenceTradeLockInYears!==(row.id==='catalog_2026_aif1_sme'?1:null)
+    ||v.infrastructureInvesteeEquityEncumbranceConditional!==(row.id==='catalog_2026_aif1_infra')
+    ||v.regulatoryRuleIsNotActualFundAllocation!==true
+    ||['actualFundRegistrationAndPpmVerified','actualUnderlyingPortfolioAndEncumbranceVerified',
+      'actualSchemeRiskAndCurrentNavVerified','investorKycAccreditationAndSubscriptionVerified',
+      'schemeFeesCapitalCallsAndExitVerified','commercialDataRightsVerified',
+      'personalizedAdviceAuthorizationVerified'].some(k=>v[k]!==false)
+    ||!Array.isArray(v.riskConsiderations)||v.riskConsiderations.length<2
+    ||!Array.isArray(v.investorAccessConstraints)||v.investorAccessConstraints.length<2;
+  }))throw new Error('FINANCIAL_AIF_OCT_2026_SUBCATEGORY_ALLOCATION_NOT_PRODUCT_APPROVAL');
  // SEBI's October 2026 AIF Regulation 25 amendment addresses dispute
  // procedures and manager/officer expenses, not product or investor approval.
  const aifDisputeAmendmentUrl='https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-third-amendment-regulations-2026_105331.html';
@@ -1588,6 +1624,22 @@ export function screenExtensionResearchForProfile(profileInput) {
             reasons.push('CONSERVATIVE_PROFILE_REQUIRES_AIF_III_LEVERAGE_AND_REDEMPTION_REVIEW');
           if(profile.emergencyFundMonths===0)
             reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_AIF_III_REDEMPTION_SUSPENSION_REVIEW');
+        }
+      }
+      if(row.aifCategoryAccessReview.october2026SubcategoryAllocationReview){
+        reasons.push('AIF_OCT_2026_SUBCATEGORY_75PCT_RULE_NOT_VERIFIED_FUND_HOLDINGS');
+        if(row.id==='catalog_2026_aif1_sme'){
+          reasons.push('AIF_SME_CONDITIONAL_DUE_DILIGENCE_TRADE_LOCK_NOT_FUND_UNIT_EXIT_APPROVAL');
+          if(profile.investmentGoals.includes('Emergency Fund'))
+            reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_SME_AIF_UNLISTED_AND_EXIT_REVIEW');
+        }else if(row.id==='catalog_2026_aif1_social'){
+          reasons.push('AIF_SOCIAL_NPO_ONLY_MINIMUM_AND_NO_RETURN_SOCIAL_UNITS_NOT_GENERAL_INVESTMENT_ACCESS');
+          if(profile.investmentGoals.includes('Wealth Growth'))
+            reasons.push('RECORDED_WEALTH_GROWTH_GOAL_REQUIRES_SOCIAL_UNIT_NO_FINANCIAL_RETURN_REVIEW');
+        }else if(row.id==='catalog_2026_aif1_infra'){
+          reasons.push('AIF_INFRA_CONDITIONAL_INVESTEE_EQUITY_ENCUMBRANCE_NOT_FUND_GUARANTEE');
+          if(profile.investmentHorizonYears<=3)
+            reasons.push('SHORT_HORIZON_REQUIRES_INFRA_AIF_PROJECT_EXIT_AND_ENCUMBRANCE_REVIEW');
         }
       }
       if(row.id==='catalog_2026_aif1_social')
