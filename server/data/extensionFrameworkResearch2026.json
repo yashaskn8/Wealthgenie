@@ -53,7 +53,36 @@
           "Current interest observation, withdrawal conditions, tax treatment and commercial reuse permission must be checked independently."
         ],
         "officialOriginalSchemeRulesUrl": null,
-        "originalRulesMayHaveSubsequentAmendments": false
+        "originalRulesMayHaveSubsequentAmendments": true,
+        "basicSavings2021AmendmentReview": {
+          "officialIndiaPostSbOrderCollectionUrl": "https://www.indiapost.gov.in/VAS/DOP_PDFFiles/SB_Order_2021.pdf",
+          "indiaPostSbOrder": "SB Order 08/2021",
+          "indiaPostOrderDated": "2021-04-30",
+          "gazetteNotification": "G.S.R. 257(E)",
+          "gazetteNotificationDated": "2021-04-09",
+          "amendedScheme": "Post Office Savings Account Scheme, 2019",
+          "sourceScope": "HISTORICAL_2021_BASIC_SAVINGS_WELFARE_EXCEPTION_NOT_GENERAL_ZERO_BALANCE_OR_CURRENT_ACCOUNT_APPROVAL",
+          "reviewedOn": "2026-10-31",
+          "basicSavingsOpeningDepositNilUnder2021Amendment": true,
+          "basicSavingsMinimumBalanceNilUnder2021Amendment": true,
+          "basicSavingsOneAccountLimitUnder2021Amendment": true,
+          "registeredGovernmentWelfareAdultOrMinorGuardianRequiredUnder2021Amendment": true,
+          "ordinaryPostalSavingsAccountZeroBalanceInferred": false,
+          "currentRuleVersionAndMaintenanceFeesVerified": false,
+          "specificApplicantWelfareStatusAndKycVerified": false,
+          "currentBasicSavingsServiceChannelAndWithdrawalRightsVerified": false,
+          "currentRateAndCommercialDisplayRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "A 2021 zero-balance Basic Savings exception does not establish unrestricted account access or current service availability.",
+            "Operational withdrawal channels, identity checks and account restrictions can affect timely access even where a historical minimum balance was nil."
+          ],
+          "investorAccessConstraints": [
+            "The 2021 Gazette exception covers registered government-welfare beneficiaries or guardians of qualifying minors; it does not make all postal savings accounts zero-balance.",
+            "Verify applicable current amendments, welfare enrolment, applicant KYC, account count and any service-specific balance requirements before presenting access claims.",
+            "No individual account opening, current rate, fees, withdrawal channel, tax outcome, commercial data rights or advice authorization has been verified."
+          ]
+        }
       }
     },
     {

@@ -2438,3 +2438,52 @@ test('BIS bullion quality evidence and SM REIT profile screening remain non-rank
   assert.equal(result.productRiskLevel,null);
  }
 });
+
+test('India Post 2021 Basic Savings exception is not blanket zero-balance retail eligibility',()=>{
+ const id='catalog_2026_po_savings';
+ const rows=listExtensionResearch();
+ assert.equal(rows.length,95);
+ const research=rows.find(row=>row.id===id);
+ assert.equal(research.postalSavingsAccessReview.originalRulesMayHaveSubsequentAmendments,true);
+ const review=research.postalSavingsAccessReview.basicSavings2021AmendmentReview;
+ assert.equal(review.officialIndiaPostSbOrderCollectionUrl,
+   'https://www.indiapost.gov.in/VAS/DOP_PDFFiles/SB_Order_2021.pdf');
+ assert.equal(review.indiaPostSbOrder,'SB Order 08/2021');
+ assert.equal(review.gazetteNotification,'G.S.R. 257(E)');
+ assert.equal(review.gazetteNotificationDated,'2021-04-09');
+ assert.equal(review.basicSavingsOpeningDepositNilUnder2021Amendment,true);
+ assert.equal(review.basicSavingsMinimumBalanceNilUnder2021Amendment,true);
+ assert.equal(review.registeredGovernmentWelfareAdultOrMinorGuardianRequiredUnder2021Amendment,true);
+ assert.equal(review.ordinaryPostalSavingsAccountZeroBalanceInferred,false);
+ for(const key of ['currentRuleVersionAndMaintenanceFeesVerified',
+  'specificApplicantWelfareStatusAndKycVerified',
+  'currentBasicSavingsServiceChannelAndWithdrawalRightsVerified',
+  'currentRateAndCommercialDisplayRightsVerified',
+  'personalizedAdviceAuthorizationVerified'])assert.equal(review[key],false,key);
+ assert.ok(review.riskConsiderations.length>=2);
+ assert.ok(review.investorAccessConstraints.length>=2);
+ assert.equal(hasCompleteCategoryRiskAccessResearch(research),true);
+ const screen=overrides=>screenExtensionResearchForProfile(canonicalProfile({
+   investmentGoals:['Wealth Growth'],emergencyFundMonths:null,...overrides,
+ })).find(row=>row.id===id);
+ const baseline=screen({});
+ const emergency=screen({investmentGoals:['Emergency Fund']});
+ const zero=screen({emergencyFundMonths:0});
+ const positive=screen({emergencyFundMonths:6});
+ const common='INDIA_POST_2021_BASIC_SAVINGS_WELFARE_EXCEPTION_NOT_GENERAL_ZERO_BALANCE';
+ const emergencyCode='EMERGENCY_FUND_GOAL_REQUIRES_CURRENT_POSTAL_SAVINGS_WITHDRAWAL_CHANNEL_REVIEW';
+ const zeroCode='RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_POSTAL_SAVINGS_ACCOUNT_ACCESS_VERIFICATION';
+ for(const result of [baseline,emergency,zero,positive]){
+   assert.ok(result.screeningReasonCodes.includes(common));
+   assert.equal(result.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(result.productQualified,false);
+   assert.equal(result.scoreAvailable,false);
+   assert.equal(result.productRiskLevel,null);
+ }
+ assert.ok(emergency.screeningReasonCodes.includes(emergencyCode));
+ assert.ok(!baseline.screeningReasonCodes.includes(emergencyCode));
+ assert.ok(zero.screeningReasonCodes.includes(zeroCode));
+ assert.ok(!baseline.screeningReasonCodes.includes(zeroCode));
+ assert.ok(!positive.screeningReasonCodes.includes(zeroCode));
+ assert.equal(rows.filter(x=>x.postalSavingsAccessReview?.basicSavings2021AmendmentReview).length,1);
+});

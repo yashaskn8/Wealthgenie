@@ -45,6 +45,32 @@ function validPostalTd2023AmendmentReview(row){
   &&Array.isArray(review.riskConsiderations)&&review.riskConsiderations.length>=2
   &&Array.isArray(review.investorAccessConstraints)&&review.investorAccessConstraints.length>=2;
 }
+const postalBasicSavings2021SourceUrl='https://www.indiapost.gov.in/VAS/DOP_PDFFiles/SB_Order_2021.pdf';
+function validPostalBasicSavings2021Review(row){
+ const review=row.postalSavingsAccessReview?.basicSavings2021AmendmentReview;
+ if(row.id!=='catalog_2026_po_savings')return review===undefined;
+ return review?.officialIndiaPostSbOrderCollectionUrl===postalBasicSavings2021SourceUrl
+  &&review.indiaPostSbOrder==='SB Order 08/2021'
+  &&review.indiaPostOrderDated==='2021-04-30'
+  &&review.gazetteNotification==='G.S.R. 257(E)'
+  &&review.gazetteNotificationDated==='2021-04-09'
+  &&review.amendedScheme==='Post Office Savings Account Scheme, 2019'
+  &&review.sourceScope==='HISTORICAL_2021_BASIC_SAVINGS_WELFARE_EXCEPTION_NOT_GENERAL_ZERO_BALANCE_OR_CURRENT_ACCOUNT_APPROVAL'
+  &&review.reviewedOn==='2026-10-31'
+  &&['basicSavingsOpeningDepositNilUnder2021Amendment',
+   'basicSavingsMinimumBalanceNilUnder2021Amendment',
+   'basicSavingsOneAccountLimitUnder2021Amendment',
+   'registeredGovernmentWelfareAdultOrMinorGuardianRequiredUnder2021Amendment'
+  ].every(key=>review[key]===true)
+  &&['ordinaryPostalSavingsAccountZeroBalanceInferred',
+   'currentRuleVersionAndMaintenanceFeesVerified',
+   'specificApplicantWelfareStatusAndKycVerified',
+   'currentBasicSavingsServiceChannelAndWithdrawalRightsVerified',
+   'currentRateAndCommercialDisplayRightsVerified',
+   'personalizedAdviceAuthorizationVerified'].every(key=>review[key]===false)
+  &&Array.isArray(review.riskConsiderations)&&review.riskConsiderations.length>=2
+  &&Array.isArray(review.investorAccessConstraints)&&review.investorAccessConstraints.length>=2;
+}
 const governmentBondStructureTypes=Object.freeze({"catalog_2026_gsec_coupon_strip":"CENTRAL_GSEC_COUPON_STRIP","catalog_2026_gsec_principal_strip":"CENTRAL_GSEC_PRINCIPAL_STRIP","catalog_2026_sovereign_green":"SOVEREIGN_GREEN_USE_OF_PROCEEDS_BOND","catalog_2026_gsec_floating":"FLOATING_RATE_CENTRAL_GSEC"});
 const governmentBondOfficialSources=Object.freeze({"catalog_2026_gsec_coupon_strip":"https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711","catalog_2026_gsec_principal_strip":"https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711","catalog_2026_sovereign_green":"https://dea.gov.in/framework-sovereign-green-bonds","catalog_2026_gsec_floating":"https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711"});
 const sebiDebtSchemeKinds=Object.freeze({"catalog_2026_gilt_10y_constant":"GILT_10_YEAR_CONSTANT_DURATION","catalog_2026_medium_long_duration_mf":"MEDIUM_TO_LONG_TERM_DEBT_FUND","catalog_2026_long_duration_mf":"LONG_TERM_DEBT_FUND","catalog_2026_target_maturity_gsec_index":"GSEC_TARGET_MATURITY_INDEX_STRATEGY","catalog_2026_target_maturity_sdl_index":"SDL_TARGET_MATURITY_INDEX_STRATEGY","catalog_2026_target_maturity_psu_index":"PSU_BOND_TARGET_MATURITY_INDEX_STRATEGY","catalog_2026_constant_maturity_debt_index":"CONSTANT_MATURITY_PASSIVE_DEBT_INDEX_STRATEGY","catalog_2026_domestic_debt_fof":"DOMESTIC_DEBT_FUND_OF_FUNDS","catalog_2026_gsec_debt_etf":"GSEC_PASSIVE_DEBT_ETF_STRATEGY"});
@@ -371,7 +397,8 @@ if(research.schemaVersion!==1 || research.categoryCount!==95 || research.entries
       || !Array.isArray(x.postalSavingsAccessReview?.investorAccessConstraints)
       || x.postalSavingsAccessReview.investorAccessConstraints.length<2
       || x.postalSavingsAccessReview?.officialOriginalSchemeRulesUrl!==(x.id==='catalog_2026_po_savings'?null:'https://www.indiapost.gov.in/VAS/DOP_PDFFiles/Savings%20Bank/National%20Savings%20Time%20Deposit%20Scheme%202019%20English.pdf')
-      || x.postalSavingsAccessReview?.originalRulesMayHaveSubsequentAmendments!==(x.id!=='catalog_2026_po_savings'))
+      || x.postalSavingsAccessReview?.originalRulesMayHaveSubsequentAmendments!==true
+      || !validPostalBasicSavings2021Review(x))
     : x.postalSavingsAccessReview!==undefined)
   || research.entries.some(x=>Object.hasOwn(governmentBondStructureTypes,x.id)
     ? (x.referenceReviewedAt!=='2026-10-29'
@@ -1232,6 +1259,13 @@ export function screenExtensionResearchForProfile(profileInput) {
         reasons.push('CONSERVATIVE_PROFILE_REQUIRES_AIF_ILLIQUIDITY_LOSS_REVIEW');
     }
     if(row.postalSavingsAccessReview) {
+     if(row.postalSavingsAccessReview.basicSavings2021AmendmentReview){
+       reasons.push('INDIA_POST_2021_BASIC_SAVINGS_WELFARE_EXCEPTION_NOT_GENERAL_ZERO_BALANCE');
+       if(profile.investmentGoals.includes('Emergency Fund'))
+         reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_CURRENT_POSTAL_SAVINGS_WITHDRAWAL_CHANNEL_REVIEW');
+       if(profile.emergencyFundMonths===0)
+         reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_POSTAL_SAVINGS_ACCOUNT_ACCESS_VERIFICATION');
+     }
      reasons.push('INDIA_POST_ACCOUNT_KYC_AND_INDIVIDUAL_ELIGIBILITY_UNVERIFIED');
      reasons.push('INDIA_POST_CURRENT_ACCOUNT_TERMS_RATE_AND_SOURCE_RIGHTS_UNVERIFIED');
      if(row.postalSavingsAccessReview.schemeType==='NATIONAL_SAVINGS_TIME_DEPOSIT') {

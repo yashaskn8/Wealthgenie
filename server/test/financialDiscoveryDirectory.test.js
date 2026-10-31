@@ -1196,3 +1196,24 @@ test('all 95 directory archetypes expose separate category risks and access cons
  assert.equal(fresh.frameworkResearch.individualCategoryReview.pmsMandate2020FaqReview
    .clientInstructionsDetermineTrades,true);
 });
+
+test('postal Basic Savings historical welfare exception remains educational and defensively copied',()=>{
+ const id='catalog_2026_po_savings';
+ const get=()=>listFinancialDiscoveryDirectory().items.find(row=>row.id===id);
+ const item=get();
+ const review=item.frameworkResearch.postalSavingsAccessReview.basicSavings2021AmendmentReview;
+ assert.equal(review.gazetteNotification,'G.S.R. 257(E)');
+ assert.equal(review.ordinaryPostalSavingsAccountZeroBalanceInferred,false);
+ assert.equal(review.specificApplicantWelfareStatusAndKycVerified,false);
+ assert.equal(item.recommendationEligible,false);
+ assert.equal(item.productAvailability,'NOT_VERIFIED');
+ assert.equal(item.dataRights,'NOT_VERIFIED');
+ assert.equal(item.productData.currentInterestRate,null);
+ review.ordinaryPostalSavingsAccountZeroBalanceInferred=true;
+ review.investorAccessConstraints.push('FABRICATED POSTAL ACCESS');
+ const fresh=get();
+ assert.equal(fresh.frameworkResearch.postalSavingsAccessReview.basicSavings2021AmendmentReview
+   .ordinaryPostalSavingsAccountZeroBalanceInferred,false);
+ assert.ok(!fresh.frameworkResearch.postalSavingsAccessReview.basicSavings2021AmendmentReview
+   .investorAccessConstraints.includes('FABRICATED POSTAL ACCESS'));
+});
