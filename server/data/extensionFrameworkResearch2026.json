@@ -9073,7 +9073,8 @@
           "actualExitLoadsAndRedemptionTermsVerified": false,
           "currentNavAndSchemeRiskometerVerified": false,
           "investorKycAndAccessVerified": false,
-          "commercialDataRightsAndAdviceAuthorizationVerified": false
+          "commercialDataRightsAndAdviceAuthorizationVerified": false,
+          "categoryInterpretation": "A conservative-hybrid multi-underlying FoF may allocate 75%-90% to debt-oriented and 10%-25% to equity-oriented funds under Annexure C, but Chapter 4.1 expense disclosures and the category label do not establish capital protection, a current scheme risk-o-meter or actual two-layer charges."
         }
       }
     },
@@ -9210,7 +9211,8 @@
           "actualExitLoadsAndRedemptionTermsVerified": false,
           "currentNavAndSchemeRiskometerVerified": false,
           "investorKycAndAccessVerified": false,
-          "commercialDataRightsAndAdviceAuthorizationVerified": false
+          "commercialDataRightsAndAdviceAuthorizationVerified": false,
+          "categoryInterpretation": "An income-plus-arbitrage multi-underlying FoF may hold debt and arbitrage-oriented underlying funds under Annexure C; Chapter 4.1 requires both expense layers to be disclosed, not a guaranteed arbitrage spread, deposit-like liquidity or a verified current cost."
         }
       }
     },
@@ -9347,7 +9349,8 @@
           "actualExitLoadsAndRedemptionTermsVerified": false,
           "currentNavAndSchemeRiskometerVerified": false,
           "investorKycAndAccessVerified": false,
-          "commercialDataRightsAndAdviceAuthorizationVerified": false
+          "commercialDataRightsAndAdviceAuthorizationVerified": false,
+          "categoryInterpretation": "A dynamic-allocation multi-underlying FoF can change its underlying equity and debt mix; Chapter 4.1 expense disclosures do not verify current weights, the scheme risk-o-meter, redemption costs or the actual FoF and underlying expense ratios."
         }
       }
     }

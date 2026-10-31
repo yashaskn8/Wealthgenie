@@ -1523,3 +1523,17 @@ test('equity FoF Chapter 4.1 reviews remain educational and deeply copied withou
   assert.ok(!clean.riskConsiderations.includes('FAKE CURRENT SCHEME NAV'));
  }
 });
+
+test('six FoF expense interpretations are distinct, unpriced and unlicensed in discovery',()=>{
+ const ids=['equity_diversified_fof','equity_sector_fof','fof_aggressive_hybrid',
+  'fof_conservative_hybrid','fof_income_arbitrage','fof_dynamic_allocation'];
+ const rows=listFinancialDiscoveryDirectory().items.filter(x=>
+  ids.some(id=>x.id==='catalog_2026_'+id));
+ assert.equal(rows.length,6);
+ assert.equal(new Set(rows.map(x=>x.frameworkResearch.fundOfFundsCategoryReview
+  .sebiMarch2026FoFExpenseReview.categoryInterpretation)).size,6);
+ assert.ok(rows.every(x=>x.recommendationEligible===false
+  &&x.productAvailability==='NOT_VERIFIED'
+  &&x.dataRights==='NOT_VERIFIED'
+  &&Object.values(x.productData).every(v=>v===null)));
+});

@@ -3188,3 +3188,19 @@ test('three equity FoFs have distinct SEBI Chapter 4.1 expense evidence without 
  assert.equal(fresh.actualSchemeSidAndUnderlyingFundsVerified,false);
  assert.ok(!fresh.riskConsiderations.includes('FAKE VERIFIED EXPENSE'));
 });
+
+test('all six FoF Chapter 4.1 expense interpretations remain distinct and unqualified',()=>{
+ const ids=['equity_diversified_fof','equity_sector_fof','fof_aggressive_hybrid',
+  'fof_conservative_hybrid','fof_income_arbitrage','fof_dynamic_allocation'];
+ const reviews=ids.map(id=>{
+  const row=listExtensionResearch().find(x=>x.id==='catalog_2026_'+id);
+  assert.equal(row.productRiskScore,null);
+  assert.equal(row.actualRetailProductEligible,false);
+  assert.equal(row.suitabilityRankingPermitted,false);
+  return row.fundOfFundsCategoryReview.sebiMarch2026FoFExpenseReview;
+ });
+ assert.equal(new Set(reviews.map(x=>x.categoryInterpretation)).size,6);
+ assert.ok(reviews.every(x=>x.categoryInterpretation.length>=100));
+ assert.ok(reviews.every(x=>x.currentNavAndSchemeRiskometerVerified===false
+  &&x.commercialDataRightsAndAdviceAuthorizationVerified===false));
+});
