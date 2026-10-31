@@ -1380,3 +1380,24 @@ test('floating-rate G-Sec October release stays an unlicensed, non-quoted educat
  assert.equal(fresh.releaseEstablishesPersonalRetailEligibility,false);
  assert.ok(!fresh.riskConsiderations.includes('fake coupon'));
 });
+
+test('October 2026 SEBI issue-level CRA disclosure research stays discovery-only and defensively copied',()=>{
+ for(const id of ['catalog_2026_ncd_secured','catalog_2026_ncd_unsecured','catalog_2026_bond_perpetual']){
+  const get=()=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+  const row=get(),r=row.frameworkResearch.debtInstrumentReview
+   .creditRiskometerOct2026Review.issueSpecificDisclosureAnnexureReview;
+  assert.equal(r.reviewedOn,'2026-10-31');
+  assert.equal(r.actualIsinAndCraRatingVerified,false);
+  assert.equal(r.actualCreditMeterAndDisclaimersVerified,false);
+  assert.equal(row.recommendationEligible,false);
+  assert.equal(row.productAvailability,'NOT_VERIFIED');
+  assert.equal(row.dataRights,'NOT_VERIFIED');
+  assert.ok(Object.values(row.productData).every(v=>v===null));
+  r.riskConsiderations.push('FAKE METER');
+  r.actualIsinAndCraRatingVerified=true;
+  const fresh=get().frameworkResearch.debtInstrumentReview
+   .creditRiskometerOct2026Review.issueSpecificDisclosureAnnexureReview;
+  assert.equal(fresh.actualIsinAndCraRatingVerified,false);
+  assert.ok(!fresh.riskConsiderations.includes('FAKE METER'));
+ }
+});

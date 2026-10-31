@@ -2871,3 +2871,54 @@ test('RBI floating G-Sec primer and October 2026 issue notice cannot become a ca
   .governmentBondStructureReview.floatingRateOct2026SourceBoundaryReview.riskConsiderations
   .includes('fabricated coupon'));
 });
+
+test('SEBI October 2026 issue-level credit meter does not confer category ratings or retail approval',()=>{
+ const ids=['catalog_2026_ncd_secured','catalog_2026_ncd_unsecured','catalog_2026_bond_perpetual'];
+ const reasons=['SECURED_NCD_CREDIT_METER_NOT_COLLATERAL_RECOVERY_GUARANTEE',
+  'UNSECURED_NCD_CREDIT_METER_RED_WARNING_NOT_COLLATERAL',
+  'PERPETUAL_BOND_UNSECURED_AT1_WARNING_REQUIRES_ACTUAL_ISSUE_VERIFICATION'];
+ const screen=changes=>screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],investmentHorizonYears:10,emergencyFundMonths:null,
+  riskTolerance:'Moderate',...changes,
+ }));
+ const ordinary=screen({}),emergency=screen({investmentGoals:['Emergency Fund']});
+ const short=screen({investmentHorizonYears:2}),zero=screen({emergencyFundMonths:0});
+ for(const [i,id] of ids.entries()){
+  const row=listExtensionResearch().find(x=>x.id===id);
+  const r=row.debtInstrumentReview.creditRiskometerOct2026Review.issueSpecificDisclosureAnnexureReview;
+  assert.equal(r.officialSebiSignedCircularPdfUrl,
+   'https://www.sebi.gov.in/sebi_data/attachdocs/oct-2026/1791436170839.pdf');
+  assert.equal(r.effectiveFrom,'2026-11-21');
+  assert.equal(r.effectiveOnResearchDate,false);
+  assert.equal(r.everyPerpetualBondAssumedUnsecured,false);
+  for(const key of ['actualIsinAndCraRatingVerified','actualIssuerNonCooperationVerified',
+   'actualIssueSecurityAndTermsVerified','actualCreditMeterAndDisclaimersVerified',
+   'actualRetailKycEligibilityVerified','currentPriceAndLicensedDataRightsVerified',
+   'personalizedAdviceAuthorizationVerified'])assert.equal(r[key],false,id+':'+key);
+  for(const arr of [ordinary,emergency,short,zero]){
+   const x=arr.find(y=>y.id===id);
+   assert.equal(x.productQualified,false);
+   assert.equal(x.scoreAvailable,false);
+   assert.equal(x.productRiskLevel,null);
+   assert.ok(x.screeningReasonCodes.includes(reasons[i]));
+   assert.ok(x.screeningReasonCodes.includes('SEBI_OCT_2026_ISSUE_CRA_RATING_AND_NONCOOPERATION_STATUS_UNVERIFIED'));
+  }
+  assert.ok(emergency.find(x=>x.id===id).screeningReasonCodes.includes(
+   'EMERGENCY_FUND_GOAL_REQUIRES_DEBT_NONCREDIT_EXIT_AND_SETTLEMENT_REVIEW'));
+  assert.ok(!ordinary.find(x=>x.id===id).screeningReasonCodes.includes(
+   'EMERGENCY_FUND_GOAL_REQUIRES_DEBT_NONCREDIT_EXIT_AND_SETTLEMENT_REVIEW'));
+  assert.equal(row.suitabilityRankingPermitted,false);
+ }
+ const id='catalog_2026_bond_perpetual';
+ assert.ok(short.find(x=>x.id===id).screeningReasonCodes.includes(
+  'SHORT_HORIZON_REQUIRES_PERPETUAL_CALL_AND_RESALE_REVIEW'));
+ assert.ok(zero.find(x=>x.id===id).screeningReasonCodes.includes(
+  'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_PERPETUAL_MARKET_EXIT_REVIEW'));
+ assert.ok(!ordinary.find(x=>x.id===id).screeningReasonCodes.includes(
+  'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_PERPETUAL_MARKET_EXIT_REVIEW'));
+ const row=listExtensionResearch().find(x=>x.id===id);
+ row.debtInstrumentReview.creditRiskometerOct2026Review.issueSpecificDisclosureAnnexureReview
+  .riskConsiderations.push('FABRICATED');
+ assert.ok(!listExtensionResearch().find(x=>x.id===id).debtInstrumentReview
+  .creditRiskometerOct2026Review.issueSpecificDisclosureAnnexureReview.riskConsiderations.includes('FABRICATED'));
+});

@@ -5135,7 +5135,8 @@
           "Increased issuer ISIN capacity does not reduce the specific bond's credit, interest-rate or early-sale liquidity risks.",
           "RBI's secured short-term money-market NCD definition does not establish maturity or exit liquidity for every listed secured NCD.",
           "A reported security cover depends on identifiable charged assets, their valuation, other encumbrances and enforcement; the cover certificate is not a promise of full recovery.",
-          "Quarterly security-cover and trustee due-diligence duties do not eliminate issuer default, delayed enforcement or secondary-market price losses."
+          "Quarterly security-cover and trustee due-diligence duties do not eliminate issuer default, delayed enforcement or secondary-market price losses.",
+          "A credit meter does not establish collateral adequacy, charge enforceability or recovery of a secured NCD."
         ],
         "investorAccessConstraints": [
           "Verify actual listed ISIN, collateral description/charge perfection, trustee and issue disclosure; category wording is not proof of secured priority.",
@@ -5143,7 +5144,8 @@
           "SEBI's October 7, 2026 issuer-level ISIN maturity-year caps do not establish a specific retail offering, minimum subscription or tradable security.",
           "Confirm an actual issue falls within RBI's short-term secured NCD scope before applying the ₹5 lakh issue denomination.",
           "Verify the named listed issue, ISIN, registered debenture trustee, trust deed, charge records, collateral valuation and the actual issue-specific security-cover disclosures.",
-          "Check offering route, KYC and retail allocation, transfer restrictions, current permitted quote and licensed reuse rights; general trustee rules cannot qualify a personal purchase."
+          "Check offering route, KYC and retail allocation, transfer restrictions, current permitted quote and licensed reuse rights; general trustee rules cannot qualify a personal purchase.",
+          "Confirm the actual ISIN, CRA rating, charge documentation, trustee and offering eligibility; an archetype is not a security."
         ],
         "specificInstrumentOrSchemeVerified": false,
         "currentPriceOrNavVerified": false,
@@ -5175,7 +5177,38 @@
           "investorAccessConstraints": [
             "The October 7 SEBI disclosure circular applies to listed or proposed-to-be-listed specified debt issues; this category alone does not prove listing or an eligible retail offer.",
             "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
-          ]
+          ],
+          "issueSpecificDisclosureAnnexureReview": {
+            "officialSebiSignedCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/oct-2026/1791436170839.pdf",
+            "circularIssuedOn": "2026-10-07",
+            "effectiveFrom": "2026-11-21",
+            "reviewedOn": "2026-10-31",
+            "sourceScope": "ANNEXURE_A_ISSUE_LEVEL_CRA_DISCLOSURE_NOT_SCHEME_RISKOMETER_OR_MARKET_LIQUIDITY",
+            "categoryCode": "SECURED_LISTED_NCD",
+            "appliesOnlyToListedOrProposedListedSpecifiedDebt": true,
+            "actualCraNameAndIssueRatingRequired": true,
+            "lowestMultipleCraRatingControls": true,
+            "issuerNotCooperatingDisclosureConditionalOnCraNotice": true,
+            "unsecuredRedWarningConditionalOnActualUnsecuredIssue": true,
+            "specialPerpetualWarningConditionalOnActualUnsecuredPerpetualIssue": true,
+            "everyPerpetualBondAssumedUnsecured": false,
+            "effectiveOnResearchDate": false,
+            "actualIsinAndCraRatingVerified": false,
+            "actualIssuerNonCooperationVerified": false,
+            "actualIssueSecurityAndTermsVerified": false,
+            "actualCreditMeterAndDisclaimersVerified": false,
+            "actualRetailKycEligibilityVerified": false,
+            "currentPriceAndLicensedDataRightsVerified": false,
+            "personalizedAdviceAuthorizationVerified": false,
+            "riskConsiderations": [
+              "A credit meter does not establish collateral adequacy, charge enforceability or recovery of a secured NCD.",
+              "Credit ratings do not measure all secondary-market price, liquidity, call or loss-absorption risks."
+            ],
+            "investorAccessConstraints": [
+              "Confirm the actual ISIN, CRA rating, charge documentation, trustee and offering eligibility; an archetype is not a security.",
+              "The disclosure circular takes effect 45 days after October 7, 2026; no current issue rating, retail eligibility or licensed market-data permission is verified."
+            ]
+          }
         },
         "merchantBankerExemptionOct2026Review": {
           "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/oct-2026/exemption-from-the-requirement-of-mandatory-merchant-banker-appointment-for-debt-issued-through-private-placement-by-certain-listed-issuers_105080.html",
@@ -5357,7 +5390,8 @@
           "Increased issuer ISIN capacity does not reduce the specific bond's credit, interest-rate or early-sale liquidity risks.",
           "RBI's secured short-term money-market NCD definition cannot establish collateral or recovery rights for an unsecured listed NCD.",
           "The required unsecured-debt disclosure column does not create a charge over assets or improve an unsecured holder's recovery priority.",
-          "Issuer insolvency, debt covenants and thin secondary trading may cause losses; a trustee reporting framework does not provide a guaranteed exit."
+          "Issuer insolvency, debt covenants and thin secondary trading may cause losses; a trustee reporting framework does not provide a guaranteed exit.",
+          "The required red unsecured warning does not provide collateral or change recovery ranking."
         ],
         "investorAccessConstraints": [
           "Check actual issuer/ISIN, seniority, covenants, default events, offer route and credit rating; a listed label is not a retail approval.",
@@ -5365,7 +5399,8 @@
           "SEBI's October 7, 2026 issuer-level ISIN maturity-year caps do not establish a specific retail offering, minimum subscription or tradable security.",
           "RBI's ₹5 lakh short-term secured-NCD denomination is not a universal retail minimum or ban on unsecured listed NCDs.",
           "Confirm the actual ISIN, issue ranking, trustee appointment, offer document, covenants, events of default and the issuer's applicable public disclosures.",
-          "Verify legal offering route, investor eligibility and KYC, current price and data permissions; an unsecured-debt column is not a verified retail invitation."
+          "Verify legal offering route, investor eligibility and KYC, current price and data permissions; an unsecured-debt column is not a verified retail invitation.",
+          "Verify the named unsecured ISIN, CRA rating, any issuer-noncooperation flag, and actual investor access."
         ],
         "specificInstrumentOrSchemeVerified": false,
         "currentPriceOrNavVerified": false,
@@ -5397,7 +5432,38 @@
           "investorAccessConstraints": [
             "The October 7 SEBI disclosure circular applies to listed or proposed-to-be-listed specified debt issues; this category alone does not prove listing or an eligible retail offer.",
             "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
-          ]
+          ],
+          "issueSpecificDisclosureAnnexureReview": {
+            "officialSebiSignedCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/oct-2026/1791436170839.pdf",
+            "circularIssuedOn": "2026-10-07",
+            "effectiveFrom": "2026-11-21",
+            "reviewedOn": "2026-10-31",
+            "sourceScope": "ANNEXURE_A_ISSUE_LEVEL_CRA_DISCLOSURE_NOT_SCHEME_RISKOMETER_OR_MARKET_LIQUIDITY",
+            "categoryCode": "UNSECURED_LISTED_NCD",
+            "appliesOnlyToListedOrProposedListedSpecifiedDebt": true,
+            "actualCraNameAndIssueRatingRequired": true,
+            "lowestMultipleCraRatingControls": true,
+            "issuerNotCooperatingDisclosureConditionalOnCraNotice": true,
+            "unsecuredRedWarningConditionalOnActualUnsecuredIssue": true,
+            "specialPerpetualWarningConditionalOnActualUnsecuredPerpetualIssue": true,
+            "everyPerpetualBondAssumedUnsecured": false,
+            "effectiveOnResearchDate": false,
+            "actualIsinAndCraRatingVerified": false,
+            "actualIssuerNonCooperationVerified": false,
+            "actualIssueSecurityAndTermsVerified": false,
+            "actualCreditMeterAndDisclaimersVerified": false,
+            "actualRetailKycEligibilityVerified": false,
+            "currentPriceAndLicensedDataRightsVerified": false,
+            "personalizedAdviceAuthorizationVerified": false,
+            "riskConsiderations": [
+              "The required red unsecured warning does not provide collateral or change recovery ranking.",
+              "Credit ratings do not measure all secondary-market price, liquidity, call or loss-absorption risks."
+            ],
+            "investorAccessConstraints": [
+              "Verify the named unsecured ISIN, CRA rating, any issuer-noncooperation flag, and actual investor access.",
+              "The disclosure circular takes effect 45 days after October 7, 2026; no current issue rating, retail eligibility or licensed market-data permission is verified."
+            ]
+          }
         },
         "merchantBankerExemptionOct2026Review": {
           "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/oct-2026/exemption-from-the-requirement-of-mandatory-merchant-banker-appointment-for-debt-issued-through-private-placement-by-certain-listed-issuers_105080.html",
@@ -5826,11 +5892,13 @@
         "officialRiskAccessEvidenceUrl": "https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html",
         "riskConsiderations": [
           "Without a fixed maturity, call/non-call decisions can extend holding duration and increase price sensitivity.",
-          "Coupon deferral or cancellation and subordination depend on the specific instrument and may cause losses."
+          "Coupon deferral or cancellation and subordination depend on the specific instrument and may cause losses.",
+          "For applicable unsecured perpetual debt such as AT1, SEBI requires an additional structural-loss disclaimer beyond the credit meter."
         ],
         "investorAccessConstraints": [
           "Verify perpetual instrument's contractual call schedule, coupon conditions, capital/loss-absorption status and issuer credit.",
-          "Check investor permissions, ISIN, denomination, trading depth, current yield basis, rights and actual exit liquidity."
+          "Check investor permissions, ISIN, denomination, trading depth, current yield basis, rights and actual exit liquidity.",
+          "Not all perpetual bonds are unsecured AT1 instruments; verify actual loss-absorption, call, seniority and investor-access terms."
         ],
         "specificInstrumentOrSchemeVerified": false,
         "currentPriceOrNavVerified": false,
@@ -5862,7 +5930,38 @@
           "investorAccessConstraints": [
             "The October 7 SEBI disclosure circular applies to listed or proposed-to-be-listed specified debt issues; this category alone does not prove listing or an eligible retail offer.",
             "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
-          ]
+          ],
+          "issueSpecificDisclosureAnnexureReview": {
+            "officialSebiSignedCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/oct-2026/1791436170839.pdf",
+            "circularIssuedOn": "2026-10-07",
+            "effectiveFrom": "2026-11-21",
+            "reviewedOn": "2026-10-31",
+            "sourceScope": "ANNEXURE_A_ISSUE_LEVEL_CRA_DISCLOSURE_NOT_SCHEME_RISKOMETER_OR_MARKET_LIQUIDITY",
+            "categoryCode": "PERPETUAL_CORPORATE_BOND",
+            "appliesOnlyToListedOrProposedListedSpecifiedDebt": true,
+            "actualCraNameAndIssueRatingRequired": true,
+            "lowestMultipleCraRatingControls": true,
+            "issuerNotCooperatingDisclosureConditionalOnCraNotice": true,
+            "unsecuredRedWarningConditionalOnActualUnsecuredIssue": true,
+            "specialPerpetualWarningConditionalOnActualUnsecuredPerpetualIssue": true,
+            "everyPerpetualBondAssumedUnsecured": false,
+            "effectiveOnResearchDate": false,
+            "actualIsinAndCraRatingVerified": false,
+            "actualIssuerNonCooperationVerified": false,
+            "actualIssueSecurityAndTermsVerified": false,
+            "actualCreditMeterAndDisclaimersVerified": false,
+            "actualRetailKycEligibilityVerified": false,
+            "currentPriceAndLicensedDataRightsVerified": false,
+            "personalizedAdviceAuthorizationVerified": false,
+            "riskConsiderations": [
+              "For applicable unsecured perpetual debt such as AT1, SEBI requires an additional structural-loss disclaimer beyond the credit meter.",
+              "Credit ratings do not measure all secondary-market price, liquidity, call or loss-absorption risks."
+            ],
+            "investorAccessConstraints": [
+              "Not all perpetual bonds are unsecured AT1 instruments; verify actual loss-absorption, call, seniority and investor-access terms.",
+              "The disclosure circular takes effect 45 days after October 7, 2026; no current issue rating, retail eligibility or licensed market-data permission is verified."
+            ]
+          }
         },
         "bankCapitalInstrumentScopeReview": {
           "officialRbiMasterCircularUrl": "https://www.rbi.org.in/Scripts/BS_ViewMasCirculardetails.aspx?id=12490",

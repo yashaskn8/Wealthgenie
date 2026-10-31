@@ -932,6 +932,25 @@ if(octoberDebtIds.size!==11||research.entries.filter(row=>row.debtInstrumentRevi
      ||!Array.isArray(r.riskConsiderations)||r.riskConsiderations.length<2
      ||!Array.isArray(r.investorAccessConstraints)||r.investorAccessConstraints.length<2;
  }))throw new Error('FINANCIAL_OCTOBER_DEBT_CREDIT_METER_SCOPE_INVALID');
+// October 2026 SEBI Annexure A is an issue-level CRA disclosure rule, not an archetype rating.
+const debtMeterAnnexureSpecs={"catalog_2026_ncd_secured":"SECURED_LISTED_NCD","catalog_2026_ncd_unsecured":"UNSECURED_LISTED_NCD","catalog_2026_bond_perpetual":"PERPETUAL_CORPORATE_BOND"};
+if(research.entries.filter(row=>row.debtInstrumentReview?.creditRiskometerOct2026Review?.issueSpecificDisclosureAnnexureReview).length!==3
+ ||Object.entries(debtMeterAnnexureSpecs).some(([id,categoryCode])=>{
+   const r=research.entries.find(row=>row.id===id)?.debtInstrumentReview?.creditRiskometerOct2026Review?.issueSpecificDisclosureAnnexureReview;
+   return !r||r.officialSebiSignedCircularPdfUrl!=='https://www.sebi.gov.in/sebi_data/attachdocs/oct-2026/1791436170839.pdf'
+    ||r.circularIssuedOn!=='2026-10-07'||r.effectiveFrom!=='2026-11-21'||r.reviewedOn!=='2026-10-31'
+    ||r.categoryCode!==categoryCode
+    ||r.sourceScope!=='ANNEXURE_A_ISSUE_LEVEL_CRA_DISCLOSURE_NOT_SCHEME_RISKOMETER_OR_MARKET_LIQUIDITY'
+    ||['appliesOnlyToListedOrProposedListedSpecifiedDebt','actualCraNameAndIssueRatingRequired',
+       'lowestMultipleCraRatingControls','issuerNotCooperatingDisclosureConditionalOnCraNotice',
+       'unsecuredRedWarningConditionalOnActualUnsecuredIssue',
+       'specialPerpetualWarningConditionalOnActualUnsecuredPerpetualIssue'].some(k=>r[k]!==true)
+    ||['everyPerpetualBondAssumedUnsecured','effectiveOnResearchDate','actualIsinAndCraRatingVerified',
+       'actualIssuerNonCooperationVerified','actualIssueSecurityAndTermsVerified',
+       'actualCreditMeterAndDisclaimersVerified','actualRetailKycEligibilityVerified',
+       'currentPriceAndLicensedDataRightsVerified','personalizedAdviceAuthorizationVerified'].some(k=>r[k]!==false)
+    ||r.riskConsiderations?.length<2||r.investorAccessConstraints?.length<2;
+ }))throw new Error('FINANCIAL_DEBT_CREDIT_METER_ISSUE_DISCLOSURE_INVALID');
 // SEBI's 2017 investor caution is historical evidence of disguised-public-offer
 // risk, not a current investor headcount test or approval for any unlisted NCD.
 const unlistedNcdPrivatePlacementCautionUrl='https://www.sebi.gov.in/media/press-releases/jan-2017/caution-to-the-investors_34109.html';
@@ -1814,7 +1833,24 @@ export function screenExtensionResearchForProfile(profileInput) {
        if(profile.riskTolerance==='Conservative')
          reasons.push('CONSERVATIVE_PROFILE_REQUIRES_DEBT_DEFAULT_AND_NONCREDIT_LOSS_REVIEW');
      }
-     if(row.id==='catalog_2026_ncd_unlisted'){
+     const annexure=row.debtInstrumentReview.creditRiskometerOct2026Review?.issueSpecificDisclosureAnnexureReview;
+      if(annexure){
+        reasons.push('SEBI_OCT_2026_ISSUE_CRA_RATING_AND_NONCOOPERATION_STATUS_UNVERIFIED');
+        reasons.push({
+          catalog_2026_ncd_secured:'SECURED_NCD_CREDIT_METER_NOT_COLLATERAL_RECOVERY_GUARANTEE',
+          catalog_2026_ncd_unsecured:'UNSECURED_NCD_CREDIT_METER_RED_WARNING_NOT_COLLATERAL',
+          catalog_2026_bond_perpetual:'PERPETUAL_BOND_UNSECURED_AT1_WARNING_REQUIRES_ACTUAL_ISSUE_VERIFICATION',
+        }[row.id]);
+        if(profile.investmentGoals.includes('Emergency Fund'))
+          reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_DEBT_NONCREDIT_EXIT_AND_SETTLEMENT_REVIEW');
+        if(row.id==='catalog_2026_bond_perpetual'){
+          if(Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
+            reasons.push('SHORT_HORIZON_REQUIRES_PERPETUAL_CALL_AND_RESALE_REVIEW');
+          if(profile.emergencyFundMonths===0)
+            reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_PERPETUAL_MARKET_EXIT_REVIEW');
+        }
+      }
+      if(row.id==='catalog_2026_ncd_unlisted'){
        reasons.push('UNLISTED_NCD_TRANSFER_RESTRICTIONS_AND_EXIT_COUNTERPARTY_UNVERIFIED');
        reasons.push('SEBI_HISTORICAL_UNLISTED_PRIVATE_PLACEMENT_CAUTION_REQUIRES_CURRENT_OFFER_VERIFICATION');
        if(profile.investmentGoals.includes('Emergency Fund'))
