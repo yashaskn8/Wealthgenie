@@ -709,7 +709,7 @@ test('all 28 reviewed fund, thematic, debt, metal and individual categories stay
    riskTolerance:'Aggressive',investmentHorizonYears:10,investmentGoals:['Retirement'],
  }));
  for(const row of rows){
-   assert.match(row.referenceReviewedAt,/^\\d{4}-\\d{2}-\\d{2}$/,row.id);
+   assert.match(row.referenceReviewedAt,/^\d{4}-\d{2}-\d{2}$/,row.id);
    assert.ok(row.referenceReviewedAt >= (row.id==='catalog_2026_silver_fof'?'2026-10-30':'2026-10-29')
      && row.referenceReviewedAt<=new Date().toISOString().slice(0,10),row.id);
    assert.equal(row.productRiskScore,null,row.id);
@@ -758,7 +758,7 @@ test('October 2026 SEBI debt credit meters are future issue disclosures, not cat
    const row=rows.find(row=>row.id===id);
    const review=row.debtInstrumentReview.creditRiskometerOct2026Review;
    assert.equal(review.officialSebiCircularUrl,'https://www.sebi.gov.in/legal/circulars/oct-2026/introduction-of-credit-risk-o-meter-as-an-additional-disclosure-mechanism-for-debt-securities_105081.html',id);
-   assert.match(row.referenceReviewedAt,/^\\d{4}-\\d{2}-\\d{2}$/,id);
+   assert.match(row.referenceReviewedAt,/^\d{4}-\d{2}-\d{2}$/,id);
    assert.ok(row.referenceReviewedAt>='2026-10-29'
      &&row.referenceReviewedAt<=new Date().toISOString().slice(0,10),id);
   assert.equal(row.debtInstrumentReview.reviewedOn,'2026-10-29',id);
