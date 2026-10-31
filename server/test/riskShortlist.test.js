@@ -3411,3 +3411,60 @@ test('four SEBI passive-debt index archetypes preserve distinct target-date and 
  assert.ok(!get(listExtensionResearch(),'target_maturity_psu_index')
   .sebiDebtSchemeStructureReview.sebiMarch2026DebtPassiveReplicationReview.riskConsiderations.includes('FORGED RISK'));
 });
+
+test('SEBI March 2026 debt FoF and G-Sec ETF rules do not imply current NAV, access or liquidity',()=>{
+ const get=(rows,id)=>rows.find(x=>x.id==='catalog_2026_'+id);
+ const baseline=screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Retirement'],investmentHorizonYears:10,emergencyFundMonths:null,riskTolerance:'Moderate'}));
+ const flagged=screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Emergency Fund'],investmentHorizonYears:2,emergencyFundMonths:0,riskTolerance:'Conservative'}));
+ const fof=get(listExtensionResearch(),'domestic_debt_fof').sebiDebtSchemeStructureReview.sebiMarch2026FoFExpenseReview;
+ const etf=get(listExtensionResearch(),'gsec_debt_etf').sebiDebtSchemeStructureReview.sebiMarch2026EtfDirectExitReview;
+ for(const v of [fof,etf]){
+  assert.equal(v.officialSebiMasterCircularPdfUrl,
+   'https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf');
+  assert.equal(v.reviewedOn,'2026-11-01');
+  assert.ok(v.categoryInterpretation.length>150);
+  assert.ok(v.riskConsiderations.length>=2&&v.investorAccessConstraints.length>=2);
+ }
+ assert.equal(fof.sidMustDiscloseFofAndUnderlyingRecurringExpenses,true);
+ assert.equal(fof.amcRevenueSharingWithUnderlyingFundsProhibited,true);
+ assert.equal(fof.currentFofAndUnderlyingRiskometersVerified,false);
+ assert.equal(etf.ordinaryDirectAmcTransactionThresholdInrExclusive,250000000);
+ assert.equal(etf.directAmcThresholdNotSecondaryExchangeMinimum,true);
+ assert.equal(etf.conditionalSmallInvestorAmcRedemptionUpperLimitInr,250000000);
+ assert.equal(etf.conditionalDiscountConsecutiveTradingDays,7);
+ assert.equal(etf.conditionalNoQuotesConsecutiveTradingDays,3);
+ assert.equal(etf.conditionalLowBidAveragingTradingDays,7);
+ assert.equal(etf.debtEtfsExcludedFromSwingPricingFramework,true);
+ assert.equal(etf.actualExchangeOrderbookAndNavVerified,false);
+ const specs=[
+  ['domestic_debt_fof','SEBI_MAR_2026_DEBT_FOF_TWO_LAYER_EXPENSE_NOT_CURRENT_SCHEME_COST',
+   ['EMERGENCY_FUND_GOAL_REQUIRES_DEBT_FOF_UNDERLYING_LIQUIDITY_AND_COST_REVIEW',
+    'SHORT_HORIZON_REQUIRES_DEBT_FOF_LAYERS_AND_REDEMPTION_REVIEW',
+    'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_DEBT_FOF_REDEMPTION_REVIEW']],
+  ['gsec_debt_etf','SEBI_MAR_2026_DEBT_ETF_DIRECT_AMC_THRESHOLD_NOT_EXCHANGE_RETAIL_MINIMUM',
+   ['EMERGENCY_FUND_GOAL_REQUIRES_DEBT_ETF_LIVE_BID_AND_EXIT_REVIEW',
+    'SHORT_HORIZON_REQUIRES_DEBT_ETF_SPREAD_DURATION_AND_SETTLEMENT_REVIEW',
+    'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_DEBT_ETF_EXECUTABLE_EXIT_REVIEW']],
+ ];
+ for(const [id,general,conditional] of specs){
+  const a=get(flagged,id),b=get(baseline,id);
+  assert.ok(a.screeningReasonCodes.includes(general));
+  assert.ok(b.screeningReasonCodes.includes(general));
+  for(const code of conditional){
+   assert.ok(a.screeningReasonCodes.includes(code));
+   assert.ok(!b.screeningReasonCodes.includes(code));
+  }
+  assert.equal(a.productQualified,false);assert.equal(a.scoreAvailable,false);
+  assert.equal(a.productRiskLevel,null);
+ }
+ const tampered=get(listExtensionResearch(),'gsec_debt_etf')
+  .sebiDebtSchemeStructureReview.sebiMarch2026EtfDirectExitReview;
+ tampered.actualExchangeOrderbookAndNavVerified=true;
+ tampered.riskConsiderations.push('FAKE LIQUIDITY');
+ const clean=get(listExtensionResearch(),'gsec_debt_etf')
+  .sebiDebtSchemeStructureReview.sebiMarch2026EtfDirectExitReview;
+ assert.equal(clean.actualExchangeOrderbookAndNavVerified,false);
+ assert.ok(!clean.riskConsiderations.includes('FAKE LIQUIDITY'));
+});
