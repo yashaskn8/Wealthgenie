@@ -1267,3 +1267,21 @@ test('six FoFs expose March 2026 underlying-riskometer methodology without a sch
   assert.ok(!fresh.riskConsiderations.includes('FABRICATED LOW RISK'));
  }
 });
+
+test('unlisted NCD historical private-placement caution is distinct from current retail access',()=>{
+ const id='catalog_2026_ncd_unlisted';
+ const item=listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ const review=item.frameworkResearch.debtInstrumentReview.privatePlacementInvestorCautionReview;
+ assert.equal(review.historicalWarningIssuedOn,'2017-01-30');
+ assert.equal(review.currentNcsRegulationsLastAmendedOn,'2026-01-21');
+ assert.equal(review.historicalOfferCountNumbersNotAppliedAsCurrentRetailEligibility,true);
+ assert.equal(review.actualOfferDocumentAndPlacementRouteVerified,false);
+ assert.equal(review.namedInvestorInvitationAndTransferRightsVerified,false);
+ assert.equal(item.recommendationEligible,false);
+ assert.equal(item.productAvailability,'NOT_VERIFIED');
+ assert.equal(item.productData.currentPrice,null);
+ review.currentCompanyLawPlacementComplianceVerified=true;
+ assert.equal(listFinancialDiscoveryDirectory().items.find(x=>x.id===id)
+  .frameworkResearch.debtInstrumentReview.privatePlacementInvestorCautionReview
+  .currentCompanyLawPlacementComplianceVerified,false);
+});

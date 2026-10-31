@@ -872,6 +872,33 @@ if(octoberDebtIds.size!==11||research.entries.filter(row=>row.debtInstrumentRevi
      ||!Array.isArray(r.riskConsiderations)||r.riskConsiderations.length<2
      ||!Array.isArray(r.investorAccessConstraints)||r.investorAccessConstraints.length<2;
  }))throw new Error('FINANCIAL_OCTOBER_DEBT_CREDIT_METER_SCOPE_INVALID');
+// SEBI's 2017 investor caution is historical evidence of disguised-public-offer
+// risk, not a current investor headcount test or approval for any unlisted NCD.
+const unlistedNcdPrivatePlacementCautionUrl='https://www.sebi.gov.in/media/press-releases/jan-2017/caution-to-the-investors_34109.html';
+const currentNcsListingRegulationsUrl='https://www.sebi.gov.in/legal/regulations/jan-2026/securities-and-exchange-board-of-india-issue-and-listing-of-non-convertible-securities-regulations-2021-last-amended-as-on-january-21-2026-_99288.html';
+const unlistedNcdCautionRows=research.entries.filter(row=>
+  row.debtInstrumentReview?.privatePlacementInvestorCautionReview);
+if(unlistedNcdCautionRows.length!==1
+ ||unlistedNcdCautionRows[0].id!=='catalog_2026_ncd_unlisted'
+ ||(()=>{
+   const r=unlistedNcdCautionRows[0].debtInstrumentReview.privatePlacementInvestorCautionReview;
+   return r.officialSebiHistoricalInvestorWarningUrl!==unlistedNcdPrivatePlacementCautionUrl
+    ||r.historicalWarningIssuedOn!=='2017-01-30'
+    ||r.officialCurrentNcsRegulationsUrl!==currentNcsListingRegulationsUrl
+    ||r.currentNcsRegulationsLastAmendedOn!=='2026-01-21'
+    ||r.reviewedOn!=='2026-10-31'
+    ||r.sourceScope!=='HISTORICAL_SEBI_UNLISTED_PRIVATE_PLACEMENT_INVESTOR_CAUTION_PLUS_CURRENT_NCS_LISTING_REGULATIONS_NOT_A_CURRENT_UNLISTED_ISSUE_APPROVAL'
+    ||['historicalCautionConcernsNonCompliantPublicSolicitationDisguisedAsPrivatePlacement',
+      'historicalPrivatePlacementWarningRequiresIdentifiedInvitees',
+      'historicalOfferCountNumbersNotAppliedAsCurrentRetailEligibility',
+      'listingRegulationsDoNotEstablishUnlistedRetailAccess'].some(key=>r[key]!==true)
+    ||['specificIssuerAndIsinVerified','actualOfferDocumentAndPlacementRouteVerified',
+      'currentCompanyLawPlacementComplianceVerified','namedInvestorInvitationAndTransferRightsVerified',
+      'currentRatingPriceCustodyAndExitCounterpartyVerified',
+      'commercialDataAndAdviceRightsVerified'].some(key=>r[key]!==false)
+    ||!Array.isArray(r.riskConsiderations)||r.riskConsiderations.length<2
+    ||!Array.isArray(r.investorAccessConstraints)||r.investorAccessConstraints.length<2;
+ })())throw new Error('UNLISTED_NCD_HISTORICAL_PRIVATE_PLACEMENT_CAUTION_NOT_PRODUCT_APPROVAL');
 // SEBI 7 Oct 2026 Chapter VIII ISIN limits govern issuer maturity-year
 // capacity for certain privately placed debt, never a buyer's minimum,
 // a security identity, licensed quote or personal retail eligibility.
@@ -1678,8 +1705,14 @@ export function screenExtensionResearchForProfile(profileInput) {
        if(profile.riskTolerance==='Conservative')
          reasons.push('CONSERVATIVE_PROFILE_REQUIRES_DEBT_DEFAULT_AND_NONCREDIT_LOSS_REVIEW');
      }
-     if(row.id==='catalog_2026_ncd_unlisted')
+     if(row.id==='catalog_2026_ncd_unlisted'){
        reasons.push('UNLISTED_NCD_TRANSFER_RESTRICTIONS_AND_EXIT_COUNTERPARTY_UNVERIFIED');
+       reasons.push('SEBI_HISTORICAL_UNLISTED_PRIVATE_PLACEMENT_CAUTION_REQUIRES_CURRENT_OFFER_VERIFICATION');
+       if(profile.investmentGoals.includes('Emergency Fund'))
+         reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_UNLISTED_NCD_LAWFUL_TRANSFER_AND_EXIT_REVIEW');
+       if(Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
+         reasons.push('SHORT_HORIZON_REQUIRES_UNLISTED_NCD_MATURITY_AND_RESALE_REVIEW');
+     }
      if(row.id==='catalog_2026_bond_perpetual')
        reasons.push('PERPETUAL_BOND_CALL_COUPON_DEFERRAL_AND_NO_FIXED_MATURITY_REVIEW');
      if(row.id==='catalog_2026_bond_subordinated')

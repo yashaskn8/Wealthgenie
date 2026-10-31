@@ -5415,7 +5415,7 @@
       "scenarioDescription": "Unlisted Non-Convertible Debenture: Restricted Corporate Debt category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
       "referenceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": "2026-10-29",
+      "referenceReviewedAt": "2026-10-31",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -5450,11 +5450,13 @@
         "officialRiskAccessEvidenceUrl": "https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html",
         "riskConsiderations": [
           "Issuer non-payment or restructuring can lead to principal and interest loss.",
-          "No established exchange listing can make valuation and early resale difficult or impossible at an expected price."
+          "No established exchange listing can make valuation and early resale difficult or impossible at an expected price.",
+          "SEBI's historical private-placement warning adds solicitation-compliance risk; it does not classify all unlisted NCDs as unlawful."
         ],
         "investorAccessConstraints": [
           "Verify actual issuer, ISIN, offer/private-placement legality, investor restrictions and transferability; listed-security rules do not confer unlisted access.",
-          "Confirm credit/covenants, maturity, denomination, custody, exit counterparty, current pricing and data/advice permissions."
+          "Confirm credit/covenants, maturity, denomination, custody, exit counterparty, current pricing and data/advice permissions.",
+          "Do not present an unlisted NCD as a public retail offering without verifying the actual invitation, current placement law and transfer permissions."
         ],
         "specificInstrumentOrSchemeVerified": false,
         "currentPriceOrNavVerified": false,
@@ -5486,6 +5488,33 @@
           "investorAccessConstraints": [
             "An unlisted NCD category is not automatically within the circular's listed/proposed-listed scope; do not infer a mandatory meter or retail transfer permission.",
             "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
+          ]
+        },
+        "privatePlacementInvestorCautionReview": {
+          "officialSebiHistoricalInvestorWarningUrl": "https://www.sebi.gov.in/media/press-releases/jan-2017/caution-to-the-investors_34109.html",
+          "historicalWarningIssuedOn": "2017-01-30",
+          "officialCurrentNcsRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/jan-2026/securities-and-exchange-board-of-india-issue-and-listing-of-non-convertible-securities-regulations-2021-last-amended-as-on-january-21-2026-_99288.html",
+          "currentNcsRegulationsLastAmendedOn": "2026-01-21",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "HISTORICAL_SEBI_UNLISTED_PRIVATE_PLACEMENT_INVESTOR_CAUTION_PLUS_CURRENT_NCS_LISTING_REGULATIONS_NOT_A_CURRENT_UNLISTED_ISSUE_APPROVAL",
+          "historicalCautionConcernsNonCompliantPublicSolicitationDisguisedAsPrivatePlacement": true,
+          "historicalPrivatePlacementWarningRequiresIdentifiedInvitees": true,
+          "historicalOfferCountNumbersNotAppliedAsCurrentRetailEligibility": true,
+          "listingRegulationsDoNotEstablishUnlistedRetailAccess": true,
+          "specificIssuerAndIsinVerified": false,
+          "actualOfferDocumentAndPlacementRouteVerified": false,
+          "currentCompanyLawPlacementComplianceVerified": false,
+          "namedInvestorInvitationAndTransferRightsVerified": false,
+          "currentRatingPriceCustodyAndExitCounterpartyVerified": false,
+          "commercialDataAndAdviceRightsVerified": false,
+          "riskConsiderations": [
+            "SEBI's 2017 investor warning identifies unlawful public solicitation disguised as private placement; an unlisted NCD label cannot authenticate an issuer or lawful offer.",
+            "Issuer default, absent exchange trading, transfer restrictions and opaque resale counterparties can prevent a timely exit or cause substantial losses."
+          ],
+          "investorAccessConstraints": [
+            "Confirm the named issuer, ISIN, applicable current Companies Act and securities rules, actual offer document, identified invitee status and permitted transfer route; do not reuse 2017 numerical offer limits as 2026 personal eligibility rules.",
+            "Verify the current issuer-specific credit, security, denomination, maturity, custody, valuation and lawful resale channel before suggesting a purchase.",
+            "SEBI's January 2026 non-convertible listing regulations and its historical caution do not themselves grant unlisted retail access, live prices, commercial redistribution rights or advice authorization."
           ]
         }
       }

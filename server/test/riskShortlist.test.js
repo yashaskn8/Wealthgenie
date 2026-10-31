@@ -2585,3 +2585,43 @@ test('SEBI March 2026 FoF riskometer method is source-scoped and profile notices
  }
  assert.equal(research.filter(x=>x.fundOfFundsCategoryReview?.sebiMarch2026UnderlyingRiskometerReview).length,6);
 });
+
+test('SEBI historical unlisted NCD placement caution never becomes current retail approval',()=>{
+ const id='catalog_2026_ncd_unlisted';
+ const rows=listExtensionResearch();
+ const row=rows.find(x=>x.id===id);
+ const review=row.debtInstrumentReview.privatePlacementInvestorCautionReview;
+ assert.equal(rows.filter(x=>x.debtInstrumentReview?.privatePlacementInvestorCautionReview).length,1);
+ assert.equal(review.officialSebiHistoricalInvestorWarningUrl,
+  'https://www.sebi.gov.in/media/press-releases/jan-2017/caution-to-the-investors_34109.html');
+ assert.equal(review.historicalWarningIssuedOn,'2017-01-30');
+ assert.equal(review.currentNcsRegulationsLastAmendedOn,'2026-01-21');
+ assert.equal(review.historicalOfferCountNumbersNotAppliedAsCurrentRetailEligibility,true);
+ assert.equal(review.listingRegulationsDoNotEstablishUnlistedRetailAccess,true);
+ for(const key of ['specificIssuerAndIsinVerified','actualOfferDocumentAndPlacementRouteVerified',
+   'currentCompanyLawPlacementComplianceVerified','namedInvestorInvitationAndTransferRightsVerified',
+   'currentRatingPriceCustodyAndExitCounterpartyVerified','commercialDataAndAdviceRightsVerified'])
+  assert.equal(review[key],false,key);
+ const make=overrides=>screenExtensionResearchForProfile(canonicalProfile({
+   investmentHorizonYears:10,investmentGoals:['Wealth Growth'],
+   emergencyFundMonths:null,riskTolerance:'Moderate',...overrides,
+ })).find(x=>x.id===id);
+ const unknown=make({}),short=make({investmentHorizonYears:2});
+ const emergency=make({investmentGoals:['Emergency Fund']});
+ const zero=make({emergencyFundMonths:0});
+ const historical='SEBI_HISTORICAL_UNLISTED_PRIVATE_PLACEMENT_CAUTION_REQUIRES_CURRENT_OFFER_VERIFICATION';
+ for(const x of [unknown,short,emergency,zero]){
+  assert.ok(x.screeningReasonCodes.includes(historical));
+  assert.equal(x.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+  assert.equal(x.scoreAvailable,false);
+  assert.equal(x.productQualified,false);
+  assert.equal(x.productRiskLevel,null);
+ }
+ const horizon='SHORT_HORIZON_REQUIRES_UNLISTED_NCD_MATURITY_AND_RESALE_REVIEW';
+ const goal='EMERGENCY_FUND_GOAL_REQUIRES_UNLISTED_NCD_LAWFUL_TRANSFER_AND_EXIT_REVIEW';
+ assert.ok(short.screeningReasonCodes.includes(horizon));
+ assert.ok(!unknown.screeningReasonCodes.includes(horizon));
+ assert.ok(emergency.screeningReasonCodes.includes(goal));
+ assert.ok(!unknown.screeningReasonCodes.includes(goal));
+ assert.ok(!zero.screeningReasonCodes.includes(goal));
+});
