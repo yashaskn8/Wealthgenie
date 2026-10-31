@@ -1601,6 +1601,40 @@ export function listExtensionResearch() {
  * These are conservative, non-ranking profile screening FLAGS. Never call
  * an extension suitable merely because a broad investment structure is known.
  */
+// These are general SEBI rules, not evidence that either archetype is an
+// available scheme or that any investor has executable access.
+const debtFofEtf2026Specs=Object.freeze({
+ 'catalog_2026_domestic_debt_fof':['sebiMarch2026FoFExpenseReview','DOMESTIC_DEBT_FUND_OF_FUNDS',
+  'SEBI_FOF_DUAL_LAYER_EXPENSE_DISCLOSURE_NOT_ACTUAL_DEBT_FOF_SCHEME_COST_OR_RISKOMETER',
+  ['4.1.1','4.1.2','4.1.3'],
+  ['actualFofAndUnderlyingSchemeIdentitiesVerified','currentFofAndUnderlyingExpenseRatiosVerified',
+   'currentFofAndUnderlyingRiskometersVerified','currentNavAndRedemptionTermsVerified',
+   'individualKycAndRetailAccessVerified','commercialDataRightsAndAdviceAuthorizationVerified']],
+ 'catalog_2026_gsec_debt_etf':['sebiMarch2026EtfDirectExitReview','GSEC_PASSIVE_DEBT_ETF_STRATEGY',
+  'SEBI_DEBT_ETF_AMC_DIRECT_ROUTE_AND_CONDITIONAL_LIQUIDITY_WINDOW_NOT_RETAIL_APPROVAL_OR_LIVE_BID',
+  ['4.5.2(a)','4.5.2(b)(i)','4.5.3(a)-(b)'],
+  ['actualListedEtfIsinAndSidVerified','actualExchangeOrderbookAndNavVerified',
+   'conditionalAmcWindowTriggerVerified','individualBrokerDematKycAndRetailAccessVerified',
+   'commercialQuoteRightsVerified','schemeRiskometerAndAdviceAuthorizationVerified']],
+});
+if(research.entries.filter(r=>r.sebiDebtSchemeStructureReview?.sebiMarch2026FoFExpenseReview
+ ||r.sebiDebtSchemeStructureReview?.sebiMarch2026EtfDirectExitReview).length!==2
+ ||Object.entries(debtFofEtf2026Specs).some(([id,[key,kind,scope,paragraphs,missing]])=>{
+  const v=research.entries.find(r=>r.id===id)?.sebiDebtSchemeStructureReview?.[key];
+  return !v||v.officialSebiMasterCircularPdfUrl!==debtPrcSwingSource
+   ||v.masterCircularIssuedOn!=='2026-03-20'||v.reviewedOn!=='2026-11-01'
+   ||v.schemeArchetype!==kind||v.sourceScope!==scope
+   ||JSON.stringify(v.paragraphsReviewed)!==JSON.stringify(paragraphs)
+   ||v.categoryInterpretation?.length<150
+   ||v.riskConsiderations?.length<2||v.investorAccessConstraints?.length<2
+   ||missing.some(field=>v[field]!==false);
+ })
+ ||research.entries.find(r=>r.id==='catalog_2026_domestic_debt_fof')
+  ?.sebiDebtSchemeStructureReview?.sebiMarch2026FoFExpenseReview?.sidMustDiscloseFofAndUnderlyingRecurringExpenses!==true
+ ||research.entries.find(r=>r.id==='catalog_2026_gsec_debt_etf')
+  ?.sebiDebtSchemeStructureReview?.sebiMarch2026EtfDirectExitReview?.directAmcThresholdNotSecondaryExchangeMinimum!==true)
+ throw new Error('FINANCIAL_SEBI_MAR_2026_DEBT_FOF_ETF_SOURCE_SCOPE_INVALID');
+
 const frameworkPublisherCautions=Object.freeze({
   GOVERNMENT_SCHEME_OPERATOR:'OFFICIAL_SCHEME_LISTING_NOT_INDIVIDUAL_ACCOUNT_OR_CURRENT_TERMS',
   GOVERNMENT_POLICY_PUBLISHER:'GOVERNMENT_GREEN_BOND_FRAMEWORK_NOT_A_SPECIFIC_ISSUE_OR_IMPACT_APPROVAL',
@@ -1654,6 +1688,26 @@ export function screenExtensionResearchForProfile(profileInput) {
        reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_PASSIVE_DEBT_REDEMPTION_REVIEW');
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_PASSIVE_DEBT_DURATION_AND_CREDIT_REVIEW');
+   }
+   if(row.sebiDebtSchemeStructureReview?.sebiMarch2026FoFExpenseReview){
+     reasons.push('SEBI_MAR_2026_DEBT_FOF_TWO_LAYER_EXPENSE_NOT_CURRENT_SCHEME_COST');
+     reasons.push('DEBT_FOF_UNDERLYING_DURATION_CREDIT_RISKOMETERS_AND_EXIT_TERMS_UNVERIFIED');
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_DEBT_FOF_UNDERLYING_LIQUIDITY_AND_COST_REVIEW');
+     if(Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
+       reasons.push('SHORT_HORIZON_REQUIRES_DEBT_FOF_LAYERS_AND_REDEMPTION_REVIEW');
+     if(profile.emergencyFundMonths===0)
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_DEBT_FOF_REDEMPTION_REVIEW');
+   }
+   if(row.sebiDebtSchemeStructureReview?.sebiMarch2026EtfDirectExitReview){
+     reasons.push('SEBI_MAR_2026_DEBT_ETF_DIRECT_AMC_THRESHOLD_NOT_EXCHANGE_RETAIL_MINIMUM');
+     reasons.push('DEBT_ETF_CONDITIONAL_AMC_EXIT_WINDOW_NOT_GUARANTEED_LIQUIDITY');
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_DEBT_ETF_LIVE_BID_AND_EXIT_REVIEW');
+     if(Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
+       reasons.push('SHORT_HORIZON_REQUIRES_DEBT_ETF_SPREAD_DURATION_AND_SETTLEMENT_REVIEW');
+     if(profile.emergencyFundMonths===0)
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_DEBT_ETF_EXECUTABLE_EXIT_REVIEW');
    }
    if(row.nominalMaturityMonths!==null
      && row.nominalMaturityMonths>profile.investmentHorizonYears*12)
