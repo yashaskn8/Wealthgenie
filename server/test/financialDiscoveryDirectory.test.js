@@ -1476,3 +1476,25 @@ test('RBI CP settlement and rating research cannot become licensed executable pr
  assert.deepEqual(clean.otcSecondarySettlementCycles,['T+0','T+1']);
  assert.equal(clean.executableSecondaryBidAndSettlementVerified,false);
 });
+
+test('hybrid FoF Chapter 4 expense research stays discovery-only and defensively copied',()=>{
+ const ids=['fof_conservative_hybrid','fof_income_arbitrage','fof_dynamic_allocation'];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id==='catalog_2026_'+id);
+ for(const id of ids){
+  const item=get(id),review=item.frameworkResearch.fundOfFundsCategoryReview.sebiMarch2026FoFExpenseReview;
+  assert.equal(review.masterCircularAsOf,'2026-03-20');
+  assert.equal(review.currentFoFAndUnderlyingExpenseRatiosVerified,false);
+  assert.equal(review.actualSchemeSidAndUnderlyingFundsVerified,false);
+  assert.equal(review.investorKycAndAccessVerified,false);
+  assert.equal(review.commercialDataRightsAndAdviceAuthorizationVerified,false);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.equal(item.productData.currentInterestRate,null);
+ }
+ const item=get('fof_dynamic_allocation');
+ item.frameworkResearch.fundOfFundsCategoryReview.sebiMarch2026FoFExpenseReview
+  .investorAccessConstraints.push('forged');
+ assert.ok(!get('fof_dynamic_allocation').frameworkResearch.fundOfFundsCategoryReview
+  .sebiMarch2026FoFExpenseReview.investorAccessConstraints.includes('forged'));
+});

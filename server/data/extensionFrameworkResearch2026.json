@@ -8871,7 +8871,7 @@
       "scenarioDescription": "Conservative Hybrid Fund of Funds: Domestic Hybrid Fund of Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
       "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": "2026-10-29",
+      "referenceReviewedAt": "2026-10-31",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -8975,6 +8975,30 @@
           "actualInvestorEligibilityAndKycVerified": false,
           "commercialNavAndRiskometerRightsVerified": false,
           "personalizedAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026FoFExpenseReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-10-31",
+          "provisions": "CHAPTER_4_PARAGRAPHS_4_1_1_TO_4_1_3",
+          "sourceScope": "FUND_OF_FUNDS_TWO_LAYER_EXPENSE_AND_SID_DISCLOSURE_REQUIREMENTS_NOT_ACTUAL_SCHEME_COST_OR_NAV",
+          "fofAndUnderlyingRecurringExpensesMustBeDisclosedInSidAndAdvertising": true,
+          "amcRevenueSharingWithUnderlyingFundProhibited": true,
+          "totalExpenseStructureMustBeDisclosedInSid": true,
+          "riskConsiderations": [
+            "Debt-heavy underlying schemes can lose NAV through rate changes or credit deterioration; the FoF and its underlying schemes each have expense layers.",
+            "Regulatory cost disclosures do not establish the current total expense ratio, underlying NAV or realized investor return."
+          ],
+          "investorAccessConstraints": [
+            "Verify the actual conservative-hybrid FoF SID, its underlying funds, both expense disclosures, exit loads and redemption timeline before treating it as a short-term cash alternative.",
+            "A SEBI framework requirement does not verify any named scheme, current subscription eligibility, investor KYC, licensed NAV data or personalized advice authorization."
+          ],
+          "actualSchemeSidAndUnderlyingFundsVerified": false,
+          "currentFoFAndUnderlyingExpenseRatiosVerified": false,
+          "actualExitLoadsAndRedemptionTermsVerified": false,
+          "currentNavAndSchemeRiskometerVerified": false,
+          "investorKycAndAccessVerified": false,
+          "commercialDataRightsAndAdviceAuthorizationVerified": false
         }
       }
     },
@@ -8984,7 +9008,7 @@
       "scenarioDescription": "Income Plus Arbitrage Fund of Funds: Domestic Hybrid Fund of Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
       "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": "2026-10-29",
+      "referenceReviewedAt": "2026-10-31",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -9088,6 +9112,30 @@
           "actualInvestorEligibilityAndKycVerified": false,
           "commercialNavAndRiskometerRightsVerified": false,
           "personalizedAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026FoFExpenseReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-10-31",
+          "provisions": "CHAPTER_4_PARAGRAPHS_4_1_1_TO_4_1_3",
+          "sourceScope": "FUND_OF_FUNDS_TWO_LAYER_EXPENSE_AND_SID_DISCLOSURE_REQUIREMENTS_NOT_ACTUAL_SCHEME_COST_OR_NAV",
+          "fofAndUnderlyingRecurringExpensesMustBeDisclosedInSidAndAdvertising": true,
+          "amcRevenueSharingWithUnderlyingFundProhibited": true,
+          "totalExpenseStructureMustBeDisclosedInSid": true,
+          "riskConsiderations": [
+            "Arbitrage spread compression, derivatives/margin conditions and debt exposures can affect returns; FoF plus underlying scheme expenses can reduce the realized spread.",
+            "Regulatory cost disclosures do not establish the current total expense ratio, underlying NAV or realized investor return."
+          ],
+          "investorAccessConstraints": [
+            "Verify the actual arbitrage/income underlying mix, expense ratios, redemption cut-offs and exit loads; the label does not establish deposit-like liquidity or returns.",
+            "A SEBI framework requirement does not verify any named scheme, current subscription eligibility, investor KYC, licensed NAV data or personalized advice authorization."
+          ],
+          "actualSchemeSidAndUnderlyingFundsVerified": false,
+          "currentFoFAndUnderlyingExpenseRatiosVerified": false,
+          "actualExitLoadsAndRedemptionTermsVerified": false,
+          "currentNavAndSchemeRiskometerVerified": false,
+          "investorKycAndAccessVerified": false,
+          "commercialDataRightsAndAdviceAuthorizationVerified": false
         }
       }
     },
@@ -9097,7 +9145,7 @@
       "scenarioDescription": "Dynamic Asset Allocation Fund of Funds: Domestic Hybrid Fund of Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
       "referenceUrl": "https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": "2026-10-29",
+      "referenceReviewedAt": "2026-10-31",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -9201,6 +9249,30 @@
           "actualInvestorEligibilityAndKycVerified": false,
           "commercialNavAndRiskometerRightsVerified": false,
           "personalizedAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026FoFExpenseReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-10-31",
+          "provisions": "CHAPTER_4_PARAGRAPHS_4_1_1_TO_4_1_3",
+          "sourceScope": "FUND_OF_FUNDS_TWO_LAYER_EXPENSE_AND_SID_DISCLOSURE_REQUIREMENTS_NOT_ACTUAL_SCHEME_COST_OR_NAV",
+          "fofAndUnderlyingRecurringExpensesMustBeDisclosedInSidAndAdvertising": true,
+          "amcRevenueSharingWithUnderlyingFundProhibited": true,
+          "totalExpenseStructureMustBeDisclosedInSid": true,
+          "riskConsiderations": [
+            "The manager may change underlying equity/debt exposure, so current allocations and layered FoF/underlying expenses must be checked rather than assuming stable risk.",
+            "Regulatory cost disclosures do not establish the current total expense ratio, underlying NAV or realized investor return."
+          ],
+          "investorAccessConstraints": [
+            "Verify the current dynamic-allocation FoF SID, underlying schemes and allocations, two-layer expenses, current scheme riskometer, exit loads and settlement before considering horizon alignment.",
+            "A SEBI framework requirement does not verify any named scheme, current subscription eligibility, investor KYC, licensed NAV data or personalized advice authorization."
+          ],
+          "actualSchemeSidAndUnderlyingFundsVerified": false,
+          "currentFoFAndUnderlyingExpenseRatiosVerified": false,
+          "actualExitLoadsAndRedemptionTermsVerified": false,
+          "currentNavAndSchemeRiskometerVerified": false,
+          "investorKycAndAccessVerified": false,
+          "commercialDataRightsAndAdviceAuthorizationVerified": false
         }
       }
     }

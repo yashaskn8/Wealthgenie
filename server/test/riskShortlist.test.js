@@ -3083,3 +3083,48 @@ test('RBI CP rating floor and post-trade settlement do not create executable ret
  assert.ok(!baseline.screeningReasonCodes.includes(
   'SHORT_HORIZON_REQUIRES_CP_ISSUER_CREDIT_AND_EARLY_SALE_REVIEW'));
 });
+
+test('three hybrid FoFs distinguish SEBI Chapter 4.1 expense duties from current scheme costs and profile eligibility',()=>{
+ const ids=['fof_conservative_hybrid','fof_income_arbitrage','fof_dynamic_allocation'];
+ const get=(rows,id)=>rows.find(row=>row.id==='catalog_2026_'+id);
+ const research=listExtensionResearch();
+ const short=screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:2,investmentGoals:['Emergency Fund'],
+ }));
+ const long=screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:10,investmentGoals:['Retirement'],
+ }));
+ for(const id of ids){
+  const row=get(research,id),e=row.fundOfFundsCategoryReview.sebiMarch2026FoFExpenseReview;
+  assert.equal(e.officialSebiMasterCircularUrl,
+   'https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf');
+  assert.equal(e.provisions,'CHAPTER_4_PARAGRAPHS_4_1_1_TO_4_1_3');
+  assert.equal(e.fofAndUnderlyingRecurringExpensesMustBeDisclosedInSidAndAdvertising,true);
+  assert.equal(e.amcRevenueSharingWithUnderlyingFundProhibited,true);
+  assert.equal(e.totalExpenseStructureMustBeDisclosedInSid,true);
+  assert.ok(e.riskConsiderations.length>=2 && e.investorAccessConstraints.length>=2);
+  for(const field of ['actualSchemeSidAndUnderlyingFundsVerified',
+   'currentFoFAndUnderlyingExpenseRatiosVerified','actualExitLoadsAndRedemptionTermsVerified',
+   'currentNavAndSchemeRiskometerVerified','investorKycAndAccessVerified',
+   'commercialDataRightsAndAdviceAuthorizationVerified'])assert.equal(e[field],false,id+field);
+  for(const result of [get(short,id),get(long,id)]){
+   assert.equal(result.productQualified,false);
+   assert.equal(result.scoreAvailable,false);
+   assert.equal(result.productRiskLevel,null);
+   assert.ok(result.screeningReasonCodes.includes(
+    'SEBI_MARCH_2026_FOF_TWO_LAYER_EXPENSE_DISCLOSURE_NOT_ACTUAL_SCHEME_COST'));
+  }
+  assert.ok(get(short,id).screeningReasonCodes.includes(
+   'EMERGENCY_FUND_GOAL_REQUIRES_FOF_TWO_LAYER_COST_AND_REDEMPTION_REVIEW'));
+  assert.ok(get(short,id).screeningReasonCodes.includes(
+   'RECORDED_SHORT_HORIZON_REQUIRES_FOF_EXIT_LOAD_COST_AND_SETTLEMENT_REVIEW'));
+  assert.ok(!get(long,id).screeningReasonCodes.includes(
+   'EMERGENCY_FUND_GOAL_REQUIRES_FOF_TWO_LAYER_COST_AND_REDEMPTION_REVIEW'));
+  assert.ok(!get(long,id).screeningReasonCodes.includes(
+   'RECORDED_SHORT_HORIZON_REQUIRES_FOF_EXIT_LOAD_COST_AND_SETTLEMENT_REVIEW'));
+ }
+ const first=get(research,'fof_conservative_hybrid');
+ first.fundOfFundsCategoryReview.sebiMarch2026FoFExpenseReview.riskConsiderations[0]='tampered';
+ assert.notEqual(get(listExtensionResearch(),'fof_conservative_hybrid')
+  .fundOfFundsCategoryReview.sebiMarch2026FoFExpenseReview.riskConsiderations[0],'tampered');
+});

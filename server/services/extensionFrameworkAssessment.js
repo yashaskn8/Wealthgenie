@@ -1845,6 +1845,17 @@ export function screenExtensionResearchForProfile(profileInput) {
    }
 
 
+   // SEBI Chapter 4.1 imposes FoF + underlying expense disclosure duties,
+   // but does not verify a particular scheme's costs, exit loads or NAV.
+   if(row.fundOfFundsCategoryReview?.sebiMarch2026FoFExpenseReview){
+     reasons.push('SEBI_MARCH_2026_FOF_TWO_LAYER_EXPENSE_DISCLOSURE_NOT_ACTUAL_SCHEME_COST');
+     reasons.push('ACTUAL_FOF_SID_UNDERLYING_EXPENSES_EXIT_TERMS_AND_RIGHTS_UNVERIFIED');
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_FOF_TWO_LAYER_COST_AND_REDEMPTION_REVIEW');
+     if(Number.isFinite(profile.investmentHorizonYears)
+       &&profile.investmentHorizonYears<=3)
+       reasons.push('RECORDED_SHORT_HORIZON_REQUIRES_FOF_EXIT_LOAD_COST_AND_SETTLEMENT_REVIEW');
+   }
    if(row.fundOfFundsCategoryReview?.sebiMarch2026UnderlyingRiskometerReview){
      reasons.push('SEBI_MARCH_2026_FOF_UNDERLYING_RISKOMETER_METHOD_NOT_ACTUAL_SCHEME_RATING');
      reasons.push('FOF_MONTHLY_RISKOMETER_DISCLOSURE_NOT_VERIFIED_CURRENT_SCHEME_OBSERVATION');
