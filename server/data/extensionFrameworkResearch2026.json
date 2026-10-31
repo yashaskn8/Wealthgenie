@@ -8636,6 +8636,31 @@
           "actualInvestorEligibilityAndKycVerified": false,
           "commercialNavAndRiskometerRightsVerified": false,
           "personalizedAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026FoFExpenseReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-10-31",
+          "provisions": "CHAPTER_4_PARAGRAPHS_4_1_1_TO_4_1_3",
+          "sourceScope": "FUND_OF_FUNDS_TWO_LAYER_EXPENSE_AND_SID_DISCLOSURE_REQUIREMENTS_NOT_ACTUAL_SCHEME_COST_OR_NAV",
+          "categoryInterpretation": "A multi-underlying diversified domestic equity FoF is not a low-risk deposit or a verified combination of underlying holdings; Annexure C excludes factor-based underlying funds, while Chapter 4.1 separately requires disclosure of the FoF and underlying scheme recurring expenses.",
+          "fofAndUnderlyingRecurringExpensesMustBeDisclosedInSidAndAdvertising": true,
+          "amcRevenueSharingWithUnderlyingFundProhibited": true,
+          "totalExpenseStructureMustBeDisclosedInSid": true,
+          "riskConsiderations": [
+            "Diversification across domestic equity funds does not remove common market-cap drawdowns, underlying overlap or rebalancing risk; a named FoF's actual holdings are unknown.",
+            "FoF recurring expenses add to underlying fund expenses and can reduce net returns; the regulatory disclosure obligation does not establish a current expense ratio or exit load."
+          ],
+          "investorAccessConstraints": [
+            "Verify the actual diversified equity FoF SID and advertisements, the count and identity of underlying non-factor equity funds, current allocation, both expense layers and any exit loads.",
+            "The category rules do not authenticate a named scheme, KYC, actual NAV or risk-o-meter, redemption settlement, licensed data reuse, tax outcome or advice authorization."
+          ],
+          "actualSchemeSidAndUnderlyingFundsVerified": false,
+          "currentFoFAndUnderlyingExpenseRatiosVerified": false,
+          "actualExitLoadsAndRedemptionTermsVerified": false,
+          "currentNavAndSchemeRiskometerVerified": false,
+          "investorKycAndAccessVerified": false,
+          "commercialDataRightsAndAdviceAuthorizationVerified": false
         }
       }
     },
@@ -8749,6 +8774,31 @@
           "actualInvestorEligibilityAndKycVerified": false,
           "commercialNavAndRiskometerRightsVerified": false,
           "personalizedAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026FoFExpenseReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-10-31",
+          "provisions": "CHAPTER_4_PARAGRAPHS_4_1_1_TO_4_1_3",
+          "sourceScope": "FUND_OF_FUNDS_TWO_LAYER_EXPENSE_AND_SID_DISCLOSURE_REQUIREMENTS_NOT_ACTUAL_SCHEME_COST_OR_NAV",
+          "categoryInterpretation": "A multi-underlying sectoral/thematic equity FoF may hold correlated sector or theme funds; Chapter 4.1 requires FoF and underlying expense disclosure but does not validate its concentration, diversification, current risk-o-meter or live costs.",
+          "fofAndUnderlyingRecurringExpensesMustBeDisclosedInSidAndAdvertising": true,
+          "amcRevenueSharingWithUnderlyingFundProhibited": true,
+          "totalExpenseStructureMustBeDisclosedInSid": true,
+          "riskConsiderations": [
+            "Multiple underlying sector or theme funds can share holdings and cyclical risks, so a fund count alone does not prove diversification or protection against concentrated drawdowns.",
+            "FoF and underlying recurring expenses both affect investor proceeds; strategy changes, exit loads and settlement timing must be checked for a real scheme."
+          ],
+          "investorAccessConstraints": [
+            "Verify whether the named scheme's underlying funds cover one sector, one theme or multiple sectors, the portfolio overlap, actual SID expense disclosures, risk-o-meter and redemption rules.",
+            "No AMC/scheme identity, current NAV, KYC or investor permission, live expense ratio, licensed data rights, tax treatment or personalized advice authorization is established."
+          ],
+          "actualSchemeSidAndUnderlyingFundsVerified": false,
+          "currentFoFAndUnderlyingExpenseRatiosVerified": false,
+          "actualExitLoadsAndRedemptionTermsVerified": false,
+          "currentNavAndSchemeRiskometerVerified": false,
+          "investorKycAndAccessVerified": false,
+          "commercialDataRightsAndAdviceAuthorizationVerified": false
         }
       }
     },
@@ -8862,6 +8912,31 @@
           "actualInvestorEligibilityAndKycVerified": false,
           "commercialNavAndRiskometerRightsVerified": false,
           "personalizedAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026FoFExpenseReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-10-31",
+          "provisions": "CHAPTER_4_PARAGRAPHS_4_1_1_TO_4_1_3",
+          "sourceScope": "FUND_OF_FUNDS_TWO_LAYER_EXPENSE_AND_SID_DISCLOSURE_REQUIREMENTS_NOT_ACTUAL_SCHEME_COST_OR_NAV",
+          "categoryInterpretation": "The Annexure C 65%-80% equity-oriented and 20%-35% debt-oriented underlying-fund bands describe an aggressive-hybrid FoF classification, not its current allocation or a low-risk rating; Chapter 4.1 requires separate disclosure of FoF and underlying recurring costs.",
+          "fofAndUnderlyingRecurringExpensesMustBeDisclosedInSidAndAdvertising": true,
+          "amcRevenueSharingWithUnderlyingFundProhibited": true,
+          "totalExpenseStructureMustBeDisclosedInSid": true,
+          "riskConsiderations": [
+            "The equity-heavy regulatory allocation band permits substantial equity drawdowns, while underlying debt schemes also carry duration and credit risk.",
+            "FoF and underlying expenses, allocation drift and possible exit loads can reduce realised value; a regulatory allocation band is not a scheme risk-o-meter or current holding."
+          ],
+          "investorAccessConstraints": [
+            "Verify a named aggressive-hybrid FoF's SID, actual underlying equity/debt scheme weights, credit and duration exposure, both recurring expense layers and redemption terms.",
+            "The classification and expense rules do not verify a current NAV, risk-o-meter, retail KYC, transaction access, licensed provider data, tax treatment or personalized advice authorization."
+          ],
+          "actualSchemeSidAndUnderlyingFundsVerified": false,
+          "currentFoFAndUnderlyingExpenseRatiosVerified": false,
+          "actualExitLoadsAndRedemptionTermsVerified": false,
+          "currentNavAndSchemeRiskometerVerified": false,
+          "investorKycAndAccessVerified": false,
+          "commercialDataRightsAndAdviceAuthorizationVerified": false
         }
       }
     },

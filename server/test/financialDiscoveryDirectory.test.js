@@ -1498,3 +1498,28 @@ test('hybrid FoF Chapter 4 expense research stays discovery-only and defensively
  assert.ok(!get('fof_dynamic_allocation').frameworkResearch.fundOfFundsCategoryReview
   .sebiMarch2026FoFExpenseReview.investorAccessConstraints.includes('forged'));
 });
+
+test('equity FoF Chapter 4.1 reviews remain educational and deeply copied without price or licensed access',()=>{
+ const ids=['catalog_2026_equity_diversified_fof','catalog_2026_equity_sector_fof',
+  'catalog_2026_fof_aggressive_hybrid'];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ for(const id of ids){
+  const item=get(id),e=item.frameworkResearch.fundOfFundsCategoryReview.sebiMarch2026FoFExpenseReview;
+  assert.equal(e.masterCircularAsOf,'2026-03-20');
+  assert.equal(e.sourceScope,
+   'FUND_OF_FUNDS_TWO_LAYER_EXPENSE_AND_SID_DISCLOSURE_REQUIREMENTS_NOT_ACTUAL_SCHEME_COST_OR_NAV');
+  assert.equal(e.currentFoFAndUnderlyingExpenseRatiosVerified,false);
+  assert.equal(e.currentNavAndSchemeRiskometerVerified,false);
+  assert.equal(e.investorKycAndAccessVerified,false);
+  assert.equal(e.commercialDataRightsAndAdviceAuthorizationVerified,false);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.ok(Object.values(item.productData).every(value=>value===null));
+  e.currentNavAndSchemeRiskometerVerified=true;
+  e.riskConsiderations.push('FAKE CURRENT SCHEME NAV');
+  const clean=get(id).frameworkResearch.fundOfFundsCategoryReview.sebiMarch2026FoFExpenseReview;
+  assert.equal(clean.currentNavAndSchemeRiskometerVerified,false);
+  assert.ok(!clean.riskConsiderations.includes('FAKE CURRENT SCHEME NAV'));
+ }
+});

@@ -1284,6 +1284,35 @@ if(research.entries.some(row=>{
   ||row.suitabilityRankingPermitted!==false||row.sourcePermissionVerified!==false;
 }))throw new Error('FINANCIAL_FOF_MARCH_2026_RISKOMETER_SOURCE_SCOPE_INVALID');
 
+
+const fofExpenseChapter2026Source='https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf';
+const fofExpenseChapter2026Rows=research.entries.filter(row=>
+ row.fundOfFundsCategoryReview?.sebiMarch2026FoFExpenseReview);
+if(fofExpenseChapter2026Rows.length!==6
+ ||new Set(fofExpenseChapter2026Rows.map(row=>
+  row.fundOfFundsCategoryReview.sebiMarch2026FoFExpenseReview.categoryInterpretation)).size!==6
+ ||research.entries.some(row=>{
+  const e=row.fundOfFundsCategoryReview?.sebiMarch2026FoFExpenseReview;
+  if(!fofIds.has(row.id))return e!==undefined;
+  return !e||e.officialSebiMasterCircularUrl!==fofExpenseChapter2026Source
+   ||!isOfficialFrameworkReferenceUrl(e.officialSebiMasterCircularUrl)
+   ||e.masterCircularAsOf!=='2026-03-20'||e.reviewedOn!=='2026-10-31'
+   ||e.provisions!=='CHAPTER_4_PARAGRAPHS_4_1_1_TO_4_1_3'
+   ||e.sourceScope!=='FUND_OF_FUNDS_TWO_LAYER_EXPENSE_AND_SID_DISCLOSURE_REQUIREMENTS_NOT_ACTUAL_SCHEME_COST_OR_NAV'
+   ||typeof e.categoryInterpretation!=='string'||e.categoryInterpretation.length<100
+   ||e.fofAndUnderlyingRecurringExpensesMustBeDisclosedInSidAndAdvertising!==true
+   ||e.amcRevenueSharingWithUnderlyingFundProhibited!==true
+   ||e.totalExpenseStructureMustBeDisclosedInSid!==true
+   ||!Array.isArray(e.riskConsiderations)||e.riskConsiderations.length<2
+   ||!Array.isArray(e.investorAccessConstraints)||e.investorAccessConstraints.length<2
+   ||['actualSchemeSidAndUnderlyingFundsVerified','currentFoFAndUnderlyingExpenseRatiosVerified',
+      'actualExitLoadsAndRedemptionTermsVerified','currentNavAndSchemeRiskometerVerified',
+      'investorKycAndAccessVerified','commercialDataRightsAndAdviceAuthorizationVerified']
+      .some(field=>e[field]!==false)
+   ||row.productRiskScore!==null||row.actualRetailProductEligible!==false
+   ||row.suitabilityRankingPermitted!==false||row.sourcePermissionVerified!==false;
+ }))throw new Error('FINANCIAL_FOF_CHAPTER_4_EXPENSE_SOURCE_SCOPE_INVALID');
+
 const etfTrading2026Classes=Object.freeze({
  "catalog_2026_etf_nifty100":"EQUITY_ETF",
  "catalog_2026_etf_nifty500":"EQUITY_ETF",
@@ -1847,6 +1876,19 @@ export function screenExtensionResearchForProfile(profileInput) {
 
    // SEBI Chapter 4.1 imposes FoF + underlying expense disclosure duties,
    // but does not verify a particular scheme's costs, exit loads or NAV.
+   // Distinct equity-FoF exposures are category cautions, never a product riskometer.
+   if(row.fundOfFundsCategoryReview?.sebiMarch2026FoFExpenseReview){
+     const equityFofCategoryCautions={
+       catalog_2026_equity_diversified_fof:'DIVERSIFIED_EQUITY_FOF_UNDERLYING_OVERLAP_AND_EQUITY_DRAWDOWN_UNVERIFIED',
+       catalog_2026_equity_sector_fof:'SECTOR_EQUITY_FOF_CORRELATED_UNDERLYING_CONCENTRATION_UNVERIFIED',
+       catalog_2026_fof_aggressive_hybrid:'AGGRESSIVE_HYBRID_FOF_EQUITY_HEAVY_BAND_NOT_SCHEME_RISKOMETER',
+     };
+     if(equityFofCategoryCautions[row.id])
+       reasons.push(equityFofCategoryCautions[row.id]);
+     if(profile.riskTolerance==='Conservative'
+       &&['catalog_2026_equity_sector_fof','catalog_2026_fof_aggressive_hybrid'].includes(row.id))
+       reasons.push('RECORDED_CONSERVATIVE_PREFERENCE_REQUIRES_EQUITY_FOF_CONCENTRATION_AND_LOSS_REVIEW');
+   }
    if(row.fundOfFundsCategoryReview?.sebiMarch2026FoFExpenseReview){
      reasons.push('SEBI_MARCH_2026_FOF_TWO_LAYER_EXPENSE_DISCLOSURE_NOT_ACTUAL_SCHEME_COST');
      reasons.push('ACTUAL_FOF_SID_UNDERLYING_EXPENSES_EXIT_TERMS_AND_RIGHTS_UNVERIFIED');

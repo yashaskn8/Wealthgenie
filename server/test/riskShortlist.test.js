@@ -3128,3 +3128,63 @@ test('three hybrid FoFs distinguish SEBI Chapter 4.1 expense duties from current
  assert.notEqual(get(listExtensionResearch(),'fof_conservative_hybrid')
   .fundOfFundsCategoryReview.sebiMarch2026FoFExpenseReview.riskConsiderations[0],'tampered');
 });
+
+test('three equity FoFs have distinct SEBI Chapter 4.1 expense evidence without scheme risk or retail approval',()=>{
+ const ids=['equity_diversified_fof','equity_sector_fof','fof_aggressive_hybrid'];
+ const codes=[
+  'DIVERSIFIED_EQUITY_FOF_UNDERLYING_OVERLAP_AND_EQUITY_DRAWDOWN_UNVERIFIED',
+  'SECTOR_EQUITY_FOF_CORRELATED_UNDERLYING_CONCENTRATION_UNVERIFIED',
+  'AGGRESSIVE_HYBRID_FOF_EQUITY_HEAVY_BAND_NOT_SCHEME_RISKOMETER',
+ ];
+ const get=(rows,id)=>rows.find(row=>row.id==='catalog_2026_'+id);
+ const rows=listExtensionResearch();
+ const baseline=screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:10,investmentGoals:['Wealth Growth'],
+  riskTolerance:'Moderate',emergencyFundMonths:null,
+ }));
+ const needsReview=screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:2,investmentGoals:['Emergency Fund'],
+  riskTolerance:'Conservative',emergencyFundMonths:0,
+ }));
+ for(const [i,id] of ids.entries()){
+  const e=get(rows,id).fundOfFundsCategoryReview.sebiMarch2026FoFExpenseReview;
+  assert.equal(e.officialSebiMasterCircularUrl,
+   'https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf');
+  assert.equal(e.provisions,'CHAPTER_4_PARAGRAPHS_4_1_1_TO_4_1_3');
+  assert.equal(e.reviewedOn,'2026-10-31');
+  assert.equal(e.fofAndUnderlyingRecurringExpensesMustBeDisclosedInSidAndAdvertising,true);
+  assert.equal(e.amcRevenueSharingWithUnderlyingFundProhibited,true);
+  assert.equal(e.totalExpenseStructureMustBeDisclosedInSid,true);
+  assert.ok(e.riskConsiderations.length>=2&&e.investorAccessConstraints.length>=2);
+  for(const k of ['actualSchemeSidAndUnderlyingFundsVerified',
+   'currentFoFAndUnderlyingExpenseRatiosVerified','actualExitLoadsAndRedemptionTermsVerified',
+   'currentNavAndSchemeRiskometerVerified','investorKycAndAccessVerified',
+   'commercialDataRightsAndAdviceAuthorizationVerified'])assert.equal(e[k],false,id+':'+k);
+  for(const arr of [baseline,needsReview]){
+   const result=get(arr,id);
+   assert.equal(result.productQualified,false);
+   assert.equal(result.scoreAvailable,false);
+   assert.equal(result.productRiskLevel,null);
+   assert.ok(result.screeningReasonCodes.includes(codes[i]));
+   assert.ok(result.screeningReasonCodes.includes(
+    'SEBI_MARCH_2026_FOF_TWO_LAYER_EXPENSE_DISCLOSURE_NOT_ACTUAL_SCHEME_COST'));
+  }
+  assert.ok(get(needsReview,id).screeningReasonCodes.includes(
+   'EMERGENCY_FUND_GOAL_REQUIRES_FOF_TWO_LAYER_COST_AND_REDEMPTION_REVIEW'));
+  assert.ok(get(needsReview,id).screeningReasonCodes.includes(
+   'RECORDED_SHORT_HORIZON_REQUIRES_FOF_EXIT_LOAD_COST_AND_SETTLEMENT_REVIEW'));
+  assert.ok(!get(baseline,id).screeningReasonCodes.includes(
+   'EMERGENCY_FUND_GOAL_REQUIRES_FOF_TWO_LAYER_COST_AND_REDEMPTION_REVIEW'));
+  assert.ok(!get(baseline,id).screeningReasonCodes.includes(
+   'RECORDED_SHORT_HORIZON_REQUIRES_FOF_EXIT_LOAD_COST_AND_SETTLEMENT_REVIEW'));
+  const conservativeCode='RECORDED_CONSERVATIVE_PREFERENCE_REQUIRES_EQUITY_FOF_CONCENTRATION_AND_LOSS_REVIEW';
+  assert.equal(get(needsReview,id).screeningReasonCodes.includes(conservativeCode),i>0);
+  assert.ok(!get(baseline,id).screeningReasonCodes.includes(conservativeCode));
+ }
+ const changed=get(rows,ids[0]).fundOfFundsCategoryReview.sebiMarch2026FoFExpenseReview;
+ changed.actualSchemeSidAndUnderlyingFundsVerified=true;
+ changed.riskConsiderations.push('FAKE VERIFIED EXPENSE');
+ const fresh=get(listExtensionResearch(),ids[0]).fundOfFundsCategoryReview.sebiMarch2026FoFExpenseReview;
+ assert.equal(fresh.actualSchemeSidAndUnderlyingFundsVerified,false);
+ assert.ok(!fresh.riskConsiderations.includes('FAKE VERIFIED EXPENSE'));
+});
