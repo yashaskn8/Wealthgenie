@@ -1339,3 +1339,24 @@ test('September 2026 SEBI debenture trustee reviews remain educational and defen
    assert.ok(!fresh.investorAccessConstraints.includes('fabricated'));
  }
 });
+
+
+test('DEA green-bond allocation report stays historical in the defensively copied educational directory',()=>{
+ const id='catalog_2026_sovereign_green';
+ const get=()=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ const item=get(),review=item.frameworkResearch.governmentBondStructureReview.sovereignGreenAllocationAndImpactReportingReview;
+ assert.equal(review.historicalProceedsAllocatedInrCrore,16000);
+ assert.equal(review.impactReportIndexPublishedOn,'2026-02-19');
+ assert.equal(review.impactReportFullTextIndependentlyReviewed,false);
+ assert.equal(review.currentPriceYieldAndSecondaryLiquidityVerified,false);
+ assert.equal(review.commercialMarketDataRightsVerified,false);
+ assert.equal(item.recommendationEligible,false);
+ assert.equal(item.dataRights,'NOT_VERIFIED');
+ assert.equal(item.productAvailability,'NOT_VERIFIED');
+ assert.ok(Object.values(item.productData).every(v=>v===null));
+ review.riskConsiderations.push('FORGED VERIFIED IMPACT');
+ review.historicalProceedsAllocatedInrCrore=1;
+ const fresh=get().frameworkResearch.governmentBondStructureReview.sovereignGreenAllocationAndImpactReportingReview;
+ assert.equal(fresh.historicalProceedsAllocatedInrCrore,16000);
+ assert.ok(!fresh.riskConsiderations.includes('FORGED VERIFIED IMPACT'));
+});

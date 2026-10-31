@@ -952,7 +952,39 @@
         "investorAccessConstraints": [
           "The Department of Economic Affairs green-bond framework governs eligible public expenditures and reporting, not a current purchasable issue or individual access.",
           "Verify actual ISIN, offering and coupon terms, custody and KYC, allocation reports, resale market, tax treatment and licensed market-data rights."
-        ]
+        ],
+        "sovereignGreenAllocationAndImpactReportingReview": {
+          "officialDeaAllocationReportPdfUrl": "https://dea.gov.in/files/other_reports_documents/SovereignGreenBondsAllocationReport_2022_23_0.pdf",
+          "officialDeaReportsIndexUrl": "https://www.dea.gov.in/reports-additional-reports",
+          "allocationReportFinancialYear": "2022-23",
+          "impactReportTitle": "Sovereign Green Bonds Impact Report 2022–23",
+          "impactReportIndexPublishedOn": "2026-02-19",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "HISTORICAL_AGGREGATE_SOVEREIGN_GREEN_ALLOCATION_AND_IMPACT_REPORT_INDEX_NOT_CURRENT_ISIN_OR_VERIFIED_IMPACT",
+          "historicalProceedsAllocatedInrCrore": 16000,
+          "historicalAllocationCategories": [
+            "Clean Transportation",
+            "Renewable Energy",
+            "Sustainable Management of Living Natural Resources and Land use"
+          ],
+          "historicalProceedsAreCurrentIssueMarketData": false,
+          "impactReportFullTextIndependentlyReviewed": false,
+          "aggregateAllocationEstablishesSpecificEnvironmentalImpact": false,
+          "specificIssueIsinMaturityAndOfferingVerified": false,
+          "investorKycAndRetailAccessVerified": false,
+          "currentPriceYieldAndSecondaryLiquidityVerified": false,
+          "specificIssueEnvironmentalImpactVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "The FY 2022-23 allocation report documents aggregate proceeds, not a current issue's realised climate impact or independently verified environmental outcome.",
+            "Government bond prices can decline with interest rates, while uncertain bid-ask spreads and settlement affect early-exit proceeds."
+          ],
+          "investorAccessConstraints": [
+            "The Department of Economic Affairs lists an impact report dated 19 February 2026; its listing is not a substitute for verifying report contents, current project outcomes or any particular bond.",
+            "Verify actual security ISIN, maturity, legal retail auction or trading route, custody and KYC, current authorized quote, environmental allocation linkage and redistribution/advice rights."
+          ]
+        }
       }
     },
     {

@@ -1578,6 +1578,11 @@ export function screenExtensionResearchForProfile(profileInput) {
        }
      } else if(row.id==='catalog_2026_sovereign_green') {
        reasons.push('SOVEREIGN_GREEN_USE_OF_PROCEEDS_NOT_INSTRUMENT_OR_IMPACT_APPROVAL');
+       reasons.push('DEA_HISTORICAL_GREEN_PROCEEDS_ALLOCATION_NOT_CURRENT_ISIN_OR_VERIFIED_IMPACT');
+       if(profile.investmentGoals.includes('Emergency Fund'))
+         reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_SOVEREIGN_GREEN_EXIT_SPREAD_AND_SETTLEMENT_REVIEW');
+       if(profile.emergencyFundMonths===0)
+         reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_SOVEREIGN_GREEN_EXIT_LIQUIDITY_REVIEW');
      } else if(row.id==='catalog_2026_gsec_floating') {
        reasons.push('FLOATING_RATE_GSEC_RESET_BASIS_SPREAD_AND_DATES_UNVERIFIED');
      }

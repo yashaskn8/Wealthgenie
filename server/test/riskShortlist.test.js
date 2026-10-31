@@ -2782,3 +2782,45 @@ test('SEBI September 2026 debenture-trustee security-cover duties remain issue-s
  assert.ok(!listExtensionResearch().find(x=>x.id===ids[0])
   .debtInstrumentReview.sebiDebentureTrusteeSep2026Review.riskConsiderations.includes('fabricated'));
 });
+
+
+test('DEA sovereign green bond allocation evidence stays historical and profile screening remains non-ranking',()=>{
+ const id='catalog_2026_sovereign_green';
+ const row=listExtensionResearch().find(x=>x.id===id);
+ const review=row.governmentBondStructureReview.sovereignGreenAllocationAndImpactReportingReview;
+ assert.equal(review.officialDeaAllocationReportPdfUrl,'https://dea.gov.in/files/other_reports_documents/SovereignGreenBondsAllocationReport_2022_23_0.pdf');
+ assert.equal(review.officialDeaReportsIndexUrl,'https://www.dea.gov.in/reports-additional-reports');
+ assert.equal(review.allocationReportFinancialYear,'2022-23');
+ assert.equal(review.impactReportIndexPublishedOn,'2026-02-19');
+ assert.equal(review.historicalProceedsAllocatedInrCrore,16000);
+ assert.equal(review.historicalProceedsAreCurrentIssueMarketData,false);
+ assert.equal(review.impactReportFullTextIndependentlyReviewed,false);
+ assert.equal(review.aggregateAllocationEstablishesSpecificEnvironmentalImpact,false);
+ for(const key of ['specificIssueIsinMaturityAndOfferingVerified','investorKycAndRetailAccessVerified',
+  'currentPriceYieldAndSecondaryLiquidityVerified','specificIssueEnvironmentalImpactVerified',
+  'commercialMarketDataRightsVerified','personalizedAdviceAuthorizationVerified'])
+  assert.equal(review[key],false,key);
+ assert.ok(review.riskConsiderations.length>=2&&review.investorAccessConstraints.length>=2);
+ const get=options=>screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:10,investmentGoals:['Wealth Growth'],
+  emergencyFundMonths:null,riskTolerance:'Moderate',...options,
+ })).find(x=>x.id===id);
+ const ordinary=get({}),goal=get({investmentGoals:['Emergency Fund']});
+ const zero=get({emergencyFundMonths:0}),positive=get({emergencyFundMonths:6});
+ const sourceCode='DEA_HISTORICAL_GREEN_PROCEEDS_ALLOCATION_NOT_CURRENT_ISIN_OR_VERIFIED_IMPACT';
+ const goalCode='EMERGENCY_FUND_GOAL_REQUIRES_SOVEREIGN_GREEN_EXIT_SPREAD_AND_SETTLEMENT_REVIEW';
+ const zeroCode='RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_SOVEREIGN_GREEN_EXIT_LIQUIDITY_REVIEW';
+ for(const screened of [ordinary,goal,zero,positive]){
+  assert.ok(screened.screeningReasonCodes.includes(sourceCode));
+  assert.equal(screened.productQualified,false);
+  assert.equal(screened.scoreAvailable,false);
+ }
+ assert.ok(goal.screeningReasonCodes.includes(goalCode));
+ assert.ok(!ordinary.screeningReasonCodes.includes(goalCode));
+ assert.ok(zero.screeningReasonCodes.includes(zeroCode));
+ assert.ok(!ordinary.screeningReasonCodes.includes(zeroCode));
+ assert.ok(!positive.screeningReasonCodes.includes(zeroCode));
+ assert.equal(row.productRiskScore,null);
+ assert.equal(row.actualRetailProductEligible,false);
+ assert.equal(row.suitabilityRankingPermitted,false);
+});
