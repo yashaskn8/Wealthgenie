@@ -290,6 +290,36 @@ if(research.entries.filter(row=>Object.values(obppAug2026Scopes)
     ||!Array.isArray(e.investorAccessConstraints)||e.investorAccessConstraints.length<2;
  }))throw new Error('FINANCIAL_OBPP_AUG_2026_PLATFORM_SCOPE_EVIDENCE_INVALID');
 
+// SEBI's March 2026 PRC matrix sets maximum scheme risk, not a current
+// scheme risk-o-meter. Swing pricing excludes constant-duration gilt funds and
+// is conditional on a declared dislocation, scheme riskometer and PRC cell.
+const debtPrcSwingSource='https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf';
+const debtPrcSwingSpecs=Object.freeze({
+ 'catalog_2026_gilt_10y_constant':['GILT_10_YEAR_CONSTANT_DURATION',true],
+ 'catalog_2026_medium_long_duration_mf':['MEDIUM_TO_LONG_TERM_DEBT_FUND',false],
+ 'catalog_2026_long_duration_mf':['LONG_TERM_DEBT_FUND',false],
+});
+if(research.entries.filter(row=>row.sebiDebtSchemeStructureReview?.sebiMarch2026PrcAndSwingPricingReview).length!==3
+ ||Object.entries(debtPrcSwingSpecs).some(([id,[archetype,excluded]])=>{
+  const row=research.entries.find(item=>item.id===id);
+  const v=row?.sebiDebtSchemeStructureReview?.sebiMarch2026PrcAndSwingPricingReview;
+  return !v||v.officialSebiMasterCircularPdfUrl!==debtPrcSwingSource
+   ||v.masterCircularIssuedOn!=='2026-03-20'||v.reviewedOn!=='2026-11-01'
+   ||v.schemeArchetype!==archetype
+   ||v.sourceScope!=='SEBI_DEBT_SCHEME_PRC_AND_CONDITIONAL_SWING_PRICING_NOT_SCHEME_RISKOMETER_OR_EXECUTABLE_NAV'
+   ||v.paragraphsReviewed?.length<6||v.categoryInterpretation?.length<100
+   ||v.excludedFromSwingPricingFramework!==excluded
+   ||v.mandatorySwingOnlyAfterSebiDeclaredMarketDislocation===excluded
+   ||v.mandatorySwingAlsoRequiresHighOrVeryHighCurrentSchemeRiskometer===excluded
+   ||v.mandatorySwingAlsoRequiresListedPrcCell===excluded
+   ||v.swingNavCanDifferFromUnswungNav===excluded
+   ||v.prcMaximumInterestAndCreditRiskNotCurrentPortfolioRisk!==true
+   ||v.debtSecurityCreditRiskMeterNotSameAsMutualFundPrcOrRiskometer!==true
+   ||JSON.stringify(v.conditionalMandatoryPrcCells)!==JSON.stringify(excluded?[]:['A-III','B-II','B-III','C-I','C-II','C-III'])
+   ||v.riskConsiderations?.length<2||v.investorAccessConstraints?.length<2
+   ||["actualSchemePrcCellVerified","currentSchemeRiskometerVerified","currentNavAndSwingFactorVerified","currentSidAndRedemptionTermsVerified","investorKycAndRetailAccessVerified","commercialNavRightsVerified","personalizedAdviceAuthorizationVerified"].some(key=>v[key]!==false);
+ }))throw new Error('FINANCIAL_SEBI_2026_DEBT_PRC_SWING_SOURCE_BOUNDARY_INVALID');
+
 const categoryRiskAccessReviewKeys=Object.freeze([
  'postalSavingsAccessReview','rbiRetailDirectAccessReview','sgsStripsAccessReview',
  'governmentBondStructureReview','bankDepositAccessReview','nbfcPublicDepositAccessReview',
@@ -1567,6 +1597,20 @@ export function screenExtensionResearchForProfile(profileInput) {
    // evidence of a named scheme's risk-o-meter, availability or advice rights.
    if(row.sebiDebtSchemeStructureReview?.mutualFundRegulationsOct2026Review)
      reasons.push('SEBI_OCT_2026_MUTUAL_FUND_REGULATIONS_NOT_SCHEME_RISKOMETER_OR_APPROVAL');
+   if(row.sebiDebtSchemeStructureReview?.sebiMarch2026PrcAndSwingPricingReview){
+     const prc=row.sebiDebtSchemeStructureReview.sebiMarch2026PrcAndSwingPricingReview;
+     reasons.push('SEBI_MAR_2026_DEBT_PRC_MAXIMUM_RISK_NOT_SCHEME_RISKOMETER');
+     reasons.push(prc.excludedFromSwingPricingFramework
+       ? 'GILT_10Y_EXCLUDED_FROM_SWING_PRICING_NOT_NAV_PROTECTION'
+       : 'DEBT_SWING_PRICING_REQUIRES_DISLOCATION_RISKOMETER_AND_PRC_CELL');
+     if((Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
+       ||profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('SHORT_OR_EMERGENCY_GOAL_REQUIRES_DEBT_SCHEME_PRC_AND_NAV_EXIT_REVIEW');
+     if(profile.emergencyFundMonths===0)
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_DEBT_SCHEME_NAV_LIQUIDITY_REVIEW');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_DEBT_DURATION_LOSS_CAPACITY_REVIEW');
+   }
    if(row.nominalMaturityMonths!==null
      && row.nominalMaturityMonths>profile.investmentHorizonYears*12)
      reasons.push('NOMINAL_TENOR_EXCEEDS_PROFILE_HORIZON_REVIEW_WITHDRAWAL_TERMS');

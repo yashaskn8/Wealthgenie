@@ -3320,3 +3320,56 @@ test('August 2026 SEBI OBPP platform permissions do not authorize three distinct
  }
  assert.equal(new Set(scopes).size,3);
 });
+
+
+test('March 2026 SEBI debt PRC and conditional swing pricing are not current scheme riskometers',()=>{
+ const ids=['gilt_10y_constant','medium_long_duration_mf','long_duration_mf'];
+ const get=(rows,id)=>rows.find(row=>row.id==='catalog_2026_'+id);
+ const baseline=screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Retirement'],investmentHorizonYears:10,riskTolerance:'Moderate',emergencyFundMonths:null}));
+ const flagged=screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Emergency Fund'],investmentHorizonYears:2,riskTolerance:'Conservative',emergencyFundMonths:0}));
+ const conditional=['A-III','B-II','B-III','C-I','C-II','C-III'];
+ const interpretations=new Set();
+ for(const [i,id] of ids.entries()){
+  const row=get(listExtensionResearch(),id),v=row.sebiDebtSchemeStructureReview.sebiMarch2026PrcAndSwingPricingReview;
+  assert.equal(v.officialSebiMasterCircularPdfUrl,
+   'https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf');
+  assert.equal(v.masterCircularIssuedOn,'2026-03-20');
+  assert.equal(v.reviewedOn,'2026-11-01');
+  assert.equal(v.excludedFromSwingPricingFramework,i===0);
+  assert.equal(v.prcMaximumInterestAndCreditRiskNotCurrentPortfolioRisk,true);
+  assert.equal(v.debtSecurityCreditRiskMeterNotSameAsMutualFundPrcOrRiskometer,true);
+  assert.deepEqual(v.conditionalMandatoryPrcCells,i===0?[]:conditional);
+  assert.equal(v.mandatorySwingOnlyAfterSebiDeclaredMarketDislocation,i!==0);
+  assert.equal(v.mandatorySwingAlsoRequiresHighOrVeryHighCurrentSchemeRiskometer,i!==0);
+  assert.equal(v.mandatorySwingAlsoRequiresListedPrcCell,i!==0);
+  for(const key of ['actualSchemePrcCellVerified','currentSchemeRiskometerVerified',
+   'currentNavAndSwingFactorVerified','currentSidAndRedemptionTermsVerified',
+   'investorKycAndRetailAccessVerified','commercialNavRightsVerified',
+   'personalizedAdviceAuthorizationVerified'])assert.equal(v[key],false);
+  assert.ok(v.riskConsiderations.length>=2&&v.investorAccessConstraints.length>=2);
+  interpretations.add(v.categoryInterpretation);
+  for(const rows of [baseline,flagged]){
+   const item=get(rows,id);
+   assert.ok(item.screeningReasonCodes.includes('SEBI_MAR_2026_DEBT_PRC_MAXIMUM_RISK_NOT_SCHEME_RISKOMETER'));
+   assert.ok(item.screeningReasonCodes.includes(i===0
+    ? 'GILT_10Y_EXCLUDED_FROM_SWING_PRICING_NOT_NAV_PROTECTION'
+    : 'DEBT_SWING_PRICING_REQUIRES_DISLOCATION_RISKOMETER_AND_PRC_CELL'));
+   assert.equal(item.productQualified,false);assert.equal(item.scoreAvailable,false);
+   assert.equal(item.productRiskLevel,null);
+  }
+  for(const code of ['SHORT_OR_EMERGENCY_GOAL_REQUIRES_DEBT_SCHEME_PRC_AND_NAV_EXIT_REVIEW',
+   'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_DEBT_SCHEME_NAV_LIQUIDITY_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_DEBT_DURATION_LOSS_CAPACITY_REVIEW']){
+   assert.ok(get(flagged,id).screeningReasonCodes.includes(code));
+   assert.ok(!get(baseline,id).screeningReasonCodes.includes(code));
+  }
+ }
+ assert.equal(interpretations.size,3);
+ const v=get(listExtensionResearch(),'medium_long_duration_mf').sebiDebtSchemeStructureReview.sebiMarch2026PrcAndSwingPricingReview;
+ v.currentSchemeRiskometerVerified=true;v.riskConsiderations.push('FORGED RISK');
+ const clean=get(listExtensionResearch(),'medium_long_duration_mf').sebiDebtSchemeStructureReview.sebiMarch2026PrcAndSwingPricingReview;
+ assert.equal(clean.currentSchemeRiskometerVerified,false);
+ assert.ok(!clean.riskConsiderations.includes('FORGED RISK'));
+});

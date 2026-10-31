@@ -1605,3 +1605,27 @@ test('August 2026 OBPP research stays educational, unpriced and deep-copied for 
  }
  assert.equal(scopes.size,3);
 });
+
+
+test('three SEBI debt PRC swing reviews remain unpriced, unqualified and defensively copied',()=>{
+ const ids=['gilt_10y_constant','medium_long_duration_mf','long_duration_mf'];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id==='catalog_2026_'+id);
+ for(const [i,id] of ids.entries()){
+  const item=get(id),v=item.frameworkResearch.sebiDebtSchemeStructureReview.sebiMarch2026PrcAndSwingPricingReview;
+  assert.equal(v.excludedFromSwingPricingFramework,i===0);
+  assert.equal(v.currentSchemeRiskometerVerified,false);
+  assert.equal(v.actualSchemePrcCellVerified,false);
+  assert.equal(v.currentNavAndSwingFactorVerified,false);
+  assert.equal(v.investorKycAndRetailAccessVerified,false);
+  assert.equal(v.commercialNavRightsVerified,false);
+  assert.equal(v.personalizedAdviceAuthorizationVerified,false);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.ok(Object.values(item.productData).every(x=>x===null));
+  v.currentSchemeRiskometerVerified=true;v.investorAccessConstraints.push('FORGED ACCESS');
+  const clean=get(id).frameworkResearch.sebiDebtSchemeStructureReview.sebiMarch2026PrcAndSwingPricingReview;
+  assert.equal(clean.currentSchemeRiskometerVerified,false);
+  assert.ok(!clean.investorAccessConstraints.includes('FORGED ACCESS'));
+ }
+});

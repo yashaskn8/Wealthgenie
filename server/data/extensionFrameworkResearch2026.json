@@ -1690,6 +1690,45 @@
           "investorKycAndTransactionEligibilityVerified": false,
           "currentNavOrExchangeQuoteAndReuseRightsVerified": false,
           "personalizedAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026PrcAndSwingPricingReview": {
+          "officialSebiMasterCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularIssuedOn": "2026-03-20",
+          "reviewedOn": "2026-11-01",
+          "paragraphsReviewed": [
+            "5.8.1",
+            "5.8.3",
+            "5.8.6",
+            "6.18.1",
+            "6.18.3",
+            "6.18.20"
+          ],
+          "sourceScope": "SEBI_DEBT_SCHEME_PRC_AND_CONDITIONAL_SWING_PRICING_NOT_SCHEME_RISKOMETER_OR_EXECUTABLE_NAV",
+          "schemeArchetype": "GILT_10_YEAR_CONSTANT_DURATION",
+          "categoryInterpretation": "A 10-year constant-duration gilt fund is excluded from the swing-pricing framework in paragraph 5.8; exclusion does not mean NAV or redemption value is guaranteed.",
+          "prcMaximumInterestAndCreditRiskNotCurrentPortfolioRisk": true,
+          "debtSecurityCreditRiskMeterNotSameAsMutualFundPrcOrRiskometer": true,
+          "excludedFromSwingPricingFramework": true,
+          "mandatorySwingOnlyAfterSebiDeclaredMarketDislocation": false,
+          "mandatorySwingAlsoRequiresHighOrVeryHighCurrentSchemeRiskometer": false,
+          "mandatorySwingAlsoRequiresListedPrcCell": false,
+          "conditionalMandatoryPrcCells": [],
+          "swingNavCanDifferFromUnswungNav": false,
+          "riskConsiderations": [
+            "SEBI's swing-pricing exclusion for 10-year constant-duration gilt funds does not prevent duration-driven NAV losses.",
+            "The PRC matrix reflects permitted maximum credit and interest-rate risk, not a verified scheme's current riskometer or portfolio."
+          ],
+          "investorAccessConstraints": [
+            "Confirm the named gilt scheme, current PRC cell, SID/KIM, investor KYC and actual redemption settlement; exclusion from swing pricing is not a liquidity guarantee.",
+            "No actual fund NAV, riskometer, trading access, fee terms, tax result or lawful commercial data permission is verified."
+          ],
+          "actualSchemePrcCellVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavAndSwingFactorVerified": false,
+          "currentSidAndRedemptionTermsVerified": false,
+          "investorKycAndRetailAccessVerified": false,
+          "commercialNavRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -1768,6 +1807,52 @@
           "investorKycAndTransactionEligibilityVerified": false,
           "currentNavOrExchangeQuoteAndReuseRightsVerified": false,
           "personalizedAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026PrcAndSwingPricingReview": {
+          "officialSebiMasterCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularIssuedOn": "2026-03-20",
+          "reviewedOn": "2026-11-01",
+          "paragraphsReviewed": [
+            "5.8.1",
+            "5.8.3",
+            "5.8.6",
+            "6.18.1",
+            "6.18.3",
+            "6.18.20"
+          ],
+          "sourceScope": "SEBI_DEBT_SCHEME_PRC_AND_CONDITIONAL_SWING_PRICING_NOT_SCHEME_RISKOMETER_OR_EXECUTABLE_NAV",
+          "schemeArchetype": "MEDIUM_TO_LONG_TERM_DEBT_FUND",
+          "categoryInterpretation": "The 4–7 year normal Macaulay-duration mandate does not fix the scheme's PRC cell or current risk-o-meter; mandatory dislocation swing pricing is conditional.",
+          "prcMaximumInterestAndCreditRiskNotCurrentPortfolioRisk": true,
+          "debtSecurityCreditRiskMeterNotSameAsMutualFundPrcOrRiskometer": true,
+          "excludedFromSwingPricingFramework": false,
+          "mandatorySwingOnlyAfterSebiDeclaredMarketDislocation": true,
+          "mandatorySwingAlsoRequiresHighOrVeryHighCurrentSchemeRiskometer": true,
+          "mandatorySwingAlsoRequiresListedPrcCell": true,
+          "conditionalMandatoryPrcCells": [
+            "A-III",
+            "B-II",
+            "B-III",
+            "C-I",
+            "C-II",
+            "C-III"
+          ],
+          "swingNavCanDifferFromUnswungNav": true,
+          "riskConsiderations": [
+            "Swing pricing can adjust dealing NAV during a SEBI-declared market dislocation only if the scheme also meets current risk-o-meter and PRC-cell conditions.",
+            "Maximum PRC exposure and a duration category cannot establish actual portfolio credit quality, executable NAV or the size of any swing factor."
+          ],
+          "investorAccessConstraints": [
+            "Verify the named open-ended debt scheme's latest risk-o-meter, selected PRC cell and SEBI dislocation notification before asserting mandatory swing pricing.",
+            "Verify the current SID/KIM, swing policy, actual NAV adjustment, investor KYC, redemption settlement, exit load and licensed NAV reuse rights."
+          ],
+          "actualSchemePrcCellVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavAndSwingFactorVerified": false,
+          "currentSidAndRedemptionTermsVerified": false,
+          "investorKycAndRetailAccessVerified": false,
+          "commercialNavRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -1845,6 +1930,52 @@
           "currentSchemeRiskometerAndPortfolioVerified": false,
           "investorKycAndTransactionEligibilityVerified": false,
           "currentNavOrExchangeQuoteAndReuseRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026PrcAndSwingPricingReview": {
+          "officialSebiMasterCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularIssuedOn": "2026-03-20",
+          "reviewedOn": "2026-11-01",
+          "paragraphsReviewed": [
+            "5.8.1",
+            "5.8.3",
+            "5.8.6",
+            "6.18.1",
+            "6.18.3",
+            "6.18.20"
+          ],
+          "sourceScope": "SEBI_DEBT_SCHEME_PRC_AND_CONDITIONAL_SWING_PRICING_NOT_SCHEME_RISKOMETER_OR_EXECUTABLE_NAV",
+          "schemeArchetype": "LONG_TERM_DEBT_FUND",
+          "categoryInterpretation": "A greater-than-seven-year duration mandate can amplify NAV sensitivity; a Class III PRC description does not verify a particular scheme's credit risk or risk-o-meter.",
+          "prcMaximumInterestAndCreditRiskNotCurrentPortfolioRisk": true,
+          "debtSecurityCreditRiskMeterNotSameAsMutualFundPrcOrRiskometer": true,
+          "excludedFromSwingPricingFramework": false,
+          "mandatorySwingOnlyAfterSebiDeclaredMarketDislocation": true,
+          "mandatorySwingAlsoRequiresHighOrVeryHighCurrentSchemeRiskometer": true,
+          "mandatorySwingAlsoRequiresListedPrcCell": true,
+          "conditionalMandatoryPrcCells": [
+            "A-III",
+            "B-II",
+            "B-III",
+            "C-I",
+            "C-II",
+            "C-III"
+          ],
+          "swingNavCanDifferFromUnswungNav": true,
+          "riskConsiderations": [
+            "Swing pricing can adjust dealing NAV during a SEBI-declared market dislocation only if the scheme also meets current risk-o-meter and PRC-cell conditions.",
+            "Maximum PRC exposure and a duration category cannot establish actual portfolio credit quality, executable NAV or the size of any swing factor."
+          ],
+          "investorAccessConstraints": [
+            "Verify the named open-ended debt scheme's latest risk-o-meter, selected PRC cell and SEBI dislocation notification before asserting mandatory swing pricing.",
+            "Verify the current SID/KIM, swing policy, actual NAV adjustment, investor KYC, redemption settlement, exit load and licensed NAV reuse rights."
+          ],
+          "actualSchemePrcCellVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavAndSwingFactorVerified": false,
+          "currentSidAndRedemptionTermsVerified": false,
+          "investorKycAndRetailAccessVerified": false,
+          "commercialNavRightsVerified": false,
           "personalizedAdviceAuthorizationVerified": false
         }
       }
