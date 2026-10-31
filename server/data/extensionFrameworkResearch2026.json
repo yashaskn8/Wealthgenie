@@ -2522,6 +2522,37 @@
           "investorKycAndTransactionEligibilityVerified": false,
           "currentNavOrExchangeQuoteAndReuseRightsVerified": false,
           "personalizedAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026FoFExpenseReview": {
+          "officialSebiMasterCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularIssuedOn": "2026-03-20",
+          "reviewedOn": "2026-11-01",
+          "paragraphsReviewed": [
+            "4.1.1",
+            "4.1.2",
+            "4.1.3"
+          ],
+          "schemeArchetype": "DOMESTIC_DEBT_FUND_OF_FUNDS",
+          "sourceScope": "SEBI_FOF_DUAL_LAYER_EXPENSE_DISCLOSURE_NOT_ACTUAL_DEBT_FOF_SCHEME_COST_OR_RISKOMETER",
+          "sidMustDiscloseFofAndUnderlyingRecurringExpenses": true,
+          "amcRevenueSharingWithUnderlyingFundsProhibited": true,
+          "underlyingFundCommissionCreditedToScheme": true,
+          "applicableExpenseStructureMustBeDisclosedInSid": true,
+          "categoryInterpretation": "A domestic debt-oriented fund of funds has its own recurring expenses in addition to underlying debt-scheme expenses. SEBI requires disclosures and limits revenue sharing, but neither the label nor the circular verifies a particular scheme's all-in expense, credit exposure, duration, current riskometer or redemption rights.",
+          "riskConsiderations": [
+            "Debt FoF returns depend on underlying funds' duration, credit quality, concentration and changing NAVs; a debt label is not a fixed deposit or capital guarantee.",
+            "Layered recurring expenses and any underlying scheme exit costs can reduce realized returns, particularly for shorter holding periods."
+          ],
+          "investorAccessConstraints": [
+            "Verify the actual FoF SID/KIM, underlying debt-fund identities, current scheme and underlying expenses, riskometers, NAVs, redemption cut-offs and settlement terms.",
+            "The regulatory FoF expense disclosure duty does not verify investor KYC, current dealing eligibility, commercial NAV permissions, tax treatment or advice authorization."
+          ],
+          "actualFofAndUnderlyingSchemeIdentitiesVerified": false,
+          "currentFofAndUnderlyingExpenseRatiosVerified": false,
+          "currentFofAndUnderlyingRiskometersVerified": false,
+          "currentNavAndRedemptionTermsVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialDataRightsAndAdviceAuthorizationVerified": false
         }
       }
     },
@@ -2633,6 +2664,44 @@
             "Verify a named G-Sec debt ETF, issuer, ISIN, holdings, duration, current riskometer and exchange venue.",
             "Verify licensed live bid/ask, spread, NAV/iNAV, settlement, demat/KYC, broker permissions and actual exchange implementation; a circular is not an executable offer."
           ]
+        },
+        "sebiMarch2026EtfDirectExitReview": {
+          "officialSebiMasterCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularIssuedOn": "2026-03-20",
+          "reviewedOn": "2026-11-01",
+          "paragraphsReviewed": [
+            "4.5.2(a)",
+            "4.5.2(b)(i)",
+            "4.5.3(a)-(b)"
+          ],
+          "schemeArchetype": "GSEC_PASSIVE_DEBT_ETF_STRATEGY",
+          "sourceScope": "SEBI_DEBT_ETF_AMC_DIRECT_ROUTE_AND_CONDITIONAL_LIQUIDITY_WINDOW_NOT_RETAIL_APPROVAL_OR_LIVE_BID",
+          "ordinaryDirectAmcTransactionThresholdInrExclusive": 250000000,
+          "thresholdDoesNotApplyToMarketMakers": true,
+          "conditionalSmallInvestorAmcRedemptionUpperLimitInr": 250000000,
+          "conditionalDiscountGreaterThanPercent": 1,
+          "conditionalDiscountConsecutiveTradingDays": 7,
+          "conditionalNoQuotesConsecutiveTradingDays": 3,
+          "conditionalLowBidDailyFractionOfCreationUnit": 0.5,
+          "conditionalLowBidAveragingTradingDays": 7,
+          "debtEtfsExcludedFromSwingPricingFramework": true,
+          "directAmcThresholdNotSecondaryExchangeMinimum": true,
+          "conditionalAmcWindowNotGuaranteedImmediateCash": true,
+          "categoryInterpretation": "A G-Sec debt ETF normally trades on an exchange at a market price that may differ from NAV. The general over-INR-25-crore direct-AMC route does not impose a retail exchange minimum; the separate at-or-below-INR-25-crore direct-redemption window applies only after specified liquidity triggers. Debt ETFs are outside the cited swing-pricing framework, not insulated from duration losses.",
+          "riskConsiderations": [
+            "Sovereign underlying credit exposure does not remove interest-rate-driven NAV losses or exchange price discounts, spreads and thin order books.",
+            "The special AMC redemption window is conditional on sustained discounts, absent quotes or low bids; it is not an unconditional instant exit."
+          ],
+          "investorAccessConstraints": [
+            "Verify a named listed debt ETF, exchange symbol/ISIN, live order-book depth, current NAV, SID, market-maker arrangements, actual liquidity trigger and broker/demat/KYC permissions.",
+            "The INR 25 crore direct-AMC threshold is not an individual exchange-trading minimum; actual investor access, executable quotes, licensed data rights and advice authority remain unverified."
+          ],
+          "actualListedEtfIsinAndSidVerified": false,
+          "actualExchangeOrderbookAndNavVerified": false,
+          "conditionalAmcWindowTriggerVerified": false,
+          "individualBrokerDematKycAndRetailAccessVerified": false,
+          "commercialQuoteRightsVerified": false,
+          "schemeRiskometerAndAdviceAuthorizationVerified": false
         }
       }
     },
