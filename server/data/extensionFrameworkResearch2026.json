@@ -7163,6 +7163,41 @@
             "Verify the registered manager, actual placement memorandum, dispute route and subscriber agreement before relying on any scheme-specific remedy.",
             "Regulation 25 is not evidence of an investor invitation, accreditation, KYC, licensed data permission or personalized-advice authorization."
           ]
+        },
+        "sebiJune2026MasterCircularReview": {
+          "officialSebiMasterCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/jun-2026/1780484971370.pdf",
+          "circularIssuedOn": "2026-06-03",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "PUBLIC_AIF_PPM_AND_CONDITIONAL_CATEGORY_RULES_NOT_ACTUAL_FUND_CDS_POSITION_ACCREDITATION_OR_INVESTOR_APPROVAL",
+          "categoryStructure": "CATEGORY_I_VENTURE_CAPITAL",
+          "chapterParagraphsReviewed": [
+            "2.1.4(i)",
+            "2.2.1",
+            "3.2.2-3.2.4",
+            "8.1.1-8.1.3",
+            "8.9"
+          ],
+          "categorySpecificFactCode": "ANGEL_FUNDS_DISTINCT_FROM_VENTURE_CAPITAL_AIF_SCHEMES",
+          "categoryInterpretation": "Category I venture-capital AIF is not automatically an Angel Fund. Chapter 8 places new Angel Funds under an accredited-investor-only rule, with the legacy transition ending 8 September 2026; this special rule cannot be assumed for every ordinary venture-capital scheme.",
+          "conditionalRegulatoryFinding": "Angel Funds registered after 10 September 2025 must onboard accredited investors only; existing Angel Funds could not accept new non-accredited contributions after 8 September 2026. Existing investments are treated separately.",
+          "ppmFeesAndDistributionWaterfallExampleRequired": true,
+          "ppmProvidedAndAcknowledgedBeforeCommitmentRequired": true,
+          "assuredReturnsProhibited": true,
+          "categorySpecificRuleDoesNotVerifyActualSchemeExposure": true,
+          "actualSchemeAndPpmVerified": false,
+          "individualKycAndAccreditationVerified": false,
+          "actualFeesWaterfallAndRedemptionVerified": false,
+          "actualCdsOrDerivativesPositionsVerified": false,
+          "currentValuationRiskometerAndMarketRightsVerified": false,
+          "adviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Early-stage issuer failure, unlisted valuations and delayed exits can cause large losses; Angel Fund accreditation rules are not a scheme riskometer.",
+            "Capital calls, fee waterfalls and distribution priority can reduce actual investor proceeds even when a PPM was filed."
+          ],
+          "investorAccessConstraints": [
+            "Verify whether the actual registered Category I scheme is an Angel Fund or ordinary venture-capital AIF before applying special accreditation restrictions.",
+            "Verify actual private placement invitation, PPM, authorized accreditation where applicable, KYC, commitment and redemption terms, fees and data rights."
+          ]
         }
       }
     },
@@ -7714,6 +7749,40 @@
             "Verify the registered manager, actual placement memorandum, dispute route and subscriber agreement before relying on any scheme-specific remedy.",
             "Regulation 25 is not evidence of an investor invitation, accreditation, KYC, licensed data permission or personalized-advice authorization."
           ]
+        },
+        "sebiJune2026MasterCircularReview": {
+          "officialSebiMasterCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/jun-2026/1780484971370.pdf",
+          "circularIssuedOn": "2026-06-03",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "PUBLIC_AIF_PPM_AND_CONDITIONAL_CATEGORY_RULES_NOT_ACTUAL_FUND_CDS_POSITION_ACCREDITATION_OR_INVESTOR_APPROVAL",
+          "categoryStructure": "CATEGORY_II_PRIVATE_DEBT",
+          "chapterParagraphsReviewed": [
+            "2.2.1",
+            "3.2.2-3.2.4",
+            "4.2.1",
+            "4.2.4-4.2.5"
+          ],
+          "categorySpecificFactCode": "CATEGORY_II_DEBT_AIF_CONDITIONAL_CDS_HEDGING_AND_EARMARKING",
+          "categoryInterpretation": "Category II private-debt AIFs may buy credit default swaps on underlying debt only for hedging and may sell CDS against earmarked unencumbered government securities or Treasury bills under specified conditions. These permissions do not prove any scheme uses CDS or that a borrower will repay.",
+          "conditionalRegulatoryFinding": "Category II AIF CDS purchases on underlying debt are hedging-only; permitted CDS sales require earmarked unencumbered government securities or Treasury bills equal to the CDS exposure.",
+          "ppmFeesAndDistributionWaterfallExampleRequired": true,
+          "ppmProvidedAndAcknowledgedBeforeCommitmentRequired": true,
+          "assuredReturnsProhibited": true,
+          "categorySpecificRuleDoesNotVerifyActualSchemeExposure": true,
+          "actualSchemeAndPpmVerified": false,
+          "individualKycAndAccreditationVerified": false,
+          "actualFeesWaterfallAndRedemptionVerified": false,
+          "actualCdsOrDerivativesPositionsVerified": false,
+          "currentValuationRiskometerAndMarketRightsVerified": false,
+          "adviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Actual CDS positions may add counterparty, basis and collateral-management risks; permission to hedge does not establish effective credit protection.",
+            "Borrower defaults, recovery seniority, unlisted valuations and PPM fee waterfalls can reduce realizable investor proceeds."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual Category II debt PPM, whether it trades CDS, any earmarked collateral, underlying borrower exposures and fee waterfall.",
+            "Check actual private placement invitation, minimum commitment, KYC, accreditation if applicable, redemption conditions and commercial permissions."
+          ]
         }
       }
     },
@@ -7823,6 +7892,40 @@
           "investorAccessConstraints": [
             "Verify the registered manager, actual placement memorandum, dispute route and subscriber agreement before relying on any scheme-specific remedy.",
             "Regulation 25 is not evidence of an investor invitation, accreditation, KYC, licensed data permission or personalized-advice authorization."
+          ]
+        },
+        "sebiJune2026MasterCircularReview": {
+          "officialSebiMasterCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/jun-2026/1780484971370.pdf",
+          "circularIssuedOn": "2026-06-03",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "PUBLIC_AIF_PPM_AND_CONDITIONAL_CATEGORY_RULES_NOT_ACTUAL_FUND_CDS_POSITION_ACCREDITATION_OR_INVESTOR_APPROVAL",
+          "categoryStructure": "CATEGORY_III_HEDGE_STRATEGY",
+          "chapterParagraphsReviewed": [
+            "2.2.1",
+            "3.2.2-3.2.4",
+            "4.2.2-4.2.3",
+            "7.5.6-7.5.9"
+          ],
+          "categorySpecificFactCode": "CATEGORY_III_CDS_LEVERAGE_AND_CONDITIONAL_REDEMPTION_SUSPENSION",
+          "categoryInterpretation": "Category III AIFs may buy CDS for hedging or otherwise and may sell CDS subject to applicable leverage limits. The master circular prescribes controls when applicable managers suspend redemptions. Neither rule proves a particular hedge scheme uses CDS or has suspended withdrawals.",
+          "conditionalRegulatoryFinding": "Category III CDS purchases and sales remain subject to applicable leverage conditions; specified managers must document, communicate and review any applicable redemption suspension.",
+          "ppmFeesAndDistributionWaterfallExampleRequired": true,
+          "ppmProvidedAndAcknowledgedBeforeCommitmentRequired": true,
+          "assuredReturnsProhibited": true,
+          "categorySpecificRuleDoesNotVerifyActualSchemeExposure": true,
+          "actualSchemeAndPpmVerified": false,
+          "individualKycAndAccreditationVerified": false,
+          "actualFeesWaterfallAndRedemptionVerified": false,
+          "actualCdsOrDerivativesPositionsVerified": false,
+          "currentValuationRiskometerAndMarketRightsVerified": false,
+          "adviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Derivatives, CDS, short positions and leverage can amplify losses; a category permission does not authenticate a particular scheme riskometer.",
+            "An applicable redemption suspension can delay exits while valuation and underlying market risk continue."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual Category III PPM, permitted leverage, derivative positions, scheme-specific redemption terms and any current suspension notices.",
+            "Verify invitation, KYC, accreditation where applicable, fee waterfall, current valuation, licensed market data and advice authorization."
           ]
         }
       }

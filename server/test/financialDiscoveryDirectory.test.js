@@ -1537,3 +1537,21 @@ test('six FoF expense interpretations are distinct, unpriced and unlicensed in d
   &&x.dataRights==='NOT_VERIFIED'
   &&Object.values(x.productData).every(v=>v===null)));
 });
+
+
+test('June 2026 AIF source research is defensively copied without current data or recommendation rights',()=>{
+ const get=id=>listFinancialDiscoveryDirectory().items.find(row=>row.id==='catalog_2026_'+id);
+ for(const id of ['aif1_vc','aif2_debt','aif3_hedge']){
+  const row=get(id),e=row.frameworkResearch.aifCategoryAccessReview.sebiJune2026MasterCircularReview;
+  assert.equal(e.reviewedOn,'2026-10-31');assert.ok(e.chapterParagraphsReviewed.length>=4);
+  assert.ok(e.categoryInterpretation.length>120);
+  assert.ok(e.riskConsiderations.length>=2&&e.investorAccessConstraints.length>=2);
+  assert.equal(e.actualSchemeAndPpmVerified,false);assert.equal(e.actualCdsOrDerivativesPositionsVerified,false);
+  assert.equal(e.adviceAuthorizationVerified,false);
+  assert.equal(row.recommendationEligible,false);assert.equal(row.productAvailability,'NOT_VERIFIED');
+  assert.equal(row.dataRights,'NOT_VERIFIED');assert.ok(Object.values(row.productData).every(value=>value===null));
+  e.actualSchemeAndPpmVerified=true;e.riskConsiderations.push('forged evidence');
+  const fresh=get(id).frameworkResearch.aifCategoryAccessReview.sebiJune2026MasterCircularReview;
+  assert.equal(fresh.actualSchemeAndPpmVerified,false);assert.ok(!fresh.riskConsiderations.includes('forged evidence'));
+ }
+});

@@ -121,6 +121,12 @@ const pmsMandateTypes=Object.freeze({"catalog_2026_pms_discretionary":"DISCRETIO
 const pmsHistoricalFaqUrl='https://www.sebi.gov.in/sebi_data/attachdocs/aug-2020/1598359862760.pdf';
 const pmsInvestorEducationUrl='https://investor.sebi.gov.in/pms_final.html';
 const pms2024FaqUrl='https://www.sebi.gov.in/sebi_data/faqfiles/sep-2024/1727350357563.pdf';
+const aifJune2026MasterPdfUrl='https://www.sebi.gov.in/sebi_data/attachdocs/jun-2026/1780484971370.pdf';
+const aifJune2026CategoryFacts=Object.freeze({
+ 'catalog_2026_aif1_vc':['ANGEL_FUNDS_DISTINCT_FROM_VENTURE_CAPITAL_AIF_SCHEMES',['2.1.4(i)','2.2.1','3.2.2-3.2.4','8.1.1-8.1.3','8.9']],
+ 'catalog_2026_aif2_debt':['CATEGORY_II_DEBT_AIF_CONDITIONAL_CDS_HEDGING_AND_EARMARKING',['2.2.1','3.2.2-3.2.4','4.2.1','4.2.4-4.2.5']],
+ 'catalog_2026_aif3_hedge':['CATEGORY_III_CDS_LEVERAGE_AND_CONDITIONAL_REDEMPTION_SUSPENSION',['2.2.1','3.2.2-3.2.4','4.2.2-4.2.3','7.5.6-7.5.9']],
+});
 const aifGarudaCircularUrl="https://www.sebi.gov.in/legal/circulars/jul-2026/-green-channel-aif-rollout-upon-document-acknowledgement-garuda-mechanism-for-processing-of-placement-memorandum-of-alternative-investment-funds-aifs-filed-with-sebi_103241.html";
 const sifMinimumThresholdMonitoringUrl="https://www.sebi.gov.in/legal/circulars/jul-2025/monitoring-of-minimum-investment-threshold-under-specialized-investment-funds-sif-_95676.html";
 const sifDistributorCertificationUrl="https://www.sebi.gov.in/legal/circulars/jul-2026/certification-requirements-for-distribution-of-specialized-investment-funds-sifs-_102986.html";
@@ -914,6 +920,28 @@ if(research.entries.filter(row=>row.aifCategoryAccessReview?.garudaPpmFilingRevi
      ||!Array.isArray(g.investorAccessConstraints)||g.investorAccessConstraints.length<2;
  }))throw new Error('FINANCIAL_AIF_GARUDA_FILING_MUST_NOT_IMPLY_PRODUCT_APPROVAL');
 
+ // June 2026 AIF master-circular clauses are not scheme or investor approval.
+ if(research.entries.filter(row=>row.aifCategoryAccessReview?.sebiJune2026MasterCircularReview).length!==3
+  ||research.entries.some(row=>{
+   const expected=aifJune2026CategoryFacts[row.id],v=row.aifCategoryAccessReview?.sebiJune2026MasterCircularReview;
+   if(!expected)return v!==undefined;
+   return !v||v.officialSebiMasterCircularPdfUrl!==aifJune2026MasterPdfUrl
+    ||v.circularIssuedOn!=='2026-06-03'||v.reviewedOn!=='2026-10-31'
+    ||v.sourceScope!=='PUBLIC_AIF_PPM_AND_CONDITIONAL_CATEGORY_RULES_NOT_ACTUAL_FUND_CDS_POSITION_ACCREDITATION_OR_INVESTOR_APPROVAL'
+    ||v.categoryStructure!==aifCategoryStructures[row.id]
+    ||v.categorySpecificFactCode!==expected[0]
+    ||JSON.stringify(v.chapterParagraphsReviewed)!==JSON.stringify(expected[1])
+    ||typeof v.categoryInterpretation!=='string'||v.categoryInterpretation.length<120
+    ||typeof v.conditionalRegulatoryFinding!=='string'||v.conditionalRegulatoryFinding.length<90
+    ||['ppmFeesAndDistributionWaterfallExampleRequired','ppmProvidedAndAcknowledgedBeforeCommitmentRequired',
+      'assuredReturnsProhibited','categorySpecificRuleDoesNotVerifyActualSchemeExposure'].some(k=>v[k]!==true)
+    ||['actualSchemeAndPpmVerified','individualKycAndAccreditationVerified',
+      'actualFeesWaterfallAndRedemptionVerified','actualCdsOrDerivativesPositionsVerified',
+      'currentValuationRiskometerAndMarketRightsVerified','adviceAuthorizationVerified'].some(k=>v[k]!==false)
+    ||!Array.isArray(v.riskConsiderations)||v.riskConsiderations.length<2
+    ||!Array.isArray(v.investorAccessConstraints)||v.investorAccessConstraints.length<2;
+  }))throw new Error('FINANCIAL_AIF_JUNE_2026_MASTER_CIRCULAR_CATEGORY_SCOPE_INVALID');
+
  // SEBI's October 2026 AIF Regulation 25 amendment addresses dispute
  // procedures and manager/officer expenses, not product or investor approval.
  const aifDisputeAmendmentUrl='https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-alternative-investment-funds-third-amendment-regulations-2026_105331.html';
@@ -1544,6 +1572,24 @@ export function screenExtensionResearchForProfile(profileInput) {
        reasons.push('AIF_OCT_2026_REGULATION_25_DISPUTE_PROCEDURE_NOT_GUARANTEED_REMEDY_OR_ELIGIBILITY');
       reasons.push('AIF_GARUDA_ACTUAL_SCHEME_ROUTE_REGISTRATION_AND_DILIGENCE_UNVERIFIED');
       reasons.push('AIF_FEES_REDEMPTION_VALUATION_AND_DATA_RIGHTS_UNVERIFIED');
+      if(row.aifCategoryAccessReview.sebiJune2026MasterCircularReview){
+        reasons.push('AIF_JUNE_2026_PPM_WATERFALL_AND_NO_ASSURED_RETURNS_NOT_SCHEME_VERIFICATION');
+        if(row.id==='catalog_2026_aif1_vc'){
+          reasons.push('AIF_VC_ANGEL_FUND_IS_SEPARATE_ACCREDITED_ONLY_SUBCATEGORY');
+          if(profile.investmentHorizonYears<=3)
+            reasons.push('SHORT_HORIZON_REQUIRES_VC_CAPITAL_CALL_AND_UNLISTED_EXIT_REVIEW');
+        } else if(row.id==='catalog_2026_aif2_debt'){
+          reasons.push('AIF_II_DEBT_CDS_HEDGING_RULE_NOT_BORROWER_REPAYMENT_GUARANTEE');
+          if(profile.investmentGoals.includes('Emergency Fund'))
+            reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_AIF_DEBT_CREDIT_RECOVERY_AND_REDEMPTION_REVIEW');
+        } else if(row.id==='catalog_2026_aif3_hedge'){
+          reasons.push('AIF_III_CDS_LEVERAGE_AND_CONDITIONAL_REDEMPTION_SUSPENSION_REVIEW');
+          if(profile.riskTolerance==='Conservative')
+            reasons.push('CONSERVATIVE_PROFILE_REQUIRES_AIF_III_LEVERAGE_AND_REDEMPTION_REVIEW');
+          if(profile.emergencyFundMonths===0)
+            reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_AIF_III_REDEMPTION_SUSPENSION_REVIEW');
+        }
+      }
       if(row.id==='catalog_2026_aif1_social')
         reasons.push('SOCIAL_IMPACT_NPO_ONLY_MINIMUM_AND_NO_RETURN_UNIT_TYPE_REQUIRE_VERIFICATION');
       if(profile.investmentGoals.includes('Emergency Fund'))

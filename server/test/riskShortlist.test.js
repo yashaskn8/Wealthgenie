@@ -3204,3 +3204,35 @@ test('all six FoF Chapter 4.1 expense interpretations remain distinct and unqual
  assert.ok(reviews.every(x=>x.currentNavAndSchemeRiskometerVerified===false
   &&x.commercialDataRightsAndAdviceAuthorizationVerified===false));
 });
+
+
+test('June 2026 SEBI AIF master circular differentiates VC, private debt and hedge schemes without product approval',()=>{
+ const ids=['aif1_vc','aif2_debt','aif3_hedge'];
+ const rows=listExtensionResearch().filter(row=>ids.some(id=>row.id==='catalog_2026_'+id));
+ assert.equal(rows.length,3);
+ const short=screenExtensionResearchForProfile(canonicalProfile({investmentHorizonYears:1,investmentGoals:['Emergency Fund'],riskTolerance:'Conservative',emergencyFundMonths:0}));
+ const long=screenExtensionResearchForProfile(canonicalProfile({investmentHorizonYears:10,investmentGoals:['Wealth Growth'],riskTolerance:'Aggressive',emergencyFundMonths:null}));
+ const get=(list,id)=>list.find(row=>row.id==='catalog_2026_'+id);
+ assert.equal(new Set(rows.map(row=>row.aifCategoryAccessReview.sebiJune2026MasterCircularReview.categorySpecificFactCode)).size,3);
+ for(const row of rows){
+  const e=row.aifCategoryAccessReview.sebiJune2026MasterCircularReview;
+  assert.equal(e.officialSebiMasterCircularPdfUrl,'https://www.sebi.gov.in/sebi_data/attachdocs/jun-2026/1780484971370.pdf');
+  assert.equal(e.circularIssuedOn,'2026-06-03');
+  assert.equal(e.categoryStructure,row.aifCategoryAccessReview.categoryStructure);
+  for(const k of ['ppmFeesAndDistributionWaterfallExampleRequired','ppmProvidedAndAcknowledgedBeforeCommitmentRequired','assuredReturnsProhibited','categorySpecificRuleDoesNotVerifyActualSchemeExposure'])assert.equal(e[k],true);
+  for(const k of ['actualSchemeAndPpmVerified','individualKycAndAccreditationVerified','actualFeesWaterfallAndRedemptionVerified','actualCdsOrDerivativesPositionsVerified','currentValuationRiskometerAndMarketRightsVerified','adviceAuthorizationVerified'])assert.equal(e[k],false);
+  for(const all of [short,long]){
+   const item=all.find(x=>x.id===row.id);
+   assert.ok(item.screeningReasonCodes.includes('AIF_JUNE_2026_PPM_WATERFALL_AND_NO_ASSURED_RETURNS_NOT_SCHEME_VERIFICATION'));
+   assert.equal(item.productQualified,false);assert.equal(item.scoreAvailable,false);assert.equal(item.productRiskLevel,null);
+  }
+ }
+ assert.ok(get(short,'aif1_vc').screeningReasonCodes.includes('AIF_VC_ANGEL_FUND_IS_SEPARATE_ACCREDITED_ONLY_SUBCATEGORY'));
+ assert.ok(get(short,'aif1_vc').screeningReasonCodes.includes('SHORT_HORIZON_REQUIRES_VC_CAPITAL_CALL_AND_UNLISTED_EXIT_REVIEW'));
+ assert.ok(!get(long,'aif1_vc').screeningReasonCodes.includes('SHORT_HORIZON_REQUIRES_VC_CAPITAL_CALL_AND_UNLISTED_EXIT_REVIEW'));
+ assert.ok(get(short,'aif2_debt').screeningReasonCodes.includes('EMERGENCY_FUND_GOAL_REQUIRES_AIF_DEBT_CREDIT_RECOVERY_AND_REDEMPTION_REVIEW'));
+ assert.ok(!get(long,'aif2_debt').screeningReasonCodes.includes('EMERGENCY_FUND_GOAL_REQUIRES_AIF_DEBT_CREDIT_RECOVERY_AND_REDEMPTION_REVIEW'));
+ for(const code of ['CONSERVATIVE_PROFILE_REQUIRES_AIF_III_LEVERAGE_AND_REDEMPTION_REVIEW','RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_AIF_III_REDEMPTION_SUSPENSION_REVIEW']){
+  assert.ok(get(short,'aif3_hedge').screeningReasonCodes.includes(code));assert.ok(!get(long,'aif3_hedge').screeningReasonCodes.includes(code));
+ }
+});
