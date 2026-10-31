@@ -1285,3 +1285,21 @@ test('unlisted NCD historical private-placement caution is distinct from current
   .frameworkResearch.debtInstrumentReview.privatePlacementInvestorCautionReview
   .currentCompanyLawPlacementComplianceVerified,false);
 });
+
+
+test('RBI historical UCB capital-bond reviews are defensively copied and remain discovery-only',()=>{
+ const ids=['catalog_2026_bond_subordinated','catalog_2026_bond_perpetual'];
+ const rows=listFinancialDiscoveryDirectory().items;
+ for(const id of ids){
+   const row=rows.find(r=>r.id===id);
+   const review=row.frameworkResearch.debtInstrumentReview.bankCapitalInstrumentScopeReview;
+   assert.equal(review.issuerScope,'PRIMARY_URBAN_COOPERATIVE_BANK_ONLY',id);
+   assert.equal(review.specificIssuerAndIsinVerified,false,id);
+   assert.equal(row.recommendationEligible,false,id);
+   assert.equal(row.productAvailability,'NOT_VERIFIED',id);
+   assert.equal(row.dataRights,'NOT_VERIFIED',id);
+   review.investorAccessConstraints.push('forged');
+   assert.ok(!listFinancialDiscoveryDirectory().items.find(r=>r.id===id)
+     .frameworkResearch.debtInstrumentReview.bankCapitalInstrumentScopeReview.investorAccessConstraints.includes('forged'),id);
+ }
+});

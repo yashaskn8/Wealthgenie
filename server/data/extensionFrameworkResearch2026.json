@@ -5525,7 +5525,7 @@
       "scenarioDescription": "Subordinated Corporate Bond: Subordinated Debt category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
       "referenceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": "2026-10-29",
+      "referenceReviewedAt": "2026-10-31",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -5597,6 +5597,33 @@
             "The October 7 SEBI disclosure circular applies to listed or proposed-to-be-listed specified debt issues; this category alone does not prove listing or an eligible retail offer.",
             "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
           ]
+        },
+        "bankCapitalInstrumentScopeReview": {
+          "officialRbiMasterCircularUrl": "https://www.rbi.org.in/Scripts/BS_ViewMasCirculardetails.aspx?id=12490",
+          "officialCircularNumber": "RBI/2023-24/17",
+          "circularIssuedOn": "2023-04-20",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "HISTORICAL_2023_UCB_CAPITAL_INSTRUMENT_EXAMPLE_NOT_GENERAL_CORPORATE_BOND_RULE_OR_CURRENT_RETAIL_APPROVAL",
+          "issuerScope": "PRIMARY_URBAN_COOPERATIVE_BANK_ONLY",
+          "currentAmendmentsAndIssuerApplicabilityVerified": false,
+          "specificIssuerAndIsinVerified": false,
+          "specificOfferDocumentAndHolderEligibilityVerified": false,
+          "currentMarketPriceOrYieldVerified": false,
+          "commercialDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "instrumentStructure": "UCB_LOWER_TIER_II_LONG_TERM_SUBORDINATED_BOND",
+          "historicalTenorFloorYears": 10,
+          "historicalHolderPutAllowed": false,
+          "depositInsuranceAppliesUnderCitedFramework": false,
+          "riskConsiderations": [
+            "In the 2023 UCB LTSB framework, repayment ranks behind depositors and other creditors; this is a narrower banking example, not a universal ranking for corporate subordinated debt.",
+            "The published ten-year minimum maturity and RBI approval for redemption can make early exit uncertain; current instrument terms and secondary-market depth are unverified."
+          ],
+          "investorAccessConstraints": [
+            "The 2023 UCB framework describes issuance to members or persons resident within the UCB area of operation, subject to bank issuance conditions; this is not blanket retail eligibility.",
+            "The issuing UCB must satisfy prescribed financial criteria or obtain RBI permission; an investor must verify the current issuer, lawful offer, document, KYC, rights and specific ISIN.",
+            "The RBI requires disclosure that these regulatory capital instruments differ from fixed deposits and are not covered by deposit insurance."
+          ]
         }
       }
     },
@@ -5606,7 +5633,7 @@
       "scenarioDescription": "Perpetual Corporate Bond: Perpetual Debt category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
       "referenceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": "2026-10-29",
+      "referenceReviewedAt": "2026-10-31",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -5677,6 +5704,33 @@
           "investorAccessConstraints": [
             "The October 7 SEBI disclosure circular applies to listed or proposed-to-be-listed specified debt issues; this category alone does not prove listing or an eligible retail offer.",
             "The circular takes effect 45 days after October 7, 2026; no issuer, ISIN, SEBI-registered CRA rating, live meter, access, licensed data rights or advice authority is authenticated here."
+          ]
+        },
+        "bankCapitalInstrumentScopeReview": {
+          "officialRbiMasterCircularUrl": "https://www.rbi.org.in/Scripts/BS_ViewMasCirculardetails.aspx?id=12490",
+          "officialCircularNumber": "RBI/2023-24/17",
+          "circularIssuedOn": "2023-04-20",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "HISTORICAL_2023_UCB_CAPITAL_INSTRUMENT_EXAMPLE_NOT_GENERAL_CORPORATE_BOND_RULE_OR_CURRENT_RETAIL_APPROVAL",
+          "issuerScope": "PRIMARY_URBAN_COOPERATIVE_BANK_ONLY",
+          "currentAmendmentsAndIssuerApplicabilityVerified": false,
+          "specificIssuerAndIsinVerified": false,
+          "specificOfferDocumentAndHolderEligibilityVerified": false,
+          "currentMarketPriceOrYieldVerified": false,
+          "commercialDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "instrumentStructure": "UCB_TIER_I_PERPETUAL_DEBT_INSTRUMENT",
+          "historicalTenorFloorYears": null,
+          "historicalHolderPutAllowed": false,
+          "depositInsuranceAppliesUnderCitedFramework": false,
+          "riskConsiderations": [
+            "The 2023 UCB PDI example is perpetual, with no holder put and a conditional issuer call only after ten years with RBI approval; this does not set the call terms of all perpetual corporate bonds.",
+            "Under the 2023 UCB framework, non-cumulative interest can be withheld under capital adequacy conditions and PDI claims rank behind depositors and other creditors; no issuer-specific risk has been measured."
+          ],
+          "investorAccessConstraints": [
+            "The 2023 UCB PDI framework concerns issuance to members or persons resident within the UCB area of operation with prior RBI approval; it is not a verified universal retail offer.",
+            "The actual issuing entity, instrument capital classification, investor permission, offer document, call/coupon provisions, ISIN, price and licensed data rights are not verified.",
+            "The RBI requires disclosure that these regulatory capital instruments differ from fixed deposits and are not covered by deposit insurance."
           ]
         }
       }

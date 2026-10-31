@@ -1752,6 +1752,16 @@ export function screenExtensionResearchForProfile(profileInput) {
      if(profile.emergencyFundMonths===0)
        reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_LISTED_NCD_CREDIT_AND_EXIT_REVIEW');
    }
+   if(row.debtInstrumentReview?.bankCapitalInstrumentScopeReview){
+     // Historical UCB capital rules are examples, never generic corporate
+     // bond terms, a verified deposit substitute, or individual eligibility.
+     reasons.push('RBI_2023_UCB_CAPITAL_BOND_EXAMPLE_NOT_GENERIC_CORPORATE_BOND_RULE');
+     reasons.push('UCB_CAPITAL_INSTRUMENT_NOT_INSURED_BANK_DEPOSIT_OR_VERIFIED_RETAIL_OFFER');
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_REQUIRES_UCB_CAPITAL_BOND_EXIT_AND_LOSS_REVIEW');
+     if(Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
+       reasons.push('SHORT_HORIZON_REQUIRES_UCB_CAPITAL_BOND_CALL_MATURITY_AND_EXIT_REVIEW');
+   }
    if(row.debtInstrumentReview?.privatePlacementIsinOct2026Review)
      reasons.push('SEBI_OCT_2026_PRIVATE_PLACEMENT_ISIN_CAP_NOT_RETAIL_ELIGIBILITY');
    if(row.debtInstrumentReview?.merchantBankerExemptionOct2026Review) {

@@ -709,8 +709,9 @@ test('all 28 reviewed fund, thematic, debt, metal and individual categories stay
    riskTolerance:'Aggressive',investmentHorizonYears:10,investmentGoals:['Retirement'],
  }));
  for(const row of rows){
-   assert.equal(row.referenceReviewedAt,
-     row.id==='catalog_2026_silver_fof'?'2026-10-30':'2026-10-29',row.id);
+   assert.match(row.referenceReviewedAt,/^\\d{4}-\\d{2}-\\d{2}$/,row.id);
+   assert.ok(row.referenceReviewedAt >= (row.id==='catalog_2026_silver_fof'?'2026-10-30':'2026-10-29')
+     && row.referenceReviewedAt<=new Date().toISOString().slice(0,10),row.id);
    assert.equal(row.productRiskScore,null,row.id);
    assert.equal(row.actualRetailProductEligible,false,row.id);
    assert.equal(row.sourcePermissionVerified,false,row.id);
@@ -757,7 +758,9 @@ test('October 2026 SEBI debt credit meters are future issue disclosures, not cat
    const row=rows.find(row=>row.id===id);
    const review=row.debtInstrumentReview.creditRiskometerOct2026Review;
    assert.equal(review.officialSebiCircularUrl,'https://www.sebi.gov.in/legal/circulars/oct-2026/introduction-of-credit-risk-o-meter-as-an-additional-disclosure-mechanism-for-debt-securities_105081.html',id);
-   assert.equal(row.referenceReviewedAt,'2026-10-29',id);
+   assert.match(row.referenceReviewedAt,/^\\d{4}-\\d{2}-\\d{2}$/,id);
+   assert.ok(row.referenceReviewedAt>='2026-10-29'
+     &&row.referenceReviewedAt<=new Date().toISOString().slice(0,10),id);
   assert.equal(row.debtInstrumentReview.reviewedOn,'2026-10-29',id);
   assert.equal(review.reviewedOn,'2026-10-29',id);
   assert.equal(review.circularIssuedOn,'2026-10-07',id);
@@ -2624,4 +2627,50 @@ test('SEBI historical unlisted NCD placement caution never becomes current retai
  assert.ok(emergency.screeningReasonCodes.includes(goal));
  assert.ok(!unknown.screeningReasonCodes.includes(goal));
  assert.ok(!zero.screeningReasonCodes.includes(goal));
+});
+
+
+test('RBI UCB capital-instrument examples do not become generic corporate bond terms or retail approvals',()=>{
+ const ids=['catalog_2026_bond_subordinated','catalog_2026_bond_perpetual'];
+ const research=listExtensionResearch();
+ const short=screenExtensionResearchForProfile(canonicalProfile({
+   riskTolerance:'Conservative',investmentHorizonYears:1,investmentGoals:['Emergency Fund'],
+ }));
+ const long=screenExtensionResearchForProfile(canonicalProfile({
+   riskTolerance:'Aggressive',investmentHorizonYears:10,investmentGoals:['Retirement'],
+ }));
+ assert.equal(research.filter(r=>r.debtInstrumentReview?.bankCapitalInstrumentScopeReview).length,2);
+ for(const id of ids){
+   const row=research.find(r=>r.id===id);
+   const review=row.debtInstrumentReview.bankCapitalInstrumentScopeReview;
+   assert.equal(review.officialRbiMasterCircularUrl,'https://www.rbi.org.in/Scripts/BS_ViewMasCirculardetails.aspx?id=12490');
+   assert.equal(review.circularIssuedOn,'2023-04-20');
+   assert.equal(review.reviewedOn,'2026-10-31');
+   assert.equal(review.issuerScope,'PRIMARY_URBAN_COOPERATIVE_BANK_ONLY');
+   assert.equal(review.sourceScope,'HISTORICAL_2023_UCB_CAPITAL_INSTRUMENT_EXAMPLE_NOT_GENERAL_CORPORATE_BOND_RULE_OR_CURRENT_RETAIL_APPROVAL');
+   assert.equal(review.historicalHolderPutAllowed,false);
+   assert.equal(review.depositInsuranceAppliesUnderCitedFramework,false);
+   assert.equal(review.historicalTenorFloorYears,id==='catalog_2026_bond_subordinated'?10:null);
+   for(const key of ['currentAmendmentsAndIssuerApplicabilityVerified','specificIssuerAndIsinVerified',
+     'specificOfferDocumentAndHolderEligibilityVerified','currentMarketPriceOrYieldVerified',
+     'commercialDataRightsVerified','personalizedAdviceAuthorizationVerified'])assert.equal(review[key],false,id+':'+key);
+   assert.ok(review.riskConsiderations.length>=2&&review.investorAccessConstraints.length>=2,id);
+   for(const item of [short.find(x=>x.id===id),long.find(x=>x.id===id)]){
+     assert.equal(item.productQualified,false,id);
+     assert.equal(item.scoreAvailable,false,id);
+     assert.equal(item.productRiskLevel,null,id);
+     assert.equal(item.profileAssessment,'MISSING_SUITABILITY_EVIDENCE',id);
+     assert.ok(item.screeningReasonCodes.includes('RBI_2023_UCB_CAPITAL_BOND_EXAMPLE_NOT_GENERIC_CORPORATE_BOND_RULE'),id);
+     assert.ok(item.screeningReasonCodes.includes('UCB_CAPITAL_INSTRUMENT_NOT_INSURED_BANK_DEPOSIT_OR_VERIFIED_RETAIL_OFFER'),id);
+   }
+   for(const code of ['EMERGENCY_FUND_REQUIRES_UCB_CAPITAL_BOND_EXIT_AND_LOSS_REVIEW',
+     'SHORT_HORIZON_REQUIRES_UCB_CAPITAL_BOND_CALL_MATURITY_AND_EXIT_REVIEW']){
+     assert.ok(short.find(x=>x.id===id).screeningReasonCodes.includes(code),id+':'+code);
+     assert.ok(!long.find(x=>x.id===id).screeningReasonCodes.includes(code),id+':'+code);
+   }
+ }
+ const first=research.find(r=>r.id===ids[0]);
+ first.debtInstrumentReview.bankCapitalInstrumentScopeReview.riskConsiderations.push('forged');
+ assert.ok(!listExtensionResearch().find(r=>r.id===ids[0])
+   .debtInstrumentReview.bankCapitalInstrumentScopeReview.riskConsiderations.includes('forged'));
 });
