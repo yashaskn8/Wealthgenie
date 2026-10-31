@@ -8902,7 +8902,8 @@
         "investorAccessConstraints": [
           "SEBI REIT rules amended 15 October 2026 define a regulatory category; verify actual SM REIT scheme, manager/trustee, offer documents and property disclosures.",
           "Check current listing/ISIN, investor and demat eligibility, issue/lot size, distributions, valuation, tax, price and commercial rights.",
-          "SEBI's October 2026 SM REIT trust registry and draft scheme filings are different evidence levels: a trust registration and draft filing do not establish a final, listed or accessible scheme."
+          "SEBI's October 2026 SM REIT trust registry and draft scheme filings are different evidence levels: a trust registration and draft filing do not establish a final, listed or accessible scheme.",
+          "Regulation 26G excludes Chapter IV and regulation 22 from SM REITs; the October 2026 general REIT depository-receipt and sponsor-exit changes must not be presented as SM REIT unit rights."
         ],
         "specificInstrumentOrSchemeVerified": false,
         "currentPriceOrNavVerified": false,
@@ -8934,6 +8935,35 @@
           "propertyValuationDistributionsAndSchemeRiskVerified": false,
           "commercialMarketDataRightsVerified": false,
           "investmentAdviceAuthorizationVerified": false
+        },
+        "october2026ReitAmendmentApplicabilityReview": {
+          "officialSebiSecondAmendmentPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/oct-2026/1792391350899.pdf",
+          "officialSebiConsolidatedRegulationsPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/oct-2026/1792669152772.pdf",
+          "amendmentNotifiedOn": "2026-10-12",
+          "gazetteHeaderDate": "2026-10-14",
+          "consolidatedRegulationsAmendedThrough": "2026-10-15",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "REIT_2026_AMENDMENT_REG_14_AND_22_EXCLUDED_FOR_SM_REIT_BY_REG_26G",
+          "categoryInterpretation": "The October 2026 general REIT amendment adds conditional depository-receipt issuance in regulation 14(12A) and revises regulation 22 voting and multiple-sponsor exit provisions. However, regulation 26G of the consolidated REIT regulations expressly excludes Chapter IV (containing regulation 14) and regulation 22 from SM REIT application. Do not advertise those general REIT permissions, voting thresholds or sponsor-buyout rights as available to an SM REIT investor. Check Chapter VIB, the actual final KIS/KIT, listing and scheme documents separately.",
+          "regulation26GExcludesChapterIvAndRegulation22ForSmReits": true,
+          "october2026Regulation14DepositoryReceiptProvisionIsInExcludedChapterIv": true,
+          "october2026Regulation22VotingAndSponsorExitRulesExcludedFromSmReits": true,
+          "generalReitDepositoryReceiptsNotSmReitUnitAccessEvidence": true,
+          "generalReitSponsorBuyoutNotSmReitLiquidityGuarantee": true,
+          "actualSmReitSchemeChapterVibRightsVerified": false,
+          "actualSchemeDepositoryReceiptOrSponsorExitVerified": false,
+          "actualFinalKisKitAndListingVerified": false,
+          "individualDematKycAndLotEligibilityVerified": false,
+          "actualSecondaryMarketQuoteAndDepthVerified": false,
+          "commercialDataRightsAndAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "The 2026 general REIT depository-receipt provision cannot be used to infer an SM REIT exit route; the underlying scheme's unit trading depth and price remain unverified.",
+            "General REIT sponsor-exit voting and buyout provisions excluded by regulation 26G cannot be treated as a liquidity backstop for SM REIT investors."
+          ],
+          "investorAccessConstraints": [
+            "Read regulation 26G and Chapter VIB for the actual SM REIT scheme; do not import regulation 14(12A) or regulation 22 rights from the general REIT chapter.",
+            "Verify the specific scheme's final KIS/KIT, issue/lot size, listing, ISIN, demat/KYC eligibility, unit quote, fees and legally authorized market data/advice before considering access."
+          ]
         }
       }
     },

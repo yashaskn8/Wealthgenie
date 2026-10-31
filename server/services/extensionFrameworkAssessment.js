@@ -837,6 +837,34 @@ if(!smReitEvidence
    &&row.individualCategoryReview?.smReitTrustAndDraft2026Review!==undefined))
  throw new Error('FINANCIAL_SM_REIT_2026_TRUST_DRAFT_SCHEME_EVIDENCE_INVALID');
 
+// Regulation 26G excludes Chapter IV and regulation 22 from SM REITs.
+// General REIT depository-receipt and sponsor-exit amendments are NOT SM REIT rights.
+const smReitAmendment=smReitResearch.individualCategoryReview.october2026ReitAmendmentApplicabilityReview;
+if(!smReitAmendment
+ ||smReitAmendment.officialSebiSecondAmendmentPdfUrl!=='https://www.sebi.gov.in/sebi_data/attachdocs/oct-2026/1792391350899.pdf'
+ ||smReitAmendment.officialSebiConsolidatedRegulationsPdfUrl!=='https://www.sebi.gov.in/sebi_data/attachdocs/oct-2026/1792669152772.pdf'
+ ||smReitAmendment.reviewedOn!=='2026-11-01'
+ ||smReitAmendment.sourceScope!=='REIT_2026_AMENDMENT_REG_14_AND_22_EXCLUDED_FOR_SM_REIT_BY_REG_26G'
+ ||smReitAmendment.amendmentNotifiedOn!=='2026-10-12'
+ ||smReitAmendment.gazetteHeaderDate!=='2026-10-14'
+ ||smReitAmendment.consolidatedRegulationsAmendedThrough!=='2026-10-15'
+ ||typeof smReitAmendment.categoryInterpretation!=='string'
+ ||smReitAmendment.categoryInterpretation.length<200
+ ||['regulation26GExcludesChapterIvAndRegulation22ForSmReits',
+   'october2026Regulation14DepositoryReceiptProvisionIsInExcludedChapterIv',
+   'october2026Regulation22VotingAndSponsorExitRulesExcludedFromSmReits',
+   'generalReitDepositoryReceiptsNotSmReitUnitAccessEvidence',
+   'generalReitSponsorBuyoutNotSmReitLiquidityGuarantee'].some(key=>smReitAmendment[key]!==true)
+ ||['actualSmReitSchemeChapterVibRightsVerified','actualSchemeDepositoryReceiptOrSponsorExitVerified',
+   'actualFinalKisKitAndListingVerified','individualDematKycAndLotEligibilityVerified',
+   'actualSecondaryMarketQuoteAndDepthVerified','commercialDataRightsAndAdviceAuthorizationVerified']
+   .some(key=>smReitAmendment[key]!==false)
+ ||!Array.isArray(smReitAmendment.riskConsiderations)||smReitAmendment.riskConsiderations.length<2
+ ||!Array.isArray(smReitAmendment.investorAccessConstraints)||smReitAmendment.investorAccessConstraints.length<2
+ ||research.entries.some(row=>row.id!=='catalog_2026_sm_reit_scheme'
+   &&row.individualCategoryReview?.october2026ReitAmendmentApplicabilityReview!==undefined))
+ throw new Error('FINANCIAL_SM_REIT_2026_GENERAL_REIT_AMENDMENT_SCOPE_INVALID');
+
 const trustee2026Source='https://www.sebi.gov.in/sebi_data/attachdocs/sep-2026/1790593347737.pdf';
 const trustee2026Specs=Object.freeze({
  'catalog_2026_ncd_secured':['SECURED_LISTED_NCD','CHAPTER_II_2_1_AND_CHAPTER_V_1_1_2_1',true,false],
@@ -2426,6 +2454,7 @@ export function screenExtensionResearchForProfile(profileInput) {
      reasons.push('SM_REIT_OCTOBER_2026_REGULATIONS_NOT_A_REGISTERED_SCHEME_OR_UNIT_QUOTE');
      reasons.push('SM_REIT_OCT_2026_TRUST_REGISTRATION_NOT_A_VERIFIED_LISTED_SCHEME');
      reasons.push('SM_REIT_OCT_2026_DRAFT_FILINGS_NOT_FINAL_OFFER_OR_RETAIL_ACCESS');
+     reasons.push('SM_REIT_REG_26G_EXCLUDES_GENERAL_REIT_DEPOSITORY_RECEIPT_AND_SPONSOR_EXIT_RIGHTS');
      // The profile's stated emergency-fund goal warrants a liquidity notice;
      // it cannot establish eligibility or a personal risk score.
      if(profile.investmentGoals.includes('Emergency Fund'))
@@ -2434,6 +2463,8 @@ export function screenExtensionResearchForProfile(profileInput) {
        reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_SM_REIT_SECONDARY_LIQUIDITY_REVIEW');
      if(Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
        reasons.push('SHORT_HORIZON_REQUIRES_SM_REIT_LISTING_DEPTH_AND_SETTLEMENT_REVIEW');
+     if(Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
+       reasons.push('SHORT_HORIZON_REQUIRES_SM_REIT_CHAPTER_VIB_EXIT_NOT_GENERAL_REIT_SPONSOR_BUYOUT');
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_SM_REIT_PROPERTY_CONCENTRATION_AND_PRICE_LOSS_REVIEW');
    }

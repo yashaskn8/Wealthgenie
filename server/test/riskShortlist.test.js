@@ -3468,3 +3468,36 @@ test('SEBI March 2026 debt FoF and G-Sec ETF rules do not imply current NAV, acc
  assert.equal(clean.actualExchangeOrderbookAndNavVerified,false);
  assert.ok(!clean.riskConsiderations.includes('FAKE LIQUIDITY'));
 });
+
+test('October 2026 general REIT amendments do not create SM REIT unit or sponsor exit rights',()=>{
+ const id='catalog_2026_sm_reit_scheme';
+ const review=listExtensionResearch().find(x=>x.id===id)
+   .individualCategoryReview.october2026ReitAmendmentApplicabilityReview;
+ assert.equal(review.reviewedOn,'2026-11-01');
+ assert.equal(review.regulation26GExcludesChapterIvAndRegulation22ForSmReits,true);
+ assert.equal(review.october2026Regulation14DepositoryReceiptProvisionIsInExcludedChapterIv,true);
+ assert.equal(review.october2026Regulation22VotingAndSponsorExitRulesExcludedFromSmReits,true);
+ assert.equal(review.actualSmReitSchemeChapterVibRightsVerified,false);
+ assert.equal(review.actualFinalKisKitAndListingVerified,false);
+ assert.equal(review.actualSecondaryMarketQuoteAndDepthVerified,false);
+ const base=screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:10,investmentGoals:['Wealth Growth'],
+  emergencyFundMonths:null,riskTolerance:'Aggressive'
+ })).find(x=>x.id===id);
+ const short=screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:2,investmentGoals:['Emergency Fund'],
+  emergencyFundMonths:0,riskTolerance:'Conservative'
+ })).find(x=>x.id===id);
+ const general='SM_REIT_REG_26G_EXCLUDES_GENERAL_REIT_DEPOSITORY_RECEIPT_AND_SPONSOR_EXIT_RIGHTS';
+ const conditional='SHORT_HORIZON_REQUIRES_SM_REIT_CHAPTER_VIB_EXIT_NOT_GENERAL_REIT_SPONSOR_BUYOUT';
+ for(const item of [base,short]){
+  assert.equal(item.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+  assert.equal(item.productQualified,false);
+  assert.equal(item.scoreAvailable,false);
+  assert.ok(item.screeningReasonCodes.includes(general));
+ }
+ assert.ok(!base.screeningReasonCodes.includes(conditional));
+ assert.ok(short.screeningReasonCodes.includes(conditional));
+ assert.ok(short.screeningReasonCodes.includes('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_SM_REIT_SECONDARY_LIQUIDITY_REVIEW'));
+ assert.ok(!base.screeningReasonCodes.includes('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_SM_REIT_SECONDARY_LIQUIDITY_REVIEW'));
+});

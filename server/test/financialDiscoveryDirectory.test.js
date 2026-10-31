@@ -1666,3 +1666,24 @@ test('SEBI debt FoF expense and G-Sec debt ETF conditional exit research remain 
   assert.ok(!clean.investorAccessConstraints.includes('FORGED RETAIL ACCESS'));
  }
 });
+
+test('SM REIT regulation 26G exclusions are separate from actual listed unit qualifications',()=>{
+ const get=()=>listFinancialDiscoveryDirectory().items.find(x=>x.id==='catalog_2026_sm_reit_scheme');
+ const item=get();
+ const e=item.frameworkResearch.individualCategoryReview.october2026ReitAmendmentApplicabilityReview;
+ assert.equal(e.officialSebiSecondAmendmentPdfUrl,'https://www.sebi.gov.in/sebi_data/attachdocs/oct-2026/1792391350899.pdf');
+ assert.equal(e.officialSebiConsolidatedRegulationsPdfUrl,'https://www.sebi.gov.in/sebi_data/attachdocs/oct-2026/1792669152772.pdf');
+ assert.equal(e.regulation26GExcludesChapterIvAndRegulation22ForSmReits,true);
+ assert.equal(e.generalReitSponsorBuyoutNotSmReitLiquidityGuarantee,true);
+ assert.equal(e.actualFinalKisKitAndListingVerified,false);
+ assert.equal(e.commercialDataRightsAndAdviceAuthorizationVerified,false);
+ assert.equal(item.recommendationEligible,false);
+ assert.equal(item.productAvailability,'NOT_VERIFIED');
+ assert.equal(item.dataRights,'NOT_VERIFIED');
+ assert.ok(Object.values(item.productData).every(value=>value===null));
+ e.actualFinalKisKitAndListingVerified=true;
+ e.investorAccessConstraints.push('FORGED APPROVAL');
+ const clean=get().frameworkResearch.individualCategoryReview.october2026ReitAmendmentApplicabilityReview;
+ assert.equal(clean.actualFinalKisKitAndListingVerified,false);
+ assert.ok(!clean.investorAccessConstraints.includes('FORGED APPROVAL'));
+});
