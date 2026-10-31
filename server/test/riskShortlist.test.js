@@ -3272,3 +3272,51 @@ test('October 2026 SEBI AIF SME, social and infrastructure rules remain source-s
  const fresh=get(listExtensionResearch(),'aif1_social').aifCategoryAccessReview.october2026SubcategoryAllocationReview;
  assert.equal(fresh.actualSchemeRiskAndCurrentNavVerified,false);assert.ok(!fresh.riskConsiderations.includes('FORGED RISK'));
 });
+
+test('August 2026 SEBI OBPP platform permissions do not authorize three distinct bond archetypes',()=>{
+ const ids=['ncd_unlisted','municipal_green','gsec_floating'];
+ const keys=['debtInstrumentReview','individualCategoryReview','governmentBondStructureReview'];
+ const scopes=['UNLISTED_NCD_NOT_GENERAL_OBPP_LISTED_OR_PUBLIC_PROPOSED_CLASS',
+  'MUNICIPAL_DEBT_LISTED_OR_PUBLIC_PROPOSED_ROUTE_NOT_GREEN_APPROVAL',
+  'LISTED_GOVERNMENT_SECURITIES_NOT_ALL_FLOATING_RATE_ISSUES_OR_LIVE_PRICES'];
+ const categoryCodes=['OBPP_UNLISTED_NCD_NOT_GENERAL_LISTED_DEBT_OR_PUBLIC_OFFER_ACCESS',
+  'OBPP_MUNICIPAL_LISTED_OR_PUBLIC_PROPOSED_ROUTE_NOT_GREEN_CERTIFICATION',
+  'OBPP_LISTED_GSEC_SCOPE_NOT_A_VERIFIED_FLOATING_SECURITY_OR_QUOTE'];
+ const base=screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Retirement'],riskTolerance:'Moderate',emergencyFundMonths:null,investmentHorizonYears:10}));
+ const flagged=screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Emergency Fund'],riskTolerance:'Conservative',emergencyFundMonths:0,investmentHorizonYears:2}));
+ const get=(rows,id)=>rows.find(x=>x.id==='catalog_2026_'+id);
+ for(let i=0;i<ids.length;i++){
+  const row=get(listExtensionResearch(),ids[i]),e=row[keys[i]].obppAugust2026AccessReview;
+  assert.equal(e.officialSebiCircularUrl,
+   'https://www.sebi.gov.in/legal/circulars/aug-2026/modification-in-the-regulatory-framework-for-online-bond-platform-providers-obpps-including-measures-for-promoting-ease-of-doing-business_103647.html');
+  assert.equal(e.circularIssuedOn,'2026-08-14');assert.equal(e.effectiveFrom,'2026-08-14');
+  assert.equal(e.reviewedOn,'2026-11-01');assert.equal(e.categoryApplicability,scopes[i]);
+  assert.ok(e.categoryInterpretation.length>100);
+  assert.ok(e.riskConsiderations.length>=2&&e.investorAccessConstraints.length>=2);
+  for(const k of ['actualObppRegistrationVerified','actualIssuerIsinAndOfferRouteVerified',
+   'individualKycAndRetailAccessVerified','currentIssuerTermsAndRiskVerified',
+   'liveExecutablePriceAndLicensedDataRightsVerified','personalizedAdviceAuthorizationVerified',
+   'platformPermissionGuaranteesProductListingOrRetailAccess'])assert.equal(e[k],false);
+  for(const rows of [base,flagged]){
+   const assessed=get(rows,ids[i]);
+   assert.ok(assessed.screeningReasonCodes.includes(
+    'SEBI_AUG_2026_OBPP_PRODUCT_CLASS_NOT_VERIFIED_ISSUER_OR_RETAIL_OFFER'));
+   assert.ok(assessed.screeningReasonCodes.includes(categoryCodes[i]));
+   assert.equal(assessed.productQualified,false);assert.equal(assessed.scoreAvailable,false);
+   assert.equal(assessed.productRiskLevel,null);
+  }
+  for(const code of ['EMERGENCY_FUND_GOAL_REQUIRES_OBPP_SECURITY_EXIT_AND_SETTLEMENT_REVIEW',
+   'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_OBPP_EXIT_LIQUIDITY_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_OBPP_SECURITY_PRICE_AND_LIQUIDITY_REVIEW']){
+   assert.ok(get(flagged,ids[i]).screeningReasonCodes.includes(code));
+   assert.ok(!get(base,ids[i]).screeningReasonCodes.includes(code));
+  }
+  e.actualObppRegistrationVerified=true;e.investorAccessConstraints.push('FORGED PLATFORM ACCESS');
+  const clean=get(listExtensionResearch(),ids[i])[keys[i]].obppAugust2026AccessReview;
+  assert.equal(clean.actualObppRegistrationVerified,false);
+  assert.ok(!clean.investorAccessConstraints.includes('FORGED PLATFORM ACCESS'));
+ }
+ assert.equal(new Set(scopes).size,3);
+});

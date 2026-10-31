@@ -261,6 +261,35 @@ function validMunicipalGreenDisclosure2026Review(row){
   &&Array.isArray(e.riskConsiderations)&&e.riskConsiderations.length>=2
   &&Array.isArray(e.investorAccessConstraints)&&e.investorAccessConstraints.length>=2;
 }
+
+const obppAug2026Url='https://www.sebi.gov.in/legal/circulars/aug-2026/modification-in-the-regulatory-framework-for-online-bond-platform-providers-obpps-including-measures-for-promoting-ease-of-doing-business_103647.html';
+const obppAug2026Scopes=Object.freeze({
+ 'catalog_2026_ncd_unlisted':['debtInstrumentReview','UNLISTED_NCD_NOT_GENERAL_OBPP_LISTED_OR_PUBLIC_PROPOSED_CLASS'],
+ 'catalog_2026_municipal_green':['individualCategoryReview','MUNICIPAL_DEBT_LISTED_OR_PUBLIC_PROPOSED_ROUTE_NOT_GREEN_APPROVAL'],
+ 'catalog_2026_gsec_floating':['governmentBondStructureReview','LISTED_GOVERNMENT_SECURITIES_NOT_ALL_FLOATING_RATE_ISSUES_OR_LIVE_PRICES'],
+});
+if(research.entries.filter(row=>Object.values(obppAug2026Scopes)
+ .some(([key])=>row[key]?.obppAugust2026AccessReview)).length!==3
+ ||Object.entries(obppAug2026Scopes).some(([id,[key,scope]])=>{
+   const row=research.entries.find(item=>item.id===id);
+   const e=row?.[key]?.obppAugust2026AccessReview;
+   return !e||e.officialSebiCircularUrl!==obppAug2026Url
+    ||e.circularIssuedOn!=='2026-08-14'||e.effectiveFrom!=='2026-08-14'
+    ||e.reviewedOn!=='2026-11-01'
+    ||e.sourceScope!=='SEBI_OBPP_PERMITTED_PLATFORM_PRODUCT_CLASSES_NOT_ISSUER_OR_RETAIL_PRODUCT_APPROVAL'
+    ||e.categoryApplicability!==scope
+    ||typeof e.categoryInterpretation!=='string'||e.categoryInterpretation.length<100
+    ||['listedDebtAndPublicProposedDebtInPermittedClasses','listedGovernmentSecuritiesInPermittedClasses',
+      'otherRegulatorProductsRemainSubjectToOwnRules','section54ecTaxSpecificPlatformPermissionIsNotGenericTaxExemption']
+      .some(field=>e[field]!==true)
+    ||['actualObppRegistrationVerified','actualIssuerIsinAndOfferRouteVerified',
+      'individualKycAndRetailAccessVerified','currentIssuerTermsAndRiskVerified',
+      'liveExecutablePriceAndLicensedDataRightsVerified','personalizedAdviceAuthorizationVerified',
+      'platformPermissionGuaranteesProductListingOrRetailAccess'].some(field=>e[field]!==false)
+    ||!Array.isArray(e.riskConsiderations)||e.riskConsiderations.length<2
+    ||!Array.isArray(e.investorAccessConstraints)||e.investorAccessConstraints.length<2;
+ }))throw new Error('FINANCIAL_OBPP_AUG_2026_PLATFORM_SCOPE_EVIDENCE_INVALID');
+
 const categoryRiskAccessReviewKeys=Object.freeze([
  'postalSavingsAccessReview','rbiRetailDirectAccessReview','sgsStripsAccessReview',
  'governmentBondStructureReview','bankDepositAccessReview','nbfcPublicDepositAccessReview',
@@ -2212,6 +2241,23 @@ export function screenExtensionResearchForProfile(profileInput) {
        reasons.push('EMERGENCY_FUND_REQUIRES_PRIVATE_DEBT_ISSUE_EXIT_LIQUIDITY_REVIEW');
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_DEBT_ISSUER_DEFAULT_SECURITY_AND_RATING_REVIEW');
+   }
+
+   if(obppAug2026Scopes[row.id]){
+     // OBPP permissions are platform/product-class rules, not an approved
+     // issuer, retail invitation, executable quote, or advice authorization.
+     reasons.push('SEBI_AUG_2026_OBPP_PRODUCT_CLASS_NOT_VERIFIED_ISSUER_OR_RETAIL_OFFER');
+     reasons.push({
+       catalog_2026_ncd_unlisted:'OBPP_UNLISTED_NCD_NOT_GENERAL_LISTED_DEBT_OR_PUBLIC_OFFER_ACCESS',
+       catalog_2026_municipal_green:'OBPP_MUNICIPAL_LISTED_OR_PUBLIC_PROPOSED_ROUTE_NOT_GREEN_CERTIFICATION',
+       catalog_2026_gsec_floating:'OBPP_LISTED_GSEC_SCOPE_NOT_A_VERIFIED_FLOATING_SECURITY_OR_QUOTE',
+     }[row.id]);
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_OBPP_SECURITY_EXIT_AND_SETTLEMENT_REVIEW');
+     if(profile.emergencyFundMonths===0)
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_OBPP_EXIT_LIQUIDITY_REVIEW');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_OBPP_SECURITY_PRICE_AND_LIQUIDITY_REVIEW');
    }
    if(row.id==='catalog_2026_municipal_green'){
      reasons.push('MUNICIPAL_GREEN_BOND_JULY_2026_ISSUE_DISCLOSURES_AND_GREEN_CLAIMS_REVIEW');

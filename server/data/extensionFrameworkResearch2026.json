@@ -1059,6 +1059,34 @@
             "The RBI primer explains floating-rate government-security mechanics; the October 2026 FRB 2034 announcement is issue-specific, and its full text was not directly reviewed here.",
             "Verify the actual ISIN, governing auction or security terms, current coupon period, Retail Direct account/KYC and trading permissions, licensed price feed and advice authorization before any individual offer."
           ]
+        },
+        "obppAugust2026AccessReview": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/aug-2026/modification-in-the-regulatory-framework-for-online-bond-platform-providers-obpps-including-measures-for-promoting-ease-of-doing-business_103647.html",
+          "circularIssuedOn": "2026-08-14",
+          "effectiveFrom": "2026-08-14",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "SEBI_OBPP_PERMITTED_PLATFORM_PRODUCT_CLASSES_NOT_ISSUER_OR_RETAIL_PRODUCT_APPROVAL",
+          "categoryApplicability": "LISTED_GOVERNMENT_SECURITIES_NOT_ALL_FLOATING_RATE_ISSUES_OR_LIVE_PRICES",
+          "categoryInterpretation": "SEBI's OBPP clause 5.2 includes listed Government Securities, SDLs and Treasury Bills. That platform permission does not verify that a specific floating-rate G-Sec is listed, offered on a particular OBPP, accessible to this investor or priced at an executable quote.",
+          "listedDebtAndPublicProposedDebtInPermittedClasses": true,
+          "listedGovernmentSecuritiesInPermittedClasses": true,
+          "otherRegulatorProductsRemainSubjectToOwnRules": true,
+          "section54ecTaxSpecificPlatformPermissionIsNotGenericTaxExemption": true,
+          "actualObppRegistrationVerified": false,
+          "actualIssuerIsinAndOfferRouteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "currentIssuerTermsAndRiskVerified": false,
+          "liveExecutablePriceAndLicensedDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "platformPermissionGuaranteesProductListingOrRetailAccess": false,
+          "riskConsiderations": [
+            "Coupon-reset terms and interest-rate movements can change holding-period return and resale value despite sovereign issuance.",
+            "A listed-security category does not guarantee a buyer, settlement timing, depth or current authorized exchange price."
+          ],
+          "investorAccessConstraints": [
+            "Verify exact RBI-issued floating-rate security, ISIN, benchmark and spread, coupon reset, maturity and actual listed trading route; OBPP permission is not a Retail Direct or primary-auction eligibility decision.",
+            "Confirm registered platform, applicable investor onboarding/demat/KYC, bid/ask depth, settlement, lawful licensed price display and advice authorization before suggesting an executable purchase."
+          ]
         }
       }
     },
@@ -5800,6 +5828,34 @@
             "Verify the current issuer-specific credit, security, denomination, maturity, custody, valuation and lawful resale channel before suggesting a purchase.",
             "SEBI's January 2026 non-convertible listing regulations and its historical caution do not themselves grant unlisted retail access, live prices, commercial redistribution rights or advice authorization."
           ]
+        },
+        "obppAugust2026AccessReview": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/aug-2026/modification-in-the-regulatory-framework-for-online-bond-platform-providers-obpps-including-measures-for-promoting-ease-of-doing-business_103647.html",
+          "circularIssuedOn": "2026-08-14",
+          "effectiveFrom": "2026-08-14",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "SEBI_OBPP_PERMITTED_PLATFORM_PRODUCT_CLASSES_NOT_ISSUER_OR_RETAIL_PRODUCT_APPROVAL",
+          "categoryApplicability": "UNLISTED_NCD_NOT_GENERAL_OBPP_LISTED_OR_PUBLIC_PROPOSED_CLASS",
+          "categoryInterpretation": "An unlisted NCD archetype does not satisfy the listed-debt or proposed-to-be-listed-through-public-offer categories merely because an online bond platform exists. Verify any separately applicable regulator-authorized route rather than treating an OBPP screen as a lawful retail invitation.",
+          "listedDebtAndPublicProposedDebtInPermittedClasses": true,
+          "listedGovernmentSecuritiesInPermittedClasses": true,
+          "otherRegulatorProductsRemainSubjectToOwnRules": true,
+          "section54ecTaxSpecificPlatformPermissionIsNotGenericTaxExemption": true,
+          "actualObppRegistrationVerified": false,
+          "actualIssuerIsinAndOfferRouteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "currentIssuerTermsAndRiskVerified": false,
+          "liveExecutablePriceAndLicensedDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "platformPermissionGuaranteesProductListingOrRetailAccess": false,
+          "riskConsiderations": [
+            "No established exchange listing or exit counterparty; an OBPP category permission does not create a market or remove issuer default risk.",
+            "Unverified private-placement invitations, transfer conditions and issuer credit terms can prevent lawful or timely acquisition and resale."
+          ],
+          "investorAccessConstraints": [
+            "SEBI August 14 2026 OBPP clause 5.2 permits listed debt and specified debt proposed for listing through public offer; it does not confer a general unlisted NCD retail offering.",
+            "Verify actual registered OBPP, issuer, ISIN, legal placement route, identified offeree and transfer restrictions, KYC, licensed current quotes, issuer credit terms and advice authorization before any access claim."
+          ]
         }
       }
     },
@@ -6886,6 +6942,34 @@
               "For a qualifying pooled-finance SPV, verify constituent municipal accounts, pooled interest/sinking-fund arrangements, actual enhancements and issuer financial disclosures; no such structure is established for this archetype."
             ]
           }
+        },
+        "obppAugust2026AccessReview": {
+          "officialSebiCircularUrl": "https://www.sebi.gov.in/legal/circulars/aug-2026/modification-in-the-regulatory-framework-for-online-bond-platform-providers-obpps-including-measures-for-promoting-ease-of-doing-business_103647.html",
+          "circularIssuedOn": "2026-08-14",
+          "effectiveFrom": "2026-08-14",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "SEBI_OBPP_PERMITTED_PLATFORM_PRODUCT_CLASSES_NOT_ISSUER_OR_RETAIL_PRODUCT_APPROVAL",
+          "categoryApplicability": "MUNICIPAL_DEBT_LISTED_OR_PUBLIC_PROPOSED_ROUTE_NOT_GREEN_APPROVAL",
+          "categoryInterpretation": "SEBI's OBPP clause 5.2 includes listed municipal debt and municipal debt proposed to be listed through a public offering. This platform-product category does not certify a particular municipal bond as green, validate the issuer's repayment capacity, or approve a private-placement buyer.",
+          "listedDebtAndPublicProposedDebtInPermittedClasses": true,
+          "listedGovernmentSecuritiesInPermittedClasses": true,
+          "otherRegulatorProductsRemainSubjectToOwnRules": true,
+          "section54ecTaxSpecificPlatformPermissionIsNotGenericTaxExemption": true,
+          "actualObppRegistrationVerified": false,
+          "actualIssuerIsinAndOfferRouteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "currentIssuerTermsAndRiskVerified": false,
+          "liveExecutablePriceAndLicensedDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "platformPermissionGuaranteesProductListingOrRetailAccess": false,
+          "riskConsiderations": [
+            "Municipal repayment, project and green-proceeds reporting risks persist regardless of OBPP platform display.",
+            "Even a listed municipal security may have thin order-book depth and a resale spread; no platform category assures settlement liquidity."
+          ],
+          "investorAccessConstraints": [
+            "Confirm actual municipal issue, green reviewer and proceeds disclosures, ISIN, public-versus-private offer route and listed/proposed-listing status before applying OBPP clause 5.2.",
+            "Verify actual registered platform, KYC/demat, denomination, trading lot, bid/ask, current credit terms, commercial redistribution rights, tax treatment and advice authorization; an OBPP category is not individual retail eligibility."
+          ]
         }
       }
     },

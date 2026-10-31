@@ -1579,3 +1579,29 @@ test('October 2026 AIF subcategory research remains unpriced and defensively cop
  }
  assert.equal(codes.size,3);
 });
+
+test('August 2026 OBPP research stays educational, unpriced and deep-copied for three distinct debt routes',()=>{
+ const specs=[['ncd_unlisted','debtInstrumentReview'],
+  ['municipal_green','individualCategoryReview'],
+  ['gsec_floating','governmentBondStructureReview']];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(row=>row.id==='catalog_2026_'+id);
+ const scopes=new Set();
+ for(const [id,key] of specs){
+  const item=get(id),e=item.frameworkResearch[key].obppAugust2026AccessReview;
+  scopes.add(e.categoryApplicability);
+  assert.equal(e.effectiveFrom,'2026-08-14');
+  assert.equal(e.platformPermissionGuaranteesProductListingOrRetailAccess,false);
+  assert.equal(e.actualObppRegistrationVerified,false);
+  assert.equal(e.individualKycAndRetailAccessVerified,false);
+  assert.equal(e.liveExecutablePriceAndLicensedDataRightsVerified,false);
+  assert.equal(e.personalizedAdviceAuthorizationVerified,false);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.ok(Object.values(item.productData).every(value=>value===null));
+  e.actualObppRegistrationVerified=true;e.riskConsiderations.push('FAKE APPROVAL');
+  const fresh=get(id).frameworkResearch[key].obppAugust2026AccessReview;
+  assert.equal(fresh.actualObppRegistrationVerified,false);
+  assert.ok(!fresh.riskConsiderations.includes('FAKE APPROVAL'));
+ }
+ assert.equal(scopes.size,3);
+});
