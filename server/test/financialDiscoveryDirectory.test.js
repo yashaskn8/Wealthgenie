@@ -1629,3 +1629,22 @@ test('three SEBI debt PRC swing reviews remain unpriced, unqualified and defensi
   assert.ok(!clean.investorAccessConstraints.includes('FORGED ACCESS'));
  }
 });
+
+test('four passive debt index research profiles remain discovery-only and defensively copied',()=>{
+ const ids=['target_maturity_gsec_index','target_maturity_sdl_index','target_maturity_psu_index','constant_maturity_debt_index'];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id==='catalog_2026_'+id);
+ for(const [i,id] of ids.entries()){
+  const row=get(id),v=row.frameworkResearch.sebiDebtSchemeStructureReview.sebiMarch2026DebtPassiveReplicationReview;
+  assert.equal(v.sourceScope,'SEBI_PASSIVE_DEBT_REPLICATION_AND_TRACKING_RULES_NOT_SCHEME_HOLDINGS_RISKOMETER_NAV_OR_RETAIL_ACCESS');
+  assert.equal(v.targetMaturityDateRequired,i!==3);
+  assert.equal(v.governmentConstantMaturityRuleOnlyIfGsecTbillSdl,i===3);
+  assert.equal(v.annualDebtTrackingDifferenceLimitPercent,1.25);
+  assert.equal(v.currentSchemeRiskometerVerified,false);assert.equal(v.currentNavAndTrackingDifferenceVerified,false);
+  assert.equal(v.investorKycAndRetailAccessVerified,false);assert.equal(v.licensedMarketDataAndAdviceAuthorizationVerified,false);
+  assert.equal(row.recommendationEligible,false);assert.equal(row.productAvailability,'NOT_VERIFIED');
+  assert.equal(row.dataRights,'NOT_VERIFIED');assert.ok(Object.values(row.productData).every(x=>x===null));
+  v.investorAccessConstraints.push('FORGED ACCESS');v.currentSchemeRiskometerVerified=true;
+  const clean=get(id).frameworkResearch.sebiDebtSchemeStructureReview.sebiMarch2026DebtPassiveReplicationReview;
+  assert.equal(clean.currentSchemeRiskometerVerified,false);assert.ok(!clean.investorAccessConstraints.includes('FORGED ACCESS'));
+ }
+});

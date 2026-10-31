@@ -320,6 +320,36 @@ if(research.entries.filter(row=>row.sebiDebtSchemeStructureReview?.sebiMarch2026
    ||["actualSchemePrcCellVerified","currentSchemeRiskometerVerified","currentNavAndSwingFactorVerified","currentSidAndRedemptionTermsVerified","investorKycAndRetailAccessVerified","commercialNavRightsVerified","personalizedAdviceAuthorizationVerified"].some(key=>v[key]!==false);
  }))throw new Error('FINANCIAL_SEBI_2026_DEBT_PRC_SWING_SOURCE_BOUNDARY_INVALID');
 
+// March 2026 SEBI MF Master Circular 4.4.5-4.4.8 and 4.5.4: no scheme-level approval.
+const passiveDebtReplicationSpecs=Object.freeze({
+ 'catalog_2026_target_maturity_gsec_index':['GSEC_TARGET_MATURITY','GSEC_TBILL_SDL_TARGET_DATE',true],
+ 'catalog_2026_target_maturity_sdl_index':['SDL_TARGET_MATURITY','GSEC_TBILL_SDL_TARGET_DATE',true],
+ 'catalog_2026_target_maturity_psu_index':['PSU_CORPORATE_TARGET_MATURITY','CORPORATE_DEBT_TARGET_DATE',true],
+ 'catalog_2026_constant_maturity_debt_index':['CONSTANT_MATURITY_DEBT_INDEX','CONSTANT_MATURITY_UNDERLYING_DEPENDENT',false],
+});
+if(research.entries.filter(row=>row.sebiDebtSchemeStructureReview?.sebiMarch2026DebtPassiveReplicationReview).length!==4
+ ||Object.entries(passiveDebtReplicationSpecs).some(([id,[kind,framework,target]])=>{
+  const row=research.entries.find(item=>item.id===id);
+  const v=row?.sebiDebtSchemeStructureReview?.sebiMarch2026DebtPassiveReplicationReview;
+  return !v||v.officialSebiMasterCircularPdfUrl!=='https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf'
+   ||v.masterCircularIssuedOn!=='2026-03-20'||v.reviewedOn!=='2026-11-01'
+   ||v.sourceScope!=='SEBI_PASSIVE_DEBT_REPLICATION_AND_TRACKING_RULES_NOT_SCHEME_HOLDINGS_RISKOMETER_NAV_OR_RETAIL_ACCESS'
+   ||v.schemeType!==kind||v.applicableDurationFramework!==framework
+   ||v.paragraphsReviewed?.length<3||v.categoryInterpretation?.length<100
+   ||v.minimumIndexSecuritiesExposurePercent!==95||v.prcCellMustMatchUnderlyingIndex!==true
+   ||v.annualDebtTrackingDifferenceLimitPercent!==1.25||v.targetMaturityDateRequired!==target
+   ||v.targetDurationDeviationIfMoreThanFiveYears!==(target?'GREATER_OF_SIX_MONTHS_OR_TEN_PERCENT':null)
+   ||v.targetDurationDeviationIfUpToFiveYears!==(target?'GREATER_OF_THREE_MONTHS_OR_TEN_PERCENT':null)
+   ||v.securitiesCannotMatureAfterTargetDate!==(target?true:null)
+   ||v.governmentConstantMaturityResidualRangeTolerancePercent!==(target?null:10)
+   ||v.governmentConstantMaturityRuleOnlyIfGsecTbillSdl!==!target
+   ||v.riskConsiderations?.length<2||v.investorAccessConstraints?.length<2
+   ||['actualSchemeAndIndexVerified','actualHoldingsDurationAndPrcCellVerified',
+      'currentSchemeRiskometerVerified','currentNavAndTrackingDifferenceVerified',
+      'currentSidKimAndRedemptionTermsVerified','investorKycAndRetailAccessVerified',
+      'licensedMarketDataAndAdviceAuthorizationVerified'].some(key=>v[key]!==false);
+ }))throw new Error('FINANCIAL_SEBI_2026_PASSIVE_DEBT_REPLICATION_SOURCE_BOUNDARY_INVALID');
+
 const categoryRiskAccessReviewKeys=Object.freeze([
  'postalSavingsAccessReview','rbiRetailDirectAccessReview','sgsStripsAccessReview',
  'governmentBondStructureReview','bankDepositAccessReview','nbfcPublicDepositAccessReview',
@@ -1610,6 +1640,20 @@ export function screenExtensionResearchForProfile(profileInput) {
        reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_DEBT_SCHEME_NAV_LIQUIDITY_REVIEW');
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_DEBT_DURATION_LOSS_CAPACITY_REVIEW');
+   }
+   if(row.sebiDebtSchemeStructureReview?.sebiMarch2026DebtPassiveReplicationReview){
+     const passive=row.sebiDebtSchemeStructureReview.sebiMarch2026DebtPassiveReplicationReview;
+     reasons.push('SEBI_MAR_2026_DEBT_PASSIVE_REPLICATION_AND_PRC_NOT_ACTUAL_SCHEME_RISKOMETER');
+     reasons.push(passive.targetMaturityDateRequired
+       ? 'TARGET_MATURITY_DEBT_INDEX_DATE_AND_HOLDINGS_NOT_VERIFIED'
+       : 'CONSTANT_MATURITY_DEBT_INDEX_ROLLING_DURATION_NOT_FIXED_REPAYMENT');
+     if(profile.investmentHorizonYears<=3
+       ||profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('SHORT_OR_EMERGENCY_GOAL_REQUIRES_PASSIVE_DEBT_NAV_AND_EXIT_REVIEW');
+     if(profile.emergencyFundMonths===0)
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_PASSIVE_DEBT_REDEMPTION_REVIEW');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_PASSIVE_DEBT_DURATION_AND_CREDIT_REVIEW');
    }
    if(row.nominalMaturityMonths!==null
      && row.nominalMaturityMonths>profile.investmentHorizonYears*12)

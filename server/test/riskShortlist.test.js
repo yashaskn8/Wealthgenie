@@ -3373,3 +3373,41 @@ test('March 2026 SEBI debt PRC and conditional swing pricing are not current sch
  assert.equal(clean.currentSchemeRiskometerVerified,false);
  assert.ok(!clean.riskConsiderations.includes('FORGED RISK'));
 });
+
+test('four SEBI passive-debt index archetypes preserve distinct target-date and rolling-duration rules',()=>{
+ const ids=['target_maturity_gsec_index','target_maturity_sdl_index','target_maturity_psu_index','constant_maturity_debt_index'];
+ const get=(rows,id)=>rows.find(x=>x.id==='catalog_2026_'+id);
+ const flagged=screenExtensionResearchForProfile(canonicalProfile({investmentHorizonYears:2,investmentGoals:['Emergency Fund'],emergencyFundMonths:0,riskTolerance:'Conservative'}));
+ const baseline=screenExtensionResearchForProfile(canonicalProfile({investmentHorizonYears:10,investmentGoals:['Wealth Growth'],emergencyFundMonths:null,riskTolerance:'Aggressive'}));
+ for(const [i,id] of ids.entries()){
+  const row=get(listExtensionResearch(),id),v=row.sebiDebtSchemeStructureReview.sebiMarch2026DebtPassiveReplicationReview;
+  assert.equal(v.officialSebiMasterCircularPdfUrl,'https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf');
+  assert.equal(v.masterCircularIssuedOn,'2026-03-20');
+  assert.equal(v.minimumIndexSecuritiesExposurePercent,95);
+  assert.equal(v.prcCellMustMatchUnderlyingIndex,true);
+  assert.equal(v.annualDebtTrackingDifferenceLimitPercent,1.25);
+  assert.equal(v.targetMaturityDateRequired,i!==3);
+  assert.equal(v.governmentConstantMaturityRuleOnlyIfGsecTbillSdl,i===3);
+  assert.equal(v.governmentConstantMaturityResidualRangeTolerancePercent,i===3?10:null);
+  assert.equal(v.securitiesCannotMatureAfterTargetDate,i===3?null:true);
+  assert.ok(v.categoryInterpretation.length>100&&v.riskConsiderations.length>=2&&v.investorAccessConstraints.length>=2);
+  assert.ok(['actualSchemeAndIndexVerified','actualHoldingsDurationAndPrcCellVerified','currentSchemeRiskometerVerified',
+   'currentNavAndTrackingDifferenceVerified','currentSidKimAndRedemptionTermsVerified','investorKycAndRetailAccessVerified',
+   'licensedMarketDataAndAdviceAuthorizationVerified'].every(k=>v[k]===false));
+  const a=get(flagged,id),b=get(baseline,id);
+  assert.ok(a.screeningReasonCodes.includes('SEBI_MAR_2026_DEBT_PASSIVE_REPLICATION_AND_PRC_NOT_ACTUAL_SCHEME_RISKOMETER'));
+  assert.ok(a.screeningReasonCodes.includes(i===3
+   ? 'CONSTANT_MATURITY_DEBT_INDEX_ROLLING_DURATION_NOT_FIXED_REPAYMENT'
+   : 'TARGET_MATURITY_DEBT_INDEX_DATE_AND_HOLDINGS_NOT_VERIFIED'));
+  for(const code of ['SHORT_OR_EMERGENCY_GOAL_REQUIRES_PASSIVE_DEBT_NAV_AND_EXIT_REVIEW',
+   'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_PASSIVE_DEBT_REDEMPTION_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_PASSIVE_DEBT_DURATION_AND_CREDIT_REVIEW']){
+   assert.ok(a.screeningReasonCodes.includes(code));assert.ok(!b.screeningReasonCodes.includes(code));
+  }
+  assert.equal(a.productQualified,false);assert.equal(a.scoreAvailable,false);assert.equal(a.productRiskLevel,null);
+ }
+ const tampered=get(listExtensionResearch(),'target_maturity_psu_index');
+ tampered.sebiDebtSchemeStructureReview.sebiMarch2026DebtPassiveReplicationReview.riskConsiderations.push('FORGED RISK');
+ assert.ok(!get(listExtensionResearch(),'target_maturity_psu_index')
+  .sebiDebtSchemeStructureReview.sebiMarch2026DebtPassiveReplicationReview.riskConsiderations.includes('FORGED RISK'));
+});

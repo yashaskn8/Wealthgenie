@@ -2055,6 +2055,45 @@
           "investorKycAndTransactionEligibilityVerified": false,
           "currentNavOrExchangeQuoteAndReuseRightsVerified": false,
           "personalizedAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026DebtPassiveReplicationReview": {
+          "officialSebiMasterCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularIssuedOn": "2026-03-20",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "SEBI_PASSIVE_DEBT_REPLICATION_AND_TRACKING_RULES_NOT_SCHEME_HOLDINGS_RISKOMETER_NAV_OR_RETAIL_ACCESS",
+          "schemeType": "GSEC_TARGET_MATURITY",
+          "applicableDurationFramework": "GSEC_TBILL_SDL_TARGET_DATE",
+          "paragraphsReviewed": [
+            "4.4.5(g)",
+            "4.4.6(b)",
+            "4.4.8",
+            "4.5.4"
+          ],
+          "minimumIndexSecuritiesExposurePercent": 95,
+          "prcCellMustMatchUnderlyingIndex": true,
+          "annualDebtTrackingDifferenceLimitPercent": 1.25,
+          "targetMaturityDateRequired": true,
+          "targetDurationDeviationIfMoreThanFiveYears": "GREATER_OF_SIX_MONTHS_OR_TEN_PERCENT",
+          "targetDurationDeviationIfUpToFiveYears": "GREATER_OF_THREE_MONTHS_OR_TEN_PERCENT",
+          "securitiesCannotMatureAfterTargetDate": true,
+          "governmentConstantMaturityResidualRangeTolerancePercent": null,
+          "governmentConstantMaturityRuleOnlyIfGsecTbillSdl": false,
+          "categoryInterpretation": "A G-Sec target-maturity index fund follows a named sovereign-debt benchmark and its maturity path. SEBI's duration tolerances do not verify a specific scheme, fixed redemption NAV, actual target date or investor return.",
+          "riskConsiderations": [
+            "Interest-rate changes before target maturity can lower NAV despite central-government underlying debt.",
+            "Benchmark concentration, index changes and tracking difference can affect early redemption proceeds."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual scheme, index, target date, SID/KIM, holdings, NAV and risk-o-meter.",
+            "Verify investor KYC, subscription and redemption rules, commercial data rights and advice authorization."
+          ],
+          "actualSchemeAndIndexVerified": false,
+          "actualHoldingsDurationAndPrcCellVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavAndTrackingDifferenceVerified": false,
+          "currentSidKimAndRedemptionTermsVerified": false,
+          "investorKycAndRetailAccessVerified": false,
+          "licensedMarketDataAndAdviceAuthorizationVerified": false
         }
       }
     },
@@ -2133,6 +2172,45 @@
           "investorKycAndTransactionEligibilityVerified": false,
           "currentNavOrExchangeQuoteAndReuseRightsVerified": false,
           "personalizedAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026DebtPassiveReplicationReview": {
+          "officialSebiMasterCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularIssuedOn": "2026-03-20",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "SEBI_PASSIVE_DEBT_REPLICATION_AND_TRACKING_RULES_NOT_SCHEME_HOLDINGS_RISKOMETER_NAV_OR_RETAIL_ACCESS",
+          "schemeType": "SDL_TARGET_MATURITY",
+          "applicableDurationFramework": "GSEC_TBILL_SDL_TARGET_DATE",
+          "paragraphsReviewed": [
+            "4.4.5(g)",
+            "4.4.6(b)",
+            "4.4.8",
+            "4.5.4"
+          ],
+          "minimumIndexSecuritiesExposurePercent": 95,
+          "prcCellMustMatchUnderlyingIndex": true,
+          "annualDebtTrackingDifferenceLimitPercent": 1.25,
+          "targetMaturityDateRequired": true,
+          "targetDurationDeviationIfMoreThanFiveYears": "GREATER_OF_SIX_MONTHS_OR_TEN_PERCENT",
+          "targetDurationDeviationIfUpToFiveYears": "GREATER_OF_THREE_MONTHS_OR_TEN_PERCENT",
+          "securitiesCannotMatureAfterTargetDate": true,
+          "governmentConstantMaturityResidualRangeTolerancePercent": null,
+          "governmentConstantMaturityRuleOnlyIfGsecTbillSdl": false,
+          "categoryInterpretation": "An SDL target-maturity index fund references state development loans, not a verified individual central-government bond or deposit. The dated replication framework does not verify state concentration, a named scheme's risk-o-meter or its redemption value.",
+          "riskConsiderations": [
+            "State-issuer concentration, interest-rate sensitivity and market liquidity can affect NAV before the target date.",
+            "Index changes and tracking difference may change returns; the category name is not a guaranteed maturity payout."
+          ],
+          "investorAccessConstraints": [
+            "Verify the named SDL index, issuer holdings, scheme, target date, SID/KIM and risk-o-meter.",
+            "Verify investor KYC, settlement, current NAV, authorized data rights and financial-advice permissions."
+          ],
+          "actualSchemeAndIndexVerified": false,
+          "actualHoldingsDurationAndPrcCellVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavAndTrackingDifferenceVerified": false,
+          "currentSidKimAndRedemptionTermsVerified": false,
+          "investorKycAndRetailAccessVerified": false,
+          "licensedMarketDataAndAdviceAuthorizationVerified": false
         }
       }
     },
@@ -2211,6 +2289,45 @@
           "investorKycAndTransactionEligibilityVerified": false,
           "currentNavOrExchangeQuoteAndReuseRightsVerified": false,
           "personalizedAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026DebtPassiveReplicationReview": {
+          "officialSebiMasterCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularIssuedOn": "2026-03-20",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "SEBI_PASSIVE_DEBT_REPLICATION_AND_TRACKING_RULES_NOT_SCHEME_HOLDINGS_RISKOMETER_NAV_OR_RETAIL_ACCESS",
+          "schemeType": "PSU_CORPORATE_TARGET_MATURITY",
+          "applicableDurationFramework": "CORPORATE_DEBT_TARGET_DATE",
+          "paragraphsReviewed": [
+            "4.4.5(f)",
+            "4.4.5(g)",
+            "4.4.8",
+            "4.5.4"
+          ],
+          "minimumIndexSecuritiesExposurePercent": 95,
+          "prcCellMustMatchUnderlyingIndex": true,
+          "annualDebtTrackingDifferenceLimitPercent": 1.25,
+          "targetMaturityDateRequired": true,
+          "targetDurationDeviationIfMoreThanFiveYears": "GREATER_OF_SIX_MONTHS_OR_TEN_PERCENT",
+          "targetDurationDeviationIfUpToFiveYears": "GREATER_OF_THREE_MONTHS_OR_TEN_PERCENT",
+          "securitiesCannotMatureAfterTargetDate": true,
+          "governmentConstantMaturityResidualRangeTolerancePercent": null,
+          "governmentConstantMaturityRuleOnlyIfGsecTbillSdl": false,
+          "categoryInterpretation": "A PSU-bond target-maturity index is a corporate-debt passive strategy, not automatically a sovereign-guaranteed government-security strategy. Public-sector ownership and a target date cannot establish issuer credit quality, a guaranteed return or a scheme-specific risk-o-meter.",
+          "riskConsiderations": [
+            "PSU issuers can suffer credit or spread deterioration even when publicly owned; no sovereign guarantee is inferred.",
+            "Issuer concentration, rating downgrades, duration deviations and tracking difference can reduce early redemption NAV."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual issuers, ISINs, ratings, scheme SID/KIM, benchmark and target date.",
+            "Verify current NAV, investor eligibility, exit conditions, licensed data and advice authorization."
+          ],
+          "actualSchemeAndIndexVerified": false,
+          "actualHoldingsDurationAndPrcCellVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavAndTrackingDifferenceVerified": false,
+          "currentSidKimAndRedemptionTermsVerified": false,
+          "investorKycAndRetailAccessVerified": false,
+          "licensedMarketDataAndAdviceAuthorizationVerified": false
         }
       }
     },
@@ -2289,6 +2406,44 @@
           "investorKycAndTransactionEligibilityVerified": false,
           "currentNavOrExchangeQuoteAndReuseRightsVerified": false,
           "personalizedAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026DebtPassiveReplicationReview": {
+          "officialSebiMasterCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularIssuedOn": "2026-03-20",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "SEBI_PASSIVE_DEBT_REPLICATION_AND_TRACKING_RULES_NOT_SCHEME_HOLDINGS_RISKOMETER_NAV_OR_RETAIL_ACCESS",
+          "schemeType": "CONSTANT_MATURITY_DEBT_INDEX",
+          "applicableDurationFramework": "CONSTANT_MATURITY_UNDERLYING_DEPENDENT",
+          "paragraphsReviewed": [
+            "4.4.6(c)",
+            "4.4.8",
+            "4.5.4"
+          ],
+          "minimumIndexSecuritiesExposurePercent": 95,
+          "prcCellMustMatchUnderlyingIndex": true,
+          "annualDebtTrackingDifferenceLimitPercent": 1.25,
+          "targetMaturityDateRequired": false,
+          "targetDurationDeviationIfMoreThanFiveYears": null,
+          "targetDurationDeviationIfUpToFiveYears": null,
+          "securitiesCannotMatureAfterTargetDate": null,
+          "governmentConstantMaturityResidualRangeTolerancePercent": 10,
+          "governmentConstantMaturityRuleOnlyIfGsecTbillSdl": true,
+          "categoryInterpretation": "A constant-maturity debt index rolls exposure rather than promising repayment on a fixed date. SEBI paragraph 4.4.6(c)'s residual-maturity range tolerance applies to G-Sec/T-bill/SDL-based indices, not automatically to corporate-debt or mixed indices.",
+          "riskConsiderations": [
+            "Rolling the benchmark can sustain duration and rate sensitivity instead of shortening it toward a fixed date.",
+            "Issuer mix, index rebalancing and tracking difference can change NAV; no maturity payout is promised."
+          ],
+          "investorAccessConstraints": [
+            "Verify the actual underlying index and whether G-Sec/T-bill/SDL or corporate-debt replication rules apply.",
+            "Verify named scheme, holdings, SID/KIM, risk-o-meter, NAV, KYC, redemption and commercial advice rights."
+          ],
+          "actualSchemeAndIndexVerified": false,
+          "actualHoldingsDurationAndPrcCellVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavAndTrackingDifferenceVerified": false,
+          "currentSidKimAndRedemptionTermsVerified": false,
+          "investorKycAndRetailAccessVerified": false,
+          "licensedMarketDataAndAdviceAuthorizationVerified": false
         }
       }
     },
