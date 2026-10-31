@@ -1401,3 +1401,21 @@ test('October 2026 SEBI issue-level CRA disclosure research stays discovery-only
   assert.ok(!fresh.riskConsiderations.includes('FAKE METER'));
  }
 });
+
+test('three bank FAQ details remain educational, unpriced and defensively copied',()=>{
+ for(const id of ['catalog_2026_bank_sweep_fd','catalog_2026_bank_fd_monthly','catalog_2026_bank_fd_quarterly']){
+  const get=()=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+  const item=get(),r=item.frameworkResearch.bankDepositAccessReview.rbiDepositInterest2025FaqDetailReview;
+  assert.equal(r.reviewedOn,'2026-10-31');
+  assert.equal(r.actualBankProductContractAndRateVerified,false);
+  assert.equal(r.commercialRateDataRightsVerified,false);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.ok(Object.values(item.productData).every(v=>v===null));
+  r.riskConsiderations.push('FAKE PAYOUT');r.actualBankProductContractAndRateVerified=true;
+  const fresh=get().frameworkResearch.bankDepositAccessReview.rbiDepositInterest2025FaqDetailReview;
+  assert.equal(fresh.actualBankProductContractAndRateVerified,false);
+  assert.ok(!fresh.riskConsiderations.includes('FAKE PAYOUT'));
+ }
+});

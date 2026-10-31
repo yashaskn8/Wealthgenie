@@ -2922,3 +2922,31 @@ test('SEBI October 2026 issue-level credit meter does not confer category rating
  assert.ok(!listExtensionResearch().find(x=>x.id===id).debtInstrumentReview
   .creditRiskometerOct2026Review.issueSpecificDisclosureAnnexureReview.riskConsiderations.includes('FABRICATED'));
 });
+
+test('three RBI 2025 bank FAQ category reviews preserve conditional emergency screening',()=>{
+ const ids=['catalog_2026_bank_sweep_fd','catalog_2026_bank_fd_monthly','catalog_2026_bank_fd_quarterly'];
+ const screen=changes=>screenExtensionResearchForProfile(canonicalProfile({investmentGoals:['Wealth Growth'],
+  investmentHorizonYears:10,emergencyFundMonths:null,riskTolerance:'Moderate',...changes}));
+ const ordinary=screen({}),emergency=screen({investmentGoals:['Emergency Fund']}),zero=screen({emergencyFundMonths:0});
+ for(const id of ids){
+  const row=listExtensionResearch().find(x=>x.id===id),r=row.bankDepositAccessReview.rbiDepositInterest2025FaqDetailReview;
+  assert.deepEqual(r.faqQuestionsReviewed,['Q2','Q6','Q10','Q12']);
+  assert.equal(r.unpaidMaturedDomesticTdUsesLowerOfSavingsOrContractedRate,true);
+  assert.equal(r.actualBankProductContractAndRateVerified,false);
+  assert.equal(r.individualKycAndEarlyAccessVerified,false);
+  for(const result of [ordinary,emergency,zero]){
+   const x=result.find(y=>y.id===id);
+   assert.equal(x.productQualified,false);assert.equal(x.scoreAvailable,false);assert.equal(x.productRiskLevel,null);
+   assert.ok(x.screeningReasonCodes.includes('RBI_2025_BANK_DEPOSIT_FAQ_NOT_ISSUER_SWEEP_PAYOUT_OR_RATE_APPROVAL'));
+  }
+  const ec='EMERGENCY_FUND_GOAL_REQUIRES_BANK_DEPOSIT_PARTIAL_BREAKAGE_POLICY_REVIEW';
+  const zc='RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_BANK_DEPOSIT_EXIT_POLICY_REVIEW';
+  assert.ok(emergency.find(x=>x.id===id).screeningReasonCodes.includes(ec));
+  assert.ok(!ordinary.find(x=>x.id===id).screeningReasonCodes.includes(ec));
+  assert.ok(zero.find(x=>x.id===id).screeningReasonCodes.includes(zc));
+  assert.ok(!ordinary.find(x=>x.id===id).screeningReasonCodes.includes(zc));
+  r.riskConsiderations.push('FORGED RATE');
+  assert.ok(!listExtensionResearch().find(x=>x.id===id).bankDepositAccessReview
+   .rbiDepositInterest2025FaqDetailReview.riskConsiderations.includes('FORGED RATE'));
+ }
+});

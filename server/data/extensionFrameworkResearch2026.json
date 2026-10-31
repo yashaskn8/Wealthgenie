@@ -1215,7 +1215,38 @@
         "investorAccessConstraints": [
           "RBI's 2025 FAQ leaves partial premature withdrawal procedures to bank-approved policy, not a universally verified sweep facility.",
           "Check linked account, sweep triggers, reverse-transfer order, penalties, bank insurance, aggregate balances, KYC, live rate and data rights."
-        ]
+        ],
+        "rbiDepositInterest2025FaqDetailReview": {
+          "officialRbiFaqPdfUrl": "https://www.rbi.org.in/commonman/Upload/English/FAQs/PDFs/FAQIRD01042025.pdf",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "RBI_2025_BANK_DEPOSIT_INTEREST_FAQ_Q2_Q6_Q10_Q12_NOT_ISSUER_PAYOUT_SWEEP_OR_RETAIL_APPROVAL",
+          "depositStructure": "SWEEP_LINKED_TERM_DEPOSIT",
+          "faqQuestionsReviewed": [
+            "Q2",
+            "Q6",
+            "Q10",
+            "Q12"
+          ],
+          "reinvestmentDefinitionDoesNotVerifyNoncumulativePayout": true,
+          "partialPrematureWithdrawalDependsOnBankBoardPolicy": true,
+          "unpaidMaturedDomesticTdUsesLowerOfSavingsOrContractedRate": true,
+          "prematureWithdrawalPenaltyComponentsMustBeDisclosedAtAcceptance": true,
+          "actualBankProductContractAndRateVerified": false,
+          "specificSweepOrPayoutAndPenaltyVerified": false,
+          "insuredBankAndAggregateCoverageVerified": false,
+          "individualKycAndEarlyAccessVerified": false,
+          "currentOverdueDepositStatusVerified": false,
+          "commercialRateDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Bank sweep and reverse-sweep may partially break deposits and recalculate interest; RBI FAQ Q6 does not guarantee immediate access.",
+            "Unpaid matured domestic term deposits have the RBI FAQ Q10 lower-of-savings-or-contracted rate rule, not assured compounding."
+          ],
+          "investorAccessConstraints": [
+            "Confirm the bank Board-approved partial-breakage policy, sweep trigger, settlement and penalty disclosure (FAQ Q6/Q12).",
+            "Verify linked account KYC, deposit maturity, insured bank, aggregated insurance exposure, rates and data permissions."
+          ]
+        }
       }
     },
     {
@@ -1267,7 +1298,38 @@
         "investorAccessConstraints": [
           "RBI's deposit framework distinguishes reinvestment and payouts without authenticating an actual monthly-payout issuer contract.",
           "Check insured bank, aggregate balances, KYC, payout calculation, maturity and early-exit terms, taxes, rate and licensed data rights."
-        ]
+        ],
+        "rbiDepositInterest2025FaqDetailReview": {
+          "officialRbiFaqPdfUrl": "https://www.rbi.org.in/commonman/Upload/English/FAQs/PDFs/FAQIRD01042025.pdf",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "RBI_2025_BANK_DEPOSIT_INTEREST_FAQ_Q2_Q6_Q10_Q12_NOT_ISSUER_PAYOUT_SWEEP_OR_RETAIL_APPROVAL",
+          "depositStructure": "NONCUMULATIVE_MONTHLY_PAYOUT",
+          "faqQuestionsReviewed": [
+            "Q2",
+            "Q6",
+            "Q10",
+            "Q12"
+          ],
+          "reinvestmentDefinitionDoesNotVerifyNoncumulativePayout": true,
+          "partialPrematureWithdrawalDependsOnBankBoardPolicy": true,
+          "unpaidMaturedDomesticTdUsesLowerOfSavingsOrContractedRate": true,
+          "prematureWithdrawalPenaltyComponentsMustBeDisclosedAtAcceptance": true,
+          "actualBankProductContractAndRateVerified": false,
+          "specificSweepOrPayoutAndPenaltyVerified": false,
+          "insuredBankAndAggregateCoverageVerified": false,
+          "individualKycAndEarlyAccessVerified": false,
+          "currentOverdueDepositStatusVerified": false,
+          "commercialRateDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "RBI FAQ Q2 defines reinvestment deposits, not an authenticated monthly payout rate or schedule.",
+            "FAQ Q12 allows Board-policy premature withdrawal penalties; FAQ Q10 governs interest on unpaid matured deposits."
+          ],
+          "investorAccessConstraints": [
+            "Confirm actual monthly payout computation, maturity and disclosed penalties; do not treat the FAQ as an issuer offer.",
+            "Check insured bank and aggregate balance, KYC, overdue interest, taxes, rates and commercial data rights."
+          ]
+        }
       }
     },
     {
@@ -1319,7 +1381,38 @@
         "investorAccessConstraints": [
           "RBI deposit-interest rules and DICGC's guide do not authenticate a specific quarterly payout contract, maturity, rate or depositor eligibility.",
           "Check bank insurance, same-capacity aggregate balances, KYC, quarterly payout rules, early withdrawal, taxes and licensed rate-data rights."
-        ]
+        ],
+        "rbiDepositInterest2025FaqDetailReview": {
+          "officialRbiFaqPdfUrl": "https://www.rbi.org.in/commonman/Upload/English/FAQs/PDFs/FAQIRD01042025.pdf",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "RBI_2025_BANK_DEPOSIT_INTEREST_FAQ_Q2_Q6_Q10_Q12_NOT_ISSUER_PAYOUT_SWEEP_OR_RETAIL_APPROVAL",
+          "depositStructure": "NONCUMULATIVE_QUARTERLY_PAYOUT",
+          "faqQuestionsReviewed": [
+            "Q2",
+            "Q6",
+            "Q10",
+            "Q12"
+          ],
+          "reinvestmentDefinitionDoesNotVerifyNoncumulativePayout": true,
+          "partialPrematureWithdrawalDependsOnBankBoardPolicy": true,
+          "unpaidMaturedDomesticTdUsesLowerOfSavingsOrContractedRate": true,
+          "prematureWithdrawalPenaltyComponentsMustBeDisclosedAtAcceptance": true,
+          "actualBankProductContractAndRateVerified": false,
+          "specificSweepOrPayoutAndPenaltyVerified": false,
+          "insuredBankAndAggregateCoverageVerified": false,
+          "individualKycAndEarlyAccessVerified": false,
+          "currentOverdueDepositStatusVerified": false,
+          "commercialRateDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "RBI FAQ Q2 does not establish any specific quarterly interest distribution or effective return.",
+            "Partial closure policy and penalties depend on the bank (FAQ Q6/Q12); FAQ Q10 governs unpaid maturity proceeds."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual quarterly cash-flow terms, maturity, Board-policy exit procedures and penalty disclosure.",
+            "Check insured bank, aggregated coverage, KYC, tax, overdue deposit treatment, live rate and licensed reuse."
+          ]
+        }
       }
     },
     {

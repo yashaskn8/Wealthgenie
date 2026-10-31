@@ -14,6 +14,28 @@ const nbfcEmergencyRbiMasterUrl='https://www.rbi.org.in/Scripts/BS_ViewMasDirect
 const bankDepositStructures=Object.freeze({"catalog_2026_bank_rd":"RECURRING_INSTALLMENT_DEPOSIT","catalog_2026_bank_tax_saver_fd":"FIVE_YEAR_TAX_SAVER_TERM_DEPOSIT","catalog_2026_bank_sweep_fd":"SWEEP_LINKED_TERM_DEPOSIT","catalog_2026_bank_fd_monthly":"NONCUMULATIVE_MONTHLY_PAYOUT","catalog_2026_bank_fd_quarterly":"NONCUMULATIVE_QUARTERLY_PAYOUT"});
 const bankDepositRbiFaqUrl="https://www.rbi.org.in/commonman/Upload/English/FAQs/PDFs/FAQIRD01042025.pdf";
 const bankDepositDicgcUrl="https://www.dicgc.org.in/guide-to-deposit-insurance";
+// RBI FAQ questions 2, 6, 10 and 12 establish bank policy boundaries, not issuer contracts.
+const bankFaq2025Details=Object.freeze({
+ 'catalog_2026_bank_sweep_fd':'SWEEP_LINKED_TERM_DEPOSIT',
+ 'catalog_2026_bank_fd_monthly':'NONCUMULATIVE_MONTHLY_PAYOUT',
+ 'catalog_2026_bank_fd_quarterly':'NONCUMULATIVE_QUARTERLY_PAYOUT',
+});
+if(research.entries.filter(row=>row.bankDepositAccessReview?.rbiDepositInterest2025FaqDetailReview).length!==3
+ ||Object.entries(bankFaq2025Details).some(([id,structure])=>{
+  const row=research.entries.find(item=>item.id===id);
+  const r=row?.bankDepositAccessReview?.rbiDepositInterest2025FaqDetailReview;
+  return !r||row.bankDepositAccessReview.depositStructure!==structure
+   ||r.depositStructure!==structure||r.officialRbiFaqPdfUrl!==bankDepositRbiFaqUrl
+   ||r.reviewedOn!=='2026-10-31'
+   ||r.sourceScope!=='RBI_2025_BANK_DEPOSIT_INTEREST_FAQ_Q2_Q6_Q10_Q12_NOT_ISSUER_PAYOUT_SWEEP_OR_RETAIL_APPROVAL'
+   ||JSON.stringify(r.faqQuestionsReviewed)!=='["Q2","Q6","Q10","Q12"]'
+   ||['reinvestmentDefinitionDoesNotVerifyNoncumulativePayout','partialPrematureWithdrawalDependsOnBankBoardPolicy',
+      'unpaidMaturedDomesticTdUsesLowerOfSavingsOrContractedRate','prematureWithdrawalPenaltyComponentsMustBeDisclosedAtAcceptance'].some(k=>r[k]!==true)
+   ||['actualBankProductContractAndRateVerified','specificSweepOrPayoutAndPenaltyVerified','insuredBankAndAggregateCoverageVerified',
+      'individualKycAndEarlyAccessVerified','currentOverdueDepositStatusVerified','commercialRateDataRightsVerified',
+      'personalizedAdviceAuthorizationVerified'].some(k=>r[k]!==false)
+   ||r.riskConsiderations?.length<2||r.investorAccessConstraints?.length<2;
+ }))throw new Error('FINANCIAL_BANK_DEPOSIT_RBI_2025_FAQ_SOURCE_SCOPE_INVALID');
 const historicalTaxSaverCircularUrl="https://www.incometaxindia.gov.in/w/11/2006-circular-no.-11/2006-dated-16-11-2006";
 const retailDirectIds=new Set(['catalog_2026_tbill_91','catalog_2026_tbill_182','catalog_2026_tbill_364','catalog_2026_sdl_dated']);
 const postalSavingsIds=new Set(['catalog_2026_po_savings','catalog_2026_po_td_2','catalog_2026_po_td_3','catalog_2026_po_td_5']);
@@ -1476,6 +1498,14 @@ export function screenExtensionResearchForProfile(profileInput) {
      reasons.push('DICGC_COVERAGE_REQUIRES_INSURED_BANK_AND_AGGREGATE_DEPOSITOR_CAPACITY_REVIEW');
      if(profile.investmentGoals.includes('Emergency Fund'))
        reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_BANK_DEPOSIT_EARLY_ACCESS_REVIEW');
+     if(row.bankDepositAccessReview.rbiDepositInterest2025FaqDetailReview){
+       reasons.push('RBI_2025_BANK_DEPOSIT_FAQ_NOT_ISSUER_SWEEP_PAYOUT_OR_RATE_APPROVAL');
+       reasons.push('BANK_DEPOSIT_MATURITY_OVERDUE_INTEREST_AND_PENALTY_POLICY_REQUIRE_VERIFICATION');
+       if(profile.investmentGoals.includes('Emergency Fund'))
+         reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_BANK_DEPOSIT_PARTIAL_BREAKAGE_POLICY_REVIEW');
+       if(profile.emergencyFundMonths===0)
+         reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_BANK_DEPOSIT_EXIT_POLICY_REVIEW');
+     }
      switch(row.bankDepositAccessReview.depositStructure) {
        case 'RECURRING_INSTALLMENT_DEPOSIT':
          reasons.push('RECURRING_DEPOSIT_INSTALLMENT_AND_MISSED_PAYMENT_TERMS_UNVERIFIED');
