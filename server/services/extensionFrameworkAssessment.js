@@ -1553,6 +1553,18 @@ export function screenExtensionResearchForProfile(profileInput) {
        reasons.push('SILVER_JEWELLERY_HALLMARK_NOT_BULLION_CERTIFICATION');
        reasons.push('BIS_2025_SILVER_JEWELLERY_HUID_NOT_BULLION_BAR_ASSAY_OR_APPROVAL');
      }
+     if(row.id==='catalog_2026_physical_gold_bullion'
+       ||row.id==='catalog_2026_physical_silver_bullion'){
+       reasons.push('BIS_BULLION_QUALITY_FRAMEWORK_NOT_ACTUAL_BAR_ASSAY_OR_PURCHASE_APPROVAL');
+       if(profile.emergencyFundMonths===0)
+         reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_PHYSICAL_BULLION_RESALE_AND_CUSTODY_REVIEW');
+       if(Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
+         reasons.push('SHORT_HORIZON_REQUIRES_PHYSICAL_BULLION_SPREAD_AND_PRICE_LOSS_REVIEW');
+       if(profile.investmentGoals.includes('Emergency Fund'))
+         reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_PHYSICAL_BULLION_BUYBACK_AND_SETTLEMENT_REVIEW');
+       if(profile.riskTolerance==='Conservative')
+         reasons.push('CONSERVATIVE_PROFILE_REQUIRES_PHYSICAL_BULLION_VOLATILITY_AND_ASSAY_REVIEW');
+     }
    }
 
    if(row.debtInstrumentReview){
@@ -1636,6 +1648,12 @@ export function screenExtensionResearchForProfile(profileInput) {
      // it cannot establish eligibility or a personal risk score.
      if(profile.investmentGoals.includes('Emergency Fund'))
        reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_SM_REIT_SCHEME_UNIT_EXIT_AND_SETTLEMENT_REVIEW');
+     if(profile.emergencyFundMonths===0)
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_SM_REIT_SECONDARY_LIQUIDITY_REVIEW');
+     if(Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
+       reasons.push('SHORT_HORIZON_REQUIRES_SM_REIT_LISTING_DEPTH_AND_SETTLEMENT_REVIEW');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_SM_REIT_PROPERTY_CONCENTRATION_AND_PRICE_LOSS_REVIEW');
    }
    if(row.id==='catalog_2026_sif_hybrid_longshort'){
      reasons.push('SIF_DERIVATIVE_SHORT_AND_INTERVAL_REDEMPTION_TERMS_UNVERIFIED');

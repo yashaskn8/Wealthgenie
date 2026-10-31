@@ -7411,7 +7411,7 @@
         "structure": "SEBI-regulated SM REIT investment-scheme archetype with property-backed exposure; actual scheme and assets are not identified.",
         "categoryRisks": "A small property pool can be concentrated by tenant, location and occupancy; rental income and property valuations may decline. Leverage, asset sale restrictions and thin unit trading may cause liquidity and market-price losses.",
         "investorAccessAndEligibility": "SEBI REIT rules amended 15 October 2026 define a regulatory category; verify actual SM REIT scheme, manager/trustee, offer documents and property disclosures. Check current listing/ISIN, investor and demat eligibility, issue/lot size, distributions, valuation, tax, price and commercial rights.",
-        "financialProfileScreening": "Only recorded short horizon, emergency-fund goal or conservative risk preference triggers non-ranking liquidity/loss notices.",
+        "financialProfileScreening": "Recorded short horizon, emergency-fund goal, conservative risk preference or exactly zero emergency-fund months justify distinct non-ranking SM REIT property concentration, unit price, trading depth and settlement notices; unknown profile facts do not.",
         "scope": "OCTOBER_2026_SEBI_REIT_FRAMEWORK_NOT_ACTUAL_SM_REIT_OR_RETAIL_APPROVAL",
         "officialSourceUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-real-estate-investment-trusts-regulations-2014-last-amended-on-october-15-2026-_105376.html",
         "currentSchemeRegistrationAndListingVerified": false,
@@ -7491,7 +7491,7 @@
         "structure": "Physical gold bullion or coin; BIS refinery/mint voluntary hallmarking scheme covers gold bullion/coin, including 999/995 fineness, and is distinct from jewellery hallmarking.",
         "categoryRisks": "Spot-price volatility, authenticity/purity and custody/theft risks, dealer spreads and resale liquidity.",
         "investorAccessAndEligibility": "Verify actual bar/coin weight, assay/fineness, seller/refinery credentials, invoice, custody and lawful purchase access; do not treat BIS quality standards as investment authorization.",
-        "financialProfileScreening": "Use only recorded short horizon, emergency-fund or limited-loss-capacity facts to show non-ranking volatility, liquidity and custody warnings. Do not infer eligibility or assign a product riskometer.",
+        "financialProfileScreening": "Recorded short horizon, emergency-fund goal, conservative risk preference or exactly zero emergency-fund months justify distinct non-ranking bullion price, spread, custody and resale notices; unknown profile facts do not.",
         "scope": "CATEGORY_LEVEL_QUALITY_OR_HISTORICAL_SCHEME_REFERENCE_NOT_CURRENT_PRODUCT_VALIDATION",
         "reviewedOn": "2026-10-29",
         "officialRiskAccessEvidenceUrl": "https://www.bis.gov.in/refineries/?lang=en",
@@ -7507,7 +7507,27 @@
         "currentPriceOrNavVerified": false,
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
-        "personalizedAdviceAuthorizationVerified": false
+        "personalizedAdviceAuthorizationVerified": false,
+        "bullionHallmarkScope2026Review": {
+          "officialBisRefineriesFaqUrl": "https://www.bis.gov.in/refineries/?lang=en",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "BIS_REFINERY_MINT_GOLD_BULLION_QUALITY_SCHEME_NOT_SPECIFIC_BAR_OR_INVESTMENT_APPROVAL",
+          "goldBullionCoinRefineryMintSchemeDescribed": true,
+          "jewelleryHallmarkingDoesNotAuthenticateParticularBullionPurchase": true,
+          "actualBarAssayWeightAndRefineryLicenseVerified": false,
+          "sellerAndBuybackTermsVerified": false,
+          "individuallyAuthorizedPriceVerified": false,
+          "commercialDataRightsVerified": false,
+          "personalizedSuitabilityVerified": false,
+          "riskConsiderations": [
+            "Gold bullion can lose value and carries physical custody, purity and dealer resale-spread risks irrespective of a general BIS refinery/mint scheme.",
+            "A BIS refinery/mint framework is not evidence that a particular bar has been assayed or can be sold promptly at a quoted price."
+          ],
+          "investorAccessConstraints": [
+            "Verify the specific bar/coin, refinery or mint license status, fineness, invoice, storage and seller/buyback arrangements.",
+            "A quality-standard reference does not verify individual purchasing permission, licensed live prices, tax consequences or financial-advice authorization."
+          ]
+        }
       }
     },
     {
@@ -7542,7 +7562,7 @@
         "structure": "Physical silver bullion/bar; BIS lists IS 17278 refined gold and silver bars and IS 2113 silver assaying, but its refinery/mint bullion hallmarking scheme is currently described as gold-only; do not claim silver bullion hallmark certification. The BIS general hallmarking FAQ still names the superseded IS 2112:2014 for silver jewellery; BIS's October 2025 newsletter confirms IS 2112:2025 voluntary HUID for silver jewellery/articles effective 1 September 2025, not individual silver bullion bar certification.",
         "categoryRisks": "Silver spot-price volatility, authenticity/purity and storage risks, transaction spreads and resale liquidity.",
         "investorAccessAndEligibility": "Verify bar assay, seller provenance, invoice, physical custody and local sale conditions; jewellery hallmarking is not proof of bullion certification.",
-        "financialProfileScreening": "Use only recorded short horizon, emergency-fund or limited-loss-capacity facts to show non-ranking volatility, liquidity and custody warnings. Do not infer eligibility or assign a product riskometer.",
+        "financialProfileScreening": "Recorded short horizon, emergency-fund goal, conservative risk preference or exactly zero emergency-fund months justify distinct non-ranking bullion price, assay, custody and resale notices; unknown profile facts do not.",
         "scope": "CATEGORY_LEVEL_QUALITY_OR_HISTORICAL_SCHEME_REFERENCE_NOT_CURRENT_PRODUCT_VALIDATION",
         "reviewedOn": "2026-10-29",
         "officialRiskAccessEvidenceUrl": "https://www.bis.gov.in/hallmarking-overview/hallmarking-faqs/hallmarking-faq/?lang=en",
@@ -7579,6 +7599,27 @@
           "investorAccessConstraints": [
             "Verify each bar's actual fineness, assay evidence, weight, dealer provenance and invoice; do not transfer voluntary jewellery HUID status to bullion.",
             "The older BIS general FAQ references IS 2112:2014, superseded for silver jewellery/articles by IS 2112:2025; confirm the applicable current product-specific standards and any resale terms separately."
+          ]
+        },
+        "bullionHallmarkScope2026Review": {
+          "officialBisRefineriesFaqUrl": "https://www.bis.gov.in/refineries/?lang=en",
+          "officialBisSilverJewelleryNewsletterUrl": "https://www.bis.gov.in/wp-content/uploads/2025/10/BIS-NEWSLETTER-OCTOBER-2025.pdf",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "BIS_GOLD_ONLY_REFINERY_MINT_BULLION_SCHEME_AND_SILVER_JEWELLERY_HUID_NOT_SILVER_BAR_CERTIFICATION",
+          "bisRefineryMintBullionHallmarkSchemeDescribedForGoldOnly": true,
+          "silverJewelleryHuid2025IsNotSilverBullionBarAssay": true,
+          "actualSilverBarPurityAndAssayVerified": false,
+          "sellerAndBuybackTermsVerified": false,
+          "individuallyAuthorizedPriceVerified": false,
+          "commercialDataRightsVerified": false,
+          "personalizedSuitabilityVerified": false,
+          "riskConsiderations": [
+            "Silver jewellery HUID traceability does not authenticate the purity or resale price of a specific investment silver bar.",
+            "Physical silver remains exposed to metal-price fluctuations, custody loss, authenticity disputes and dealer resale spreads."
+          ],
+          "investorAccessConstraints": [
+            "Confirm an individual bar's independent assay, weight, seller provenance, invoice, storage and dealer repurchase terms.",
+            "Do not represent BIS silver jewellery HUID as bullion certification or infer retail approval, market-data permission or a personal risk score."
           ]
         }
       }

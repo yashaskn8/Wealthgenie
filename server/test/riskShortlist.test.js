@@ -2373,3 +2373,68 @@ test('SEBI August 2026 municipal debt private-placement lots and pooled escrow d
  }
  assert.equal(rows.length,95);
 });
+
+
+test('BIS bullion quality evidence and SM REIT profile screening remain non-ranking and fact-dependent',()=>{
+ const research=listExtensionResearch();
+ const get=id=>research.find(x=>x.id==='catalog_2026_'+id);
+ const gold=get('physical_gold_bullion').preciousMetalsCategoryReview.bullionHallmarkScope2026Review;
+ const silver=get('physical_silver_bullion').preciousMetalsCategoryReview.bullionHallmarkScope2026Review;
+ assert.equal(gold.officialBisRefineriesFaqUrl,'https://www.bis.gov.in/refineries/?lang=en');
+ assert.equal(silver.officialBisRefineriesFaqUrl,'https://www.bis.gov.in/refineries/?lang=en');
+ assert.equal(gold.reviewedOn,'2026-10-31');
+ assert.equal(silver.reviewedOn,'2026-10-31');
+ assert.equal(gold.actualBarAssayWeightAndRefineryLicenseVerified,false);
+ assert.equal(silver.bisRefineryMintBullionHallmarkSchemeDescribedForGoldOnly,true);
+ assert.equal(silver.silverJewelleryHuid2025IsNotSilverBullionBarAssay,true);
+ assert.equal(silver.actualSilverBarPurityAndAssayVerified,false);
+ for(const evidence of [gold,silver]){
+  assert.equal(evidence.individuallyAuthorizedPriceVerified,false);
+  assert.equal(evidence.commercialDataRightsVerified,false);
+  assert.equal(evidence.personalizedSuitabilityVerified,false);
+  assert.ok(evidence.riskConsiderations.length>=2);
+  assert.ok(evidence.investorAccessConstraints.length>=2);
+ }
+ const zero=screenExtensionResearchForProfile(canonicalProfile({
+  emergencyFundMonths:0,investmentHorizonYears:2,
+  investmentGoals:['Emergency Fund'],riskTolerance:'Conservative'
+ }));
+ const unknown=screenExtensionResearchForProfile(canonicalProfile({
+  emergencyFundMonths:null,investmentHorizonYears:10,
+  investmentGoals:['Wealth Growth'],riskTolerance:'Aggressive'
+ }));
+ const positive=screenExtensionResearchForProfile(canonicalProfile({
+  emergencyFundMonths:6,investmentHorizonYears:10,
+  investmentGoals:['Wealth Growth'],riskTolerance:'Aggressive'
+ }));
+ const reasons=(rows,id)=>rows.find(x=>x.id==='catalog_2026_'+id).screeningReasonCodes;
+ for(const id of ['physical_gold_bullion','physical_silver_bullion']){
+  const notices=[
+   'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_PHYSICAL_BULLION_RESALE_AND_CUSTODY_REVIEW',
+   'SHORT_HORIZON_REQUIRES_PHYSICAL_BULLION_SPREAD_AND_PRICE_LOSS_REVIEW',
+   'EMERGENCY_FUND_GOAL_REQUIRES_PHYSICAL_BULLION_BUYBACK_AND_SETTLEMENT_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_PHYSICAL_BULLION_VOLATILITY_AND_ASSAY_REVIEW'
+  ];
+  for(const notice of notices){
+   assert.ok(reasons(zero,id).includes(notice),id+' '+notice);
+   assert.ok(!reasons(unknown,id).includes(notice),id+' unknown '+notice);
+   assert.ok(!reasons(positive,id).includes(notice),id+' positive '+notice);
+  }
+ }
+ for(const notice of [
+  'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_SM_REIT_SECONDARY_LIQUIDITY_REVIEW',
+  'SHORT_HORIZON_REQUIRES_SM_REIT_LISTING_DEPTH_AND_SETTLEMENT_REVIEW',
+  'CONSERVATIVE_PROFILE_REQUIRES_SM_REIT_PROPERTY_CONCENTRATION_AND_PRICE_LOSS_REVIEW'
+ ]){
+  assert.ok(reasons(zero,'sm_reit_scheme').includes(notice));
+  assert.ok(!reasons(unknown,'sm_reit_scheme').includes(notice));
+  assert.ok(!reasons(positive,'sm_reit_scheme').includes(notice));
+ }
+ assert.equal(zero.length,95);
+ for(const result of [...zero,...unknown,...positive]){
+  assert.equal(result.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+  assert.equal(result.productQualified,false);
+  assert.equal(result.scoreAvailable,false);
+  assert.equal(result.productRiskLevel,null);
+ }
+});
