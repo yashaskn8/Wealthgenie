@@ -1360,3 +1360,23 @@ test('DEA green-bond allocation report stays historical in the defensively copie
  assert.equal(fresh.historicalProceedsAllocatedInrCrore,16000);
  assert.ok(!fresh.riskConsiderations.includes('FORGED VERIFIED IMPACT'));
 });
+
+test('floating-rate G-Sec October release stays an unlicensed, non-quoted educational source',()=>{
+ const id='catalog_2026_gsec_floating';
+ const get=()=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ const item=get();
+ const r=item.frameworkResearch.governmentBondStructureReview.floatingRateOct2026SourceBoundaryReview;
+ assert.equal(r.releaseDated,'2026-10-29');
+ assert.equal(r.octoberReleaseFullTextIndependentlyReviewed,false);
+ assert.equal(r.releaseSpecificCouponImportedAsCurrentCategoryMarketFact,false);
+ assert.equal(r.currentExecutablePriceAndResaleLiquidityVerified,false);
+ assert.equal(item.recommendationEligible,false);
+ assert.equal(item.productAvailability,'NOT_VERIFIED');
+ assert.equal(item.dataRights,'NOT_VERIFIED');
+ assert.ok(Object.values(item.productData).every(value=>value===null));
+ r.riskConsiderations.push('fake coupon');
+ r.releaseEstablishesPersonalRetailEligibility=true;
+ const fresh=get().frameworkResearch.governmentBondStructureReview.floatingRateOct2026SourceBoundaryReview;
+ assert.equal(fresh.releaseEstablishesPersonalRetailEligibility,false);
+ assert.ok(!fresh.riskConsiderations.includes('fake coupon'));
+});

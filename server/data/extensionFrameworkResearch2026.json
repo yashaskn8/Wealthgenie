@@ -1032,7 +1032,34 @@
         "investorAccessConstraints": [
           "RBI describes issue-specific reset intervals, benchmarks and possible fixed spreads; no live ISIN, benchmark or reset dates are authenticated.",
           "A current offering, custody and KYC, coupon quote, tax treatment and independently licensed data use are needed before any individual access claim."
-        ]
+        ],
+        "floatingRateOct2026SourceBoundaryReview": {
+          "officialRbiGovernmentSecuritiesPrimerUrl": "https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711",
+          "officialRbiFrb2034OctoberReleaseUrl": "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63883",
+          "releaseDated": "2026-10-29",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "RBI_GENERAL_FRB_RESET_PRIMER_AND_ISSUE_SPECIFIC_2026_RELEASE_NOT_CURRENT_CATEGORY_COUPON_OR_OFFER",
+          "primerDescribesVariableCouponResetAtAnnouncedIntervals": true,
+          "primerDescribesIssueSpecificBaseRatePlusFixedSpread": true,
+          "octoberReleaseFullTextIndependentlyReviewed": false,
+          "releaseSpecificCouponImportedAsCurrentCategoryMarketFact": false,
+          "releaseEstablishesAllFloatingGsecCoupons": false,
+          "releaseEstablishesPersonalRetailEligibility": false,
+          "frbIsNotFloatingRateSavingsBondProduct": true,
+          "actualSecurityIsinAndCouponTermsVerified": false,
+          "applicantRdgKycAndCustodyVerified": false,
+          "currentExecutablePriceAndResaleLiquidityVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "taxAndPersonalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "A 2026 announcement concerning one named FRB cannot be generalized to another floating-rate government bond's reset basis, spread, coupon period or cash flows.",
+            "A floating coupon does not fix the secondary-market price; duration, reset timing and bid-ask liquidity can still produce early-sale losses."
+          ],
+          "investorAccessConstraints": [
+            "The RBI primer explains floating-rate government-security mechanics; the October 2026 FRB 2034 announcement is issue-specific, and its full text was not directly reviewed here.",
+            "Verify the actual ISIN, governing auction or security terms, current coupon period, Retail Direct account/KYC and trading permissions, licensed price feed and advice authorization before any individual offer."
+          ]
+        }
       }
     },
     {

@@ -1284,6 +1284,29 @@ if(research.entries.some(row=>{
   ||row.productRiskScore!==null||row.suitabilityRankingPermitted!==false
   ||row.actualRetailProductEligible!==false||row.sourcePermissionVerified!==false;
 }))throw new Error('FINANCIAL_CENTRAL_GSEC_2025_GAZETTE_SCOPE_INVALID');
+const floatingRbiPrimerUrl='https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711';
+const floatingRbiOctReleaseUrl='https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63883';
+const floatingOctReviews=research.entries.filter(row=>
+ row.governmentBondStructureReview?.floatingRateOct2026SourceBoundaryReview);
+if(floatingOctReviews.length!==1||floatingOctReviews[0].id!=='catalog_2026_gsec_floating'
+ ||floatingOctReviews.some(row=>{
+   const r=row.governmentBondStructureReview.floatingRateOct2026SourceBoundaryReview;
+   return r.officialRbiGovernmentSecuritiesPrimerUrl!==floatingRbiPrimerUrl
+    ||r.officialRbiFrb2034OctoberReleaseUrl!==floatingRbiOctReleaseUrl
+    ||r.releaseDated!=='2026-10-29'||r.reviewedOn!=='2026-10-31'
+    ||r.sourceScope!=='RBI_GENERAL_FRB_RESET_PRIMER_AND_ISSUE_SPECIFIC_2026_RELEASE_NOT_CURRENT_CATEGORY_COUPON_OR_OFFER'
+    ||r.primerDescribesVariableCouponResetAtAnnouncedIntervals!==true
+    ||r.primerDescribesIssueSpecificBaseRatePlusFixedSpread!==true
+    ||r.frbIsNotFloatingRateSavingsBondProduct!==true
+    ||['octoberReleaseFullTextIndependentlyReviewed',
+      'releaseSpecificCouponImportedAsCurrentCategoryMarketFact',
+      'releaseEstablishesAllFloatingGsecCoupons','releaseEstablishesPersonalRetailEligibility',
+      'actualSecurityIsinAndCouponTermsVerified','applicantRdgKycAndCustodyVerified',
+      'currentExecutablePriceAndResaleLiquidityVerified','commercialMarketDataRightsVerified',
+      'taxAndPersonalizedAdviceAuthorizationVerified'].some(key=>r[key]!==false)
+    ||!Array.isArray(r.riskConsiderations)||r.riskConsiderations.length<2
+    ||!Array.isArray(r.investorAccessConstraints)||r.investorAccessConstraints.length<2;
+ }))throw new Error('FINANCIAL_FLOATING_GSEC_OCT_2026_SOURCE_SCOPE_INVALID');
 const nonnegative=value=>typeof value==='number'&&Number.isFinite(value)&&value>=0;
 export function listExtensionResearch() {
  return research.entries.map(row=>JSON.parse(JSON.stringify(row)));
@@ -1585,6 +1608,11 @@ export function screenExtensionResearchForProfile(profileInput) {
          reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_SOVEREIGN_GREEN_EXIT_LIQUIDITY_REVIEW');
      } else if(row.id==='catalog_2026_gsec_floating') {
        reasons.push('FLOATING_RATE_GSEC_RESET_BASIS_SPREAD_AND_DATES_UNVERIFIED');
+       reasons.push('RBI_OCT_2026_FRB_2034_RELEASE_NOT_GENERAL_COUPON_OR_RETAIL_APPROVAL');
+       if(profile.investmentGoals.includes('Emergency Fund'))
+         reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_FLOATING_GSEC_COUPON_RESET_AND_RESALE_REVIEW');
+       if(profile.emergencyFundMonths===0)
+         reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_FLOATING_GSEC_MARKET_EXIT_REVIEW');
      }
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_GOVT_BOND_MARKET_PRICE_AND_LIQUIDITY_REVIEW');

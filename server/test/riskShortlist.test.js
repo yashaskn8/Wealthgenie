@@ -2824,3 +2824,50 @@ test('DEA sovereign green bond allocation evidence stays historical and profile 
  assert.equal(row.actualRetailProductEligible,false);
  assert.equal(row.suitabilityRankingPermitted,false);
 });
+
+test('RBI floating G-Sec primer and October 2026 issue notice cannot become a category quote or personal approval',()=>{
+ const id='catalog_2026_gsec_floating';
+ const research=listExtensionResearch().find(x=>x.id===id);
+ const r=research.governmentBondStructureReview.floatingRateOct2026SourceBoundaryReview;
+ assert.equal(r.officialRbiGovernmentSecuritiesPrimerUrl,
+  'https://m.rbi.org.in/commonman/english/scripts/FAQs.aspx?Id=711');
+ assert.equal(r.officialRbiFrb2034OctoberReleaseUrl,
+  'https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63883');
+ assert.equal(r.releaseDated,'2026-10-29');
+ assert.equal(r.octoberReleaseFullTextIndependentlyReviewed,false);
+ assert.equal(r.primerDescribesIssueSpecificBaseRatePlusFixedSpread,true);
+ assert.equal(r.releaseSpecificCouponImportedAsCurrentCategoryMarketFact,false);
+ assert.equal(r.releaseEstablishesAllFloatingGsecCoupons,false);
+ assert.equal(r.releaseEstablishesPersonalRetailEligibility,false);
+ for(const key of ['actualSecurityIsinAndCouponTermsVerified','applicantRdgKycAndCustodyVerified',
+  'currentExecutablePriceAndResaleLiquidityVerified','commercialMarketDataRightsVerified',
+  'taxAndPersonalizedAdviceAuthorizationVerified'])assert.equal(r[key],false,key);
+ assert.ok(r.riskConsiderations.length>=2&&r.investorAccessConstraints.length>=2);
+ const screen=changes=>screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:10,investmentGoals:['Wealth Growth'],
+  emergencyFundMonths:null,riskTolerance:'Moderate',...changes,
+ })).find(x=>x.id===id);
+ const ordinary=screen({}),goal=screen({investmentGoals:['Emergency Fund']});
+ const zero=screen({emergencyFundMonths:0}),positive=screen({emergencyFundMonths:6});
+ const source='RBI_OCT_2026_FRB_2034_RELEASE_NOT_GENERAL_COUPON_OR_RETAIL_APPROVAL';
+ const goalCode='EMERGENCY_FUND_GOAL_REQUIRES_FLOATING_GSEC_COUPON_RESET_AND_RESALE_REVIEW';
+ const zeroCode='RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_FLOATING_GSEC_MARKET_EXIT_REVIEW';
+ for(const item of [ordinary,goal,zero,positive]){
+  assert.ok(item.screeningReasonCodes.includes(source));
+  assert.equal(item.productQualified,false);
+  assert.equal(item.scoreAvailable,false);
+  assert.equal(item.productRiskLevel,null);
+ }
+ assert.ok(goal.screeningReasonCodes.includes(goalCode));
+ assert.ok(!ordinary.screeningReasonCodes.includes(goalCode));
+ assert.ok(zero.screeningReasonCodes.includes(zeroCode));
+ assert.ok(!ordinary.screeningReasonCodes.includes(zeroCode));
+ assert.ok(!positive.screeningReasonCodes.includes(zeroCode));
+ assert.equal(research.productRiskScore,null);
+ assert.equal(research.actualRetailProductEligible,false);
+ assert.equal(research.suitabilityRankingPermitted,false);
+ r.riskConsiderations.push('fabricated coupon');
+ assert.ok(!listExtensionResearch().find(x=>x.id===id)
+  .governmentBondStructureReview.floatingRateOct2026SourceBoundaryReview.riskConsiderations
+  .includes('fabricated coupon'));
+});
