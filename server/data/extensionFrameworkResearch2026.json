@@ -6895,7 +6895,7 @@
       "scenarioDescription": "Corporate Commercial Paper: Money Market Debt category. Examine actual issuer or scheme terms before assigning an investment risk rating.",
       "referenceUrl": "https://investor.sebi.gov.in/understanding_bonds.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": "2026-10-29",
+      "referenceReviewedAt": "2026-10-31",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": null,
@@ -7017,6 +7017,42 @@
           "buybackTermsReviewedOn": "2026-10-31",
           "actualIssuerBuybackOfferAndPriceVerified": false,
           "investorEarlyExitOrExecutableSecondaryBidVerified": false
+        },
+        "rbiCpSettlementAndRating2024Review": {
+          "officialRbiDirectionUrl": "https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12592",
+          "directionsIssuedOn": "2024-01-03",
+          "effectiveFrom": "2024-04-01",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "RBI_CP_2024_ISSUANCE_RATING_SETTLEMENT_AND_DEFAULT_RULES_NOT_EXECUTABLE_ISSUE_OR_INSTANT_LIQUIDITY",
+          "instrumentDefinition": "UNSECURED_DISCOUNT_ISSUED_MONEY_MARKET_PROMISSORY_NOTE",
+          "minimumIssuanceRating": "A3",
+          "minimumRatingDoesNotGuaranteeRepayment": true,
+          "primaryIssueSettlementMaximumWorkingDays": 4,
+          "otcSecondarySettlementCycles": [
+            "T+0",
+            "T+1"
+          ],
+          "otcCpDeliveryVersusPaymentRequired": true,
+          "repaymentGracePeriodDays": 0,
+          "issuerMustFundIpaOnRedemptionDateBy": "15:00",
+          "issuerDefaultDisclosureRequired": true,
+          "earlierIssuedInstrumentsMayRemainUnderPriorDirections": true,
+          "specificIssuerIsinAndOfferVerified": false,
+          "actualCraRatingAndDefaultStatusVerified": false,
+          "actualInvestorBrokerAndDematAccessVerified": false,
+          "executableSecondaryBidAndSettlementVerified": false,
+          "currentPriceAndCommercialReuseRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "The A3 minimum issue rating is a regulatory issuance floor, not proof of this issuer's current rating or ability to repay at maturity.",
+            "T+0/T+1 OTC settlement cycles apply to executed trades; they do not establish that a buyer, executable bid or same-day emergency liquidity exists.",
+            "RBI's no-grace-period repayment requirement does not eliminate issuer default, rollover risk or loss on an early sale."
+          ],
+          "investorAccessConstraints": [
+            "Verify the specific issue's issuer, ISIN, CRA rating, depository/IPA arrangements, current disclosures, trading venue and licensed price before displaying a transaction.",
+            "The T+4 primary issuance and T+0/T+1 OTC secondary settlement rules do not waive residency, related-party, ₹5 lakh denomination or aggregate individual primary subscription restrictions.",
+            "Historical CPs issued before the 2024 commencement may be governed by earlier directions until maturity; issue date and governing terms remain unverified."
+          ]
         }
       }
     },
@@ -7797,7 +7833,7 @@
       "scenarioDescription": "Discretionary Portfolio Management Service: Portfolio Management Services category. Examine actual issuer or scheme terms before assigning an investment risk rating. The SEBI Portfolio Managers Regulations, 2026 take effect on 1 April 2027, not as of this review; manager registration, mandate and eligibility are unverified.",
       "referenceUrl": "https://www.sebi.gov.in/legal/regulations/sep-2025/securities-and-exchange-board-of-india-portfolio-managers-regulations-2020-last-amended-on-september-03-2025-_96560.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": "2026-10-29",
+      "referenceReviewedAt": "2026-10-31",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": 5000000,
@@ -7895,6 +7931,40 @@
           "actualHoldingsFeesCustodyAndExitTermsVerified": false,
           "livePricesAndCommercialRightsVerified": false,
           "adviceAuthorizationVerified": false
+        },
+        "pms2024FaqAccessAndExitReview": {
+          "officialSebiFaqUrl": "https://www.sebi.gov.in/sebi_data/faqfiles/sep-2024/1727350357563.pdf",
+          "faqPublishedOn": "2024-09-20",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "SEBI_2024_NONBINDING_FAQ_SUBJECT_TO_CURRENT_2020_REGULATIONS_AND_FUTURE_2027_TRANSITION",
+          "mandateType": "DISCRETIONARY_PMS",
+          "faqExplicitlyNonLegalGuidance": true,
+          "discretionaryUnlistedBondInvestmentProhibitedUnderFaq": true,
+          "nondiscretionaryUnlistedSecuritiesMaximumClientAumPctUnderFaq": 25,
+          "nonDiscretionaryLimitIsNotPersonalRetailAccessApproval": true,
+          "faqStandardPmsOpeningMinimumInr": 5000000,
+          "marketValueDeclineBelowOpeningMinimumDoesNotByItselfRequireTopUp": true,
+          "pmsStatutoryLockInProhibitedUnderFaq": true,
+          "earlyExitFeesMayApplyUnderContract": true,
+          "indicativeOrGuaranteedReturnsProhibitedUnderFaq": true,
+          "sebiDoesNotApproveSpecificPmsServices": true,
+          "current2020RegulationsApplyUntilReplacementEffective": "2027-04-01",
+          "categoryInterpretation": "The 2024 SEBI FAQ says discretionary managers cannot invest client funds in unlisted bonds; manager trading authority is subject to the actual mandate, approved security universe and current law.",
+          "riskConsiderations": [
+            "Discretionary manager selection and turnover can expose client holdings to security losses, concentration and execution costs even where unlisted-bond purchases are restricted.",
+            "A PMS lock-in prohibition does not make illiquid underlying holdings immediately saleable or remove agreed early-exit fees."
+          ],
+          "investorAccessConstraints": [
+            "Verify the current manager registration, signed discretionary mandate, permitted instruments, actual holdings and current regulations; the 2024 FAQ does not approve a particular provider.",
+            "Confirm the client's opening minimum and any lawful exceptions, KYC, custody, disclosure document, fee schedule, exit terms, current valuations, data rights and advice authorization."
+          ],
+          "actualManagerRegistrationAndAgreementVerified": false,
+          "actualUnlistedHoldingsAndApplicableLimitsVerified": false,
+          "individualClientKycAndMinimumExceptionsVerified": false,
+          "actualPortfolioValuationExitFeesAndLiquidityVerified": false,
+          "currentRegulatoryAmendmentsFullyReconciled": false,
+          "commercialDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -7904,7 +7974,7 @@
       "scenarioDescription": "Non-Discretionary Portfolio Management Service: Portfolio Management Services category. Examine actual issuer or scheme terms before assigning an investment risk rating. The SEBI Portfolio Managers Regulations, 2026 take effect on 1 April 2027, not as of this review; manager registration, mandate and eligibility are unverified.",
       "referenceUrl": "https://www.sebi.gov.in/legal/regulations/sep-2025/securities-and-exchange-board-of-india-portfolio-managers-regulations-2020-last-amended-on-september-03-2025-_96560.html",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
-      "referenceReviewedAt": "2026-10-29",
+      "referenceReviewedAt": "2026-10-31",
       "nominalMaturityMonths": null,
       "nominalMaturityDays": null,
       "standardCapitalReferenceInr": 5000000,
@@ -8002,6 +8072,40 @@
           "actualHoldingsFeesCustodyAndExitTermsVerified": false,
           "livePricesAndCommercialRightsVerified": false,
           "adviceAuthorizationVerified": false
+        },
+        "pms2024FaqAccessAndExitReview": {
+          "officialSebiFaqUrl": "https://www.sebi.gov.in/sebi_data/faqfiles/sep-2024/1727350357563.pdf",
+          "faqPublishedOn": "2024-09-20",
+          "reviewedOn": "2026-10-31",
+          "sourceScope": "SEBI_2024_NONBINDING_FAQ_SUBJECT_TO_CURRENT_2020_REGULATIONS_AND_FUTURE_2027_TRANSITION",
+          "mandateType": "NON_DISCRETIONARY_PMS",
+          "faqExplicitlyNonLegalGuidance": true,
+          "discretionaryUnlistedBondInvestmentProhibitedUnderFaq": true,
+          "nondiscretionaryUnlistedSecuritiesMaximumClientAumPctUnderFaq": 25,
+          "nonDiscretionaryLimitIsNotPersonalRetailAccessApproval": true,
+          "faqStandardPmsOpeningMinimumInr": 5000000,
+          "marketValueDeclineBelowOpeningMinimumDoesNotByItselfRequireTopUp": true,
+          "pmsStatutoryLockInProhibitedUnderFaq": true,
+          "earlyExitFeesMayApplyUnderContract": true,
+          "indicativeOrGuaranteedReturnsProhibitedUnderFaq": true,
+          "sebiDoesNotApproveSpecificPmsServices": true,
+          "current2020RegulationsApplyUntilReplacementEffective": "2027-04-01",
+          "categoryInterpretation": "The 2024 SEBI FAQ describes a 25% of client AUM limit on unlisted securities for non-discretionary managers; this is a portfolio exposure limit, not an invitation or an investor eligibility threshold.",
+          "riskConsiderations": [
+            "Non-discretionary client instructions may create timing, concentration and execution risk; the FAQ's unlisted exposure ceiling does not guarantee liquidity of those assets.",
+            "Underlying unlisted holdings, exit fees and settlement constraints can delay withdrawals despite the absence of a PMS contractual lock-in."
+          ],
+          "investorAccessConstraints": [
+            "Verify the manager's current registration, client instruction agreement and actual holdings; the 25% unlisted exposure ceiling is not a personal entitlement or proof of access to any unlisted security.",
+            "Confirm actual minimum/exemptions, KYC, custody, contractual fees, unlisted-security transfer restrictions, valuations, licensed data and advice authorization."
+          ],
+          "actualManagerRegistrationAndAgreementVerified": false,
+          "actualUnlistedHoldingsAndApplicableLimitsVerified": false,
+          "individualClientKycAndMinimumExceptionsVerified": false,
+          "actualPortfolioValuationExitFeesAndLiquidityVerified": false,
+          "currentRegulatoryAmendmentsFullyReconciled": false,
+          "commercialDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
         }
       }
     },

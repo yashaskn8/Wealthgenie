@@ -120,6 +120,7 @@ const pmsCurrentRegulationsUrl="https://www.sebi.gov.in/legal/regulations/sep-20
 const pmsMandateTypes=Object.freeze({"catalog_2026_pms_discretionary":"DISCRETIONARY_PMS","catalog_2026_pms_nondiscretionary":"NON_DISCRETIONARY_PMS"});
 const pmsHistoricalFaqUrl='https://www.sebi.gov.in/sebi_data/attachdocs/aug-2020/1598359862760.pdf';
 const pmsInvestorEducationUrl='https://investor.sebi.gov.in/pms_final.html';
+const pms2024FaqUrl='https://www.sebi.gov.in/sebi_data/faqfiles/sep-2024/1727350357563.pdf';
 const aifGarudaCircularUrl="https://www.sebi.gov.in/legal/circulars/jul-2026/-green-channel-aif-rollout-upon-document-acknowledgement-garuda-mechanism-for-processing-of-placement-memorandum-of-alternative-investment-funds-aifs-filed-with-sebi_103241.html";
 const sifMinimumThresholdMonitoringUrl="https://www.sebi.gov.in/legal/circulars/jul-2025/monitoring-of-minimum-investment-threshold-under-specialized-investment-funds-sif-_95676.html";
 const sifDistributorCertificationUrl="https://www.sebi.gov.in/legal/circulars/jul-2026/certification-requirements-for-distribution-of-specialized-investment-funds-sifs-_102986.html";
@@ -814,6 +815,38 @@ if(research.entries.filter(row=>row.individualCategoryReview?.pmsMandate2020FaqR
        'livePricesAndCommercialRightsVerified','adviceAuthorizationVerified']
        .some(key=>p[key]!==false);
  }))throw new Error('FINANCIAL_PMS_HISTORICAL_FAQ_MANDATE_AND_ACCESS_EVIDENCE_INVALID');
+// SEBI's September 2024 FAQ is expressly nonbinding. Distinguish mandate-specific
+// unlisted exposure rules and withdrawal fees from a current manager or client approval.
+if(research.entries.filter(row=>row.individualCategoryReview?.pms2024FaqAccessAndExitReview).length!==2
+ ||research.entries.some(row=>{
+   const expected=pmsMandateTypes[row.id];
+   const p=row.individualCategoryReview?.pms2024FaqAccessAndExitReview;
+   if(!expected)return p!==undefined;
+   const discretionary=expected==='DISCRETIONARY_PMS';
+   return !p||p.officialSebiFaqUrl!==pms2024FaqUrl
+     ||p.faqPublishedOn!=='2024-09-20'||p.reviewedOn!=='2026-10-31'
+     ||p.sourceScope!=='SEBI_2024_NONBINDING_FAQ_SUBJECT_TO_CURRENT_2020_REGULATIONS_AND_FUTURE_2027_TRANSITION'
+     ||p.mandateType!==expected
+     ||p.faqExplicitlyNonLegalGuidance!==true
+     ||p.discretionaryUnlistedBondInvestmentProhibitedUnderFaq!==true
+     ||p.nondiscretionaryUnlistedSecuritiesMaximumClientAumPctUnderFaq!==25
+     ||p.nonDiscretionaryLimitIsNotPersonalRetailAccessApproval!==true
+     ||p.faqStandardPmsOpeningMinimumInr!==5000000
+     ||p.marketValueDeclineBelowOpeningMinimumDoesNotByItselfRequireTopUp!==true
+     ||p.pmsStatutoryLockInProhibitedUnderFaq!==true
+     ||p.earlyExitFeesMayApplyUnderContract!==true
+     ||p.indicativeOrGuaranteedReturnsProhibitedUnderFaq!==true
+     ||p.sebiDoesNotApproveSpecificPmsServices!==true
+     ||p.current2020RegulationsApplyUntilReplacementEffective!=='2027-04-01'
+     ||typeof p.categoryInterpretation!=='string'||p.categoryInterpretation.length<100
+     ||!Array.isArray(p.riskConsiderations)||p.riskConsiderations.length<2
+     ||!Array.isArray(p.investorAccessConstraints)||p.investorAccessConstraints.length<2
+     ||['actualManagerRegistrationAndAgreementVerified','actualUnlistedHoldingsAndApplicableLimitsVerified',
+       'individualClientKycAndMinimumExceptionsVerified','actualPortfolioValuationExitFeesAndLiquidityVerified',
+       'currentRegulatoryAmendmentsFullyReconciled','commercialDataRightsVerified',
+       'personalizedAdviceAuthorizationVerified'].some(key=>p[key]!==false)
+     ||(discretionary&&row.standardCapitalReferenceInr!==5000000);
+ }))throw new Error('FINANCIAL_PMS_2024_FAQ_EXPOSURE_AND_EXIT_SCOPE_INVALID');
 // SIF access and distribution facts must remain source-scoped: a PAN-level
 // aggregate threshold and distributor certification never approve an investor,
 // actual strategy, licensed data feed or personalized recommendation.
@@ -1110,6 +1143,29 @@ if(cpDirectionRows.length!==1||cpDirectionRows[0].id!=='catalog_2026_commercial_
   ||cpInstrument.rbiCpPrimaryIndividualSubscriptionAggregateCapPct
     !==cpDirection.primaryAllIndividualsIncludingHufsAggregateSubscriptionCapPct)
   throw new Error('FINANCIAL_RBI_CP_AGGREGATE_PRIMARY_LIMIT_SCOPE_INVALID');
+// Settlement is a post-trade rule, never proof of an executable CP buyer or
+// an insured cash equivalent; an A3 issuance floor is not a live issuer rating.
+const cpSettlementRows=research.entries.filter(row=>row.debtInstrumentReview?.rbiCpSettlementAndRating2024Review);
+const cpSettlement=cpInstrument?.rbiCpSettlementAndRating2024Review;
+if(cpSettlementRows.length!==1||cpSettlementRows[0].id!=='catalog_2026_commercial_paper'
+ ||cpSettlement?.officialRbiDirectionUrl!=='https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12592'
+ ||cpSettlement.directionsIssuedOn!=='2024-01-03'||cpSettlement.effectiveFrom!=='2024-04-01'
+ ||cpSettlement.reviewedOn!=='2026-10-31'
+ ||cpSettlement.sourceScope!=='RBI_CP_2024_ISSUANCE_RATING_SETTLEMENT_AND_DEFAULT_RULES_NOT_EXECUTABLE_ISSUE_OR_INSTANT_LIQUIDITY'
+ ||cpSettlement.instrumentDefinition!=='UNSECURED_DISCOUNT_ISSUED_MONEY_MARKET_PROMISSORY_NOTE'
+ ||cpSettlement.minimumIssuanceRating!=='A3'||cpSettlement.minimumRatingDoesNotGuaranteeRepayment!==true
+ ||cpSettlement.primaryIssueSettlementMaximumWorkingDays!==4
+ ||JSON.stringify(cpSettlement.otcSecondarySettlementCycles)!=='["T+0","T+1"]'
+ ||cpSettlement.otcCpDeliveryVersusPaymentRequired!==true
+ ||cpSettlement.repaymentGracePeriodDays!==0||cpSettlement.issuerMustFundIpaOnRedemptionDateBy!=='15:00'
+ ||cpSettlement.issuerDefaultDisclosureRequired!==true
+ ||cpSettlement.earlierIssuedInstrumentsMayRemainUnderPriorDirections!==true
+ ||!hasCompleteCategoryRiskAccessResearch({debtInstrumentReview:cpSettlement})
+ ||['specificIssuerIsinAndOfferVerified','actualCraRatingAndDefaultStatusVerified',
+   'actualInvestorBrokerAndDematAccessVerified','executableSecondaryBidAndSettlementVerified',
+   'currentPriceAndCommercialReuseRightsVerified','personalizedAdviceAuthorizationVerified']
+   .some(key=>cpSettlement[key]!==false))
+ throw new Error('FINANCIAL_RBI_CP_SETTLEMENT_AND_RATING_SOURCE_SCOPE_INVALID');
 // RBI 2024 short-term NCD directions define a secured money-market instrument;
 // these requirements do not apply indiscriminately to all listed NCDs.
 const shortNcdIds=new Set(['catalog_2026_ncd_secured','catalog_2026_ncd_unsecured']);
@@ -1756,6 +1812,13 @@ export function screenExtensionResearchForProfile(profileInput) {
      reasons.push('PMS_2026_REGULATIONS_NOT_EFFECTIVE_UNTIL_APRIL_2027');
      reasons.push('PMS_FUTURE_2026_FRAMEWORK_NOT_CURRENT_MANAGER_OR_CLIENT_APPROVAL');
      reasons.push('SEBI_2020_PMS_FAQ_MANDATE_CONTROL_NOT_CURRENT_MANAGER_OR_CLIENT_APPROVAL');
+     reasons.push('SEBI_2024_PMS_FAQ_NONBINDING_AND_NOT_CURRENT_PROVIDER_APPROVAL');
+     reasons.push('PMS_NO_REGULATORY_LOCKIN_DOES_NOT_GUARANTEE_EARLY_LIQUIDATION_OR_FEE_WAIVER');
+     reasons.push(row.id==='catalog_2026_pms_discretionary'
+       ? 'DISCRETIONARY_PMS_2024_FAQ_UNLISTED_BOND_RESTRICTION_REQUIRES_CURRENT_MANDATE_REVIEW'
+       : 'NONDISCRETIONARY_PMS_2024_FAQ_25PCT_UNLISTED_CLIENT_AUM_CAP_NOT_ACCESS_APPROVAL');
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_PMS_EXIT_FEES_UNDERLYING_HOLDINGS_AND_SETTLEMENT_REVIEW');
      if(profile.investmentHorizonYears<=3)
        reasons.push('SHORT_HORIZON_REQUIRES_PMS_HOLDINGS_EXIT_FEES_AND_SETTLEMENT_REVIEW');
      if(profile.investmentGoals.includes('Emergency Fund'))
@@ -1950,6 +2013,13 @@ export function screenExtensionResearchForProfile(profileInput) {
        reasons.push('CP_RBI_2024_INDIVIDUAL_PRIMARY_SUBSCRIPTION_CAP_NOT_PERSONAL_APPROVAL');
        reasons.push('CP_RBI_2024_25_PERCENT_PRIMARY_LIMIT_IS_ALL_INDIVIDUALS_AND_HUFS_COMBINED');
        reasons.push('RBI_CP_ISSUER_BUYBACK_NOT_INVESTOR_PUT_OR_GUARANTEED_EXIT');
+       reasons.push('RBI_CP_A3_ISSUANCE_FLOOR_NOT_VERIFIED_ISSUER_RATING_OR_REPAYMENT');
+       reasons.push('RBI_CP_TPLUS_SETTLEMENT_ONLY_AFTER_EXECUTED_TRADE_NOT_CASH_EQUIVALENT');
+       reasons.push('RBI_CP_NO_REPAYMENT_GRACE_PERIOD_NOT_DEFAULT_PROTECTION');
+       if(profile.investmentGoals.includes('Emergency Fund'))
+         reasons.push('EMERGENCY_FUND_GOAL_CP_EXECUTABLE_BID_AND_SETTLEMENT_UNVERIFIED');
+       if(Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
+         reasons.push('SHORT_HORIZON_REQUIRES_CP_ISSUER_CREDIT_AND_EARLY_SALE_REVIEW');
        if(profile.emergencyFundMonths===0)
          reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_CP_CREDIT_AND_EXIT_REVIEW');
        // Reported lump sum is not total resources or a verified subscription.

@@ -2999,3 +2999,87 @@ test('three further debt archetypes retain guarded CRA and liquidity screening',
  assert.ok(!listExtensionResearch().find(x=>x.id===ids[0]).debtInstrumentReview
   .creditRiskometerOct2026Review.issueSpecificDisclosureAnnexureReview.riskConsiderations.includes('FAKE'));
 });
+
+test('2024 SEBI PMS FAQ distinguishes discretionary and non-discretionary exposure without client approval',()=>{
+ const ids=['catalog_2026_pms_discretionary','catalog_2026_pms_nondiscretionary'];
+ const rows=listExtensionResearch();
+ const base=screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],investmentHorizonYears:10,emergencyFundMonths:null,
+  riskTolerance:'Moderate',
+ }));
+ const emergency=screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Emergency Fund'],investmentHorizonYears:2,emergencyFundMonths:0,
+ }));
+ for(const [index,id] of ids.entries()){
+  const row=rows.find(x=>x.id===id);
+  const review=row.individualCategoryReview.pms2024FaqAccessAndExitReview;
+  assert.equal(review.officialSebiFaqUrl,'https://www.sebi.gov.in/sebi_data/faqfiles/sep-2024/1727350357563.pdf');
+  assert.equal(review.faqPublishedOn,'2024-09-20');
+  assert.equal(review.faqExplicitlyNonLegalGuidance,true);
+  assert.equal(review.discretionaryUnlistedBondInvestmentProhibitedUnderFaq,true);
+  assert.equal(review.nondiscretionaryUnlistedSecuritiesMaximumClientAumPctUnderFaq,25);
+  assert.equal(review.faqStandardPmsOpeningMinimumInr,5000000);
+  assert.equal(review.pmsStatutoryLockInProhibitedUnderFaq,true);
+  assert.equal(review.earlyExitFeesMayApplyUnderContract,true);
+  assert.equal(review.indicativeOrGuaranteedReturnsProhibitedUnderFaq,true);
+  for(const key of ['actualManagerRegistrationAndAgreementVerified','actualUnlistedHoldingsAndApplicableLimitsVerified',
+   'individualClientKycAndMinimumExceptionsVerified','actualPortfolioValuationExitFeesAndLiquidityVerified',
+   'currentRegulatoryAmendmentsFullyReconciled','commercialDataRightsVerified',
+   'personalizedAdviceAuthorizationVerified'])assert.equal(review[key],false,id+':'+key);
+  const general='SEBI_2024_PMS_FAQ_NONBINDING_AND_NOT_CURRENT_PROVIDER_APPROVAL';
+  const type=index===0
+   ?'DISCRETIONARY_PMS_2024_FAQ_UNLISTED_BOND_RESTRICTION_REQUIRES_CURRENT_MANDATE_REVIEW'
+   :'NONDISCRETIONARY_PMS_2024_FAQ_25PCT_UNLISTED_CLIENT_AUM_CAP_NOT_ACCESS_APPROVAL';
+  for(const arr of [base,emergency]){
+   const screened=arr.find(x=>x.id===id);
+   assert.equal(screened.productQualified,false);
+   assert.equal(screened.scoreAvailable,false);
+   assert.equal(screened.productRiskLevel,null);
+   assert.ok(screened.screeningReasonCodes.includes(general));
+   assert.ok(screened.screeningReasonCodes.includes(type));
+  }
+  assert.ok(!base.find(x=>x.id===id).screeningReasonCodes.includes(
+   'EMERGENCY_FUND_PMS_EXIT_FEES_UNDERLYING_HOLDINGS_AND_SETTLEMENT_REVIEW'));
+  assert.ok(emergency.find(x=>x.id===id).screeningReasonCodes.includes(
+   'EMERGENCY_FUND_PMS_EXIT_FEES_UNDERLYING_HOLDINGS_AND_SETTLEMENT_REVIEW'));
+ }
+});
+test('RBI CP rating floor and post-trade settlement do not create executable retail access',()=>{
+ const id='catalog_2026_commercial_paper';
+ const row=listExtensionResearch().find(x=>x.id===id);
+ const review=row.debtInstrumentReview.rbiCpSettlementAndRating2024Review;
+ assert.equal(review.officialRbiDirectionUrl,'https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12592');
+ assert.equal(review.reviewedOn,'2026-10-31');
+ assert.equal(review.minimumIssuanceRating,'A3');
+ assert.equal(review.minimumRatingDoesNotGuaranteeRepayment,true);
+ assert.equal(review.primaryIssueSettlementMaximumWorkingDays,4);
+ assert.deepEqual(review.otcSecondarySettlementCycles,['T+0','T+1']);
+ assert.equal(review.otcCpDeliveryVersusPaymentRequired,true);
+ assert.equal(review.repaymentGracePeriodDays,0);
+ assert.equal(review.earlierIssuedInstrumentsMayRemainUnderPriorDirections,true);
+ for(const key of ['specificIssuerIsinAndOfferVerified','actualCraRatingAndDefaultStatusVerified',
+  'actualInvestorBrokerAndDematAccessVerified','executableSecondaryBidAndSettlementVerified',
+  'currentPriceAndCommercialReuseRightsVerified','personalizedAdviceAuthorizationVerified'])
+  assert.equal(review[key],false);
+ const screen=changes=>screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],investmentHorizonYears:10,emergencyFundMonths:null,
+  riskTolerance:'Moderate',...changes,
+ })).find(x=>x.id===id);
+ const baseline=screen({}),goal=screen({investmentGoals:['Emergency Fund']}),
+  short=screen({investmentHorizonYears:2});
+ assert.equal(baseline.productQualified,false);
+ assert.equal(baseline.scoreAvailable,false);
+ assert.equal(baseline.productRiskLevel,null);
+ assert.ok(baseline.screeningReasonCodes.includes(
+  'RBI_CP_TPLUS_SETTLEMENT_ONLY_AFTER_EXECUTED_TRADE_NOT_CASH_EQUIVALENT'));
+ assert.ok(baseline.screeningReasonCodes.includes(
+  'RBI_CP_A3_ISSUANCE_FLOOR_NOT_VERIFIED_ISSUER_RATING_OR_REPAYMENT'));
+ assert.ok(goal.screeningReasonCodes.includes(
+  'EMERGENCY_FUND_GOAL_CP_EXECUTABLE_BID_AND_SETTLEMENT_UNVERIFIED'));
+ assert.ok(!baseline.screeningReasonCodes.includes(
+  'EMERGENCY_FUND_GOAL_CP_EXECUTABLE_BID_AND_SETTLEMENT_UNVERIFIED'));
+ assert.ok(short.screeningReasonCodes.includes(
+  'SHORT_HORIZON_REQUIRES_CP_ISSUER_CREDIT_AND_EARLY_SALE_REVIEW'));
+ assert.ok(!baseline.screeningReasonCodes.includes(
+  'SHORT_HORIZON_REQUIRES_CP_ISSUER_CREDIT_AND_EARLY_SALE_REVIEW'));
+});

@@ -1442,3 +1442,37 @@ test('three further CRA Annexure reviews remain unpriced and defensively copied'
   assert.ok(!fresh.riskConsiderations.includes('FAKE RATING'));
  }
 });
+
+test('2024 SEBI PMS FAQ exposure distinctions remain unpriced, unapproved and copied',()=>{
+ for(const id of ['catalog_2026_pms_discretionary','catalog_2026_pms_nondiscretionary']){
+  const get=()=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+  const item=get(),review=item.frameworkResearch.individualCategoryReview.pms2024FaqAccessAndExitReview;
+  assert.equal(review.faqPublishedOn,'2024-09-20');
+  assert.equal(review.actualManagerRegistrationAndAgreementVerified,false);
+  assert.equal(review.personalizedAdviceAuthorizationVerified,false);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.ok(Object.values(item.productData).every(x=>x===null));
+  review.riskConsiderations.push('FORGED APPROVAL');
+  review.actualManagerRegistrationAndAgreementVerified=true;
+  const clean=get().frameworkResearch.individualCategoryReview.pms2024FaqAccessAndExitReview;
+  assert.ok(!clean.riskConsiderations.includes('FORGED APPROVAL'));
+  assert.equal(clean.actualManagerRegistrationAndAgreementVerified,false);
+ }
+});
+test('RBI CP settlement and rating research cannot become licensed executable prices',()=>{
+ const get=()=>listFinancialDiscoveryDirectory().items.find(x=>x.id==='catalog_2026_commercial_paper');
+ const item=get(),review=item.frameworkResearch.debtInstrumentReview.rbiCpSettlementAndRating2024Review;
+ assert.equal(review.minimumIssuanceRating,'A3');
+ assert.deepEqual(review.otcSecondarySettlementCycles,['T+0','T+1']);
+ assert.equal(review.executableSecondaryBidAndSettlementVerified,false);
+ assert.equal(item.recommendationEligible,false);
+ assert.equal(item.productAvailability,'NOT_VERIFIED');
+ assert.equal(item.dataRights,'NOT_VERIFIED');
+ assert.ok(Object.values(item.productData).every(x=>x===null));
+ review.otcSecondarySettlementCycles.push('INSTANT');
+ review.executableSecondaryBidAndSettlementVerified=true;
+ const clean=get().frameworkResearch.debtInstrumentReview.rbiCpSettlementAndRating2024Review;
+ assert.deepEqual(clean.otcSecondarySettlementCycles,['T+0','T+1']);
+ assert.equal(clean.executableSecondaryBidAndSettlementVerified,false);
+});
