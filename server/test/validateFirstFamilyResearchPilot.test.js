@@ -38,8 +38,79 @@ test('pilot source notes never become a commercial entitlement, booking or tax/s
   assert.throws(()=>validateFirstFamilyResearchPilot(changed,{now:at}), /^Error: RD_PILOT_/);
  }
 });
+test('HDFC standard and SMS channel minima remain separate, with official source links',()=>{
+ const expected=copy().candidates.find(x=>x.issuer==='HDFC Bank Limited');
+ assert.deepEqual(expected.publishedChannelMinimums.map(x=>[x.channel,x.monthlyMinimumInr]),
+   [['STANDARD_RD',500],['SMS_RD',1000]]);
+ assert.ok(expected.publishedChannelMinimums.every(x=>x.officialUrl.startsWith('https://www.hdfc.bank.in/')));
+ const altered=copy();
+ altered.candidates.find(x=>x.issuer==='HDFC Bank Limited')
+   .publishedChannelMinimums[1].monthlyMinimumInr=500;
+ assert.throws(()=>validateFirstFamilyResearchPilot(altered,{now:at}),/RD_PILOT_PUBLIC_BOOKING_CHANNEL_MINIMUM_MISMATCH/);
+});
+test('18-month issuer rate evidence is distinct and never promoted to a licensed product quote',()=>{
+ const raw=copy();
+ const sbi=raw.candidates.find(x=>x.issuer==='State Bank of India').additionalOfficialTenorResearch;
+ const hdfc=raw.candidates.find(x=>x.issuer==='HDFC Bank Limited').additionalOfficialTenorResearch;
+ assert.equal(sbi.ordinaryPublishedRatePercentPerAnnum,6.25);
+ assert.equal(hdfc.ordinaryPublishedRatePercentPerAnnum,6.45);
+ assert.notEqual(sbi.ordinaryPublishedRatePercentPerAnnum,hdfc.ordinaryPublishedRatePercentPerAnnum);
+ assert.ok([sbi,hdfc].every(x=>x.status==='PUBLIC_ISSUER_RESEARCH_ONLY_NOT_LICENSED_MARKET_OBSERVATION'
+  && x.licensedCommercialDisplay===false && x.bookedCustomerRateConfirmed===false
+  && x.recommendationEligible===false));
+ for(const mutation of [
+   x=>x.additionalOfficialTenorResearch.ordinaryPublishedRatePercentPerAnnum=7.5,
+   x=>x.additionalOfficialTenorResearch.licensedCommercialDisplay=true,
+   x=>x.additionalOfficialTenorResearch.officialSourceUrl='https://fake-bank.example/rates',
+ ]) {
+  const changed=copy();
+  mutation(changed.candidates[1]);
+  assert.throws(()=>validateFirstFamilyResearchPilot(changed,{now:at}),
+    /RD_PILOT_EIGHTEEN_MONTH_RATE_SOURCE_OR_PERMISSION_UNVERIFIED/);
+ }
+});
+test('official HDFC website terms restrict commercial reuse; research cannot supply entitlement',()=>{
+ const pilot=copy();
+ const hdfc=pilot.candidates.find(x=>x.issuer==='HDFC Bank Limited');
+ assert.equal(hdfc.publicWebsiteLicenseReview.officialTermsUrl,
+   'https://www.hdfc.bank.in/useful-links/website-usage-terms');
+ assert.equal(hdfc.publicWebsiteLicenseReview.result,
+   'PUBLIC_TERMS_RESTRICT_COMMERCIAL_REPRODUCTION_STORAGE_AND_REDISTRIBUTION');
+ assert.equal(hdfc.publicWebsiteLicenseReview.independentlyAuthorizedCommercialDataFeed,false);
+ assert.equal(hdfc.publicWebsiteLicenseReview.separateProviderGrantRequired,true);
+ const tampered=copy();
+ tampered.candidates[1].publicWebsiteLicenseReview.independentlyAuthorizedCommercialDataFeed=true;
+ assert.throws(()=>validateFirstFamilyResearchPilot(tampered,{now:at}),/RD_PILOT_PUBLIC_WEBSITE_LICENCE_REVIEW_MISSING/);
+ const altered=copy();
+ altered.candidates[1].publicWebsiteLicenseReview.result='ALL_COMMERCIALLY_LICENSED';
+ assert.throws(()=>validateFirstFamilyResearchPilot(altered,{now:at}),/RD_PILOT_PUBLIC_WEBSITE_LICENCE_REVIEW_MISSING/);
+});
 test('published reference facts become due for recheck without becoming a live rate',()=>{
  const p=validateFirstFamilyResearchPilot(copy(),{now:new Date('2026-11-12T00:00:00Z')});
  assert.equal(p.researchEvidenceFreshness,'RECHECK_REQUIRED');
  assert.equal(p.productionEligible,false);
+});
+
+test('issuer-specific source paths and HDFC conflicting official channel wording fail closed',()=>{
+ const changes=[
+  x=>x.candidates[0].officialProductUrl='https://sbi.bank.in/web/personal-banking/other-product',
+  x=>x.candidates[1].officialRateUrl='https://www.hdfc.bank.in/other-interest-rates',
+  x=>x.candidates[1].officialTermsUrl='https://www.hdfc.bank.in/unrelated-terms',
+  x=>x.candidates[0].researchId='research_different_sbi_rd',
+  x=>x.candidates[1].publishedChannelMinimums[1].officialUrl='https://www.hdfc.bank.in/recurring-deposit',
+  x=>x.candidates[1].publicSourceConsistencyReview.issuerChannelTermsReconciled=true,
+  x=>x.candidates[1].publicSourceConsistencyReview.productionRecommendationEligible=true,
+  x=>x.candidates[1].publicSourceConsistencyReview.mainPageSmsDefaultMonthlyInr=1000,
+ ];
+ for(const change of changes){
+  const tampered=copy();change(tampered);
+  assert.throws(()=>validateFirstFamilyResearchPilot(tampered,{now:at}),/^Error: RD_PILOT_/);
+ }
+ const conflict=copy().candidates[1].publicSourceConsistencyReview;
+ assert.equal(conflict.status,
+  'CONFLICTING_OFFICIAL_PUBLIC_CHANNEL_TEXT_REQUIRES_ISSUER_CONFIRMATION');
+ assert.equal(conflict.issuerChannelTermsReconciled,false);
+ assert.equal(conflict.individualBookingEligibilityVerified,false);
+ assert.equal(conflict.licensedCommercialDataRightsVerified,false);
+ assert.equal(validateFirstFamilyResearchPilot(copy(),{now:at}).approvedActualInvestmentProducts,0);
 });

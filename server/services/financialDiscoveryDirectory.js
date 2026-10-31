@@ -5,6 +5,8 @@
  */
 import { readFileSync } from 'node:fs';
 import { investmentDatabase } from '../data/investmentDatabase.js';
+import { listExtensionResearch, getFrameworkSourcePublisherType } from './extensionFrameworkAssessment.js';
+import { validateFirstFamilyResearchPilot } from '../scripts/validateFirstFamilyResearchPilot.js';
 
 const extensions = JSON.parse(readFileSync(
   new URL('../data/investmentUniverseExtensions2026.json', import.meta.url), 'utf8',
@@ -13,12 +15,14 @@ const extensions = JSON.parse(readFileSync(
 const rdResearch = JSON.parse(readFileSync(
   new URL('../data/qualificationPilots/bankRecurringDeposit2026-10-28.json', import.meta.url), 'utf8',
 ));
+const extensionResearchById = new Map(listExtensionResearch().map(x => [x.id,x]));
 const RD_FAMILY_ID = 'catalog_2026_bank_rd';
 const RD_HOSTS = Object.freeze({
   'State Bank of India': 'sbi.bank.in',
   'HDFC Bank Limited': 'www.hdfc.bank.in',
 });
 function readOfficialIssuerReferences() {
+  validateFirstFamilyResearchPilot(rdResearch);
   if (rdResearch.familyId !== RD_FAMILY_ID
     || rdResearch.actualProductsApprovedForRecommendations !== 0
     || rdResearch.commercialDataEntitlementVerified !== false
@@ -34,7 +38,9 @@ function readOfficialIssuerReferences() {
       || url.hostname !== host || url.username || url.password || url.hash
       || candidate.productionRecommendationEligible !== false
       || candidate.issuerEntitlementVerified !== false
-      || candidate.commercialDisplayAndRedistributionRightsVerified !== false) {
+      || candidate.commercialDisplayAndRedistributionRightsVerified !== false
+      || candidate.publicWebsiteLicenseReview?.independentlyAuthorizedCommercialDataFeed !== false
+      || candidate.publicWebsiteLicenseReview?.separateProviderGrantRequired !== true) {
       throw new Error('FINANCIAL_RD_RESEARCH_SOURCE_INVALID');
     }
     seen.add(candidate.issuer);
@@ -43,6 +49,16 @@ function readOfficialIssuerReferences() {
       officialProductUrl: url.href,
       reviewedOn: rdResearch.researchReviewedOn,
       evidenceStatus: 'PUBLIC_ISSUER_LINK_ONLY_NOT_LICENSED_PRODUCT_DATA',
+      sourceConsistencyNotice: candidate.publicSourceConsistencyReview ? {
+        status: candidate.publicSourceConsistencyReview.status,
+        reviewedOn: candidate.publicSourceConsistencyReview.reviewedOn,
+        issuerConfirmationRequired: true,
+        applicantSpecificBookingTermsVerified: false,
+        note: 'Official issuer pages contain inconsistent recurring-deposit channel wording; confirm terms directly with the bank before relying on them.',
+      } : null,
+      providerRightsReview: candidate.publicWebsiteLicenseReview.result,
+      providerTermsUrl: candidate.publicWebsiteLicenseReview.officialTermsUrl,
+      independentCommercialPermissionVerified: false,
     });
   });
 }
@@ -50,6 +66,19 @@ const RD_OFFICIAL_ISSUER_REFERENCES = Object.freeze(readOfficialIssuerReferences
 
 const normalize = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const asText = s => typeof s === 'string' && s.trim() ? s.trim() : null;
+const sourceLearningPoints = values => Array.isArray(values)
+  ? values.filter(value => typeof value === 'string' && value.trim())
+    .map(value => value.trim()).slice(0, 4)
+  : [];
+function legacyStudyNotes(item) {
+  // Unreviewed educational descriptions: NOT actual product facts or advice.
+  return {
+    provenance: 'UNVERIFIED_LEGACY_EDUCATIONAL_CATALOG',
+    possibleBenefits: sourceLearningPoints(item.pros),
+    keyTradeoffs: sourceLearningPoints(item.cons),
+    goalThemes: sourceLearningPoints(item.goalTags),
+  };
+}
 const httpsUrl = value => {
   try {
     const url = new URL(value);
@@ -80,6 +109,7 @@ function buildDirectory() {
     // The source catalog may contain assumptions, which are NOT market quotes.
     educationalRiskLabel: asText(item.riskLabel),
     educationalRiskBasis: 'UNVERIFIED_LEGACY_CATALOG_REFERENCE',
+    studyNotes: legacyStudyNotes(item),
     referenceUrl: null, referenceCheckedAsOf: null,
     productData: { ...missingFacts },
     productAvailability: 'NOT_VERIFIED',
@@ -92,8 +122,82 @@ function buildDirectory() {
     record_kind: 'ARCHETYPE', origin: 'EXTENDED_95',
     publicIssuerReferences: item.id === RD_FAMILY_ID ? RD_OFFICIAL_ISSUER_REFERENCES : [],
     instrumentForm: asText(item.instrumentForm),
+    frameworkResearch: (() => {
+      const research = extensionResearchById.get(item.id);
+      if (!research || research.referenceUrl !== item.sourceUrl
+        || research.productRiskScore !== null || research.actualRetailProductEligible !== false
+        || research.sourcePermissionVerified !== false) {
+        throw new Error('FINANCIAL_95_FRAMEWORK_ITEM_UNQUALIFIED:' + item.id);
+      }
+      const categoryReview=Object.values(research).find(review=>review
+        &&typeof review==='object'&&!Array.isArray(review)
+        &&Array.isArray(review.riskConsiderations)
+        &&Array.isArray(review.investorAccessConstraints));
+      if(!categoryReview||categoryReview.riskConsiderations.length<2
+        ||categoryReview.investorAccessConstraints.length<2) {
+        throw new Error('FINANCIAL_CATEGORY_RISK_ACCESS_EVIDENCE_MISSING:'+item.id);
+      }
+      return {
+        categoryRiskConsiderations: [...categoryReview.riskConsiderations],
+        categoryInvestorAccessConstraints: [...categoryReview.investorAccessConstraints],
+        categoryRiskAccessScope: 'GENERAL_CATEGORY_CAUTIONS_NOT_SCHEME_RISKOMETER_OR_ELIGIBILITY',
+        structuralExposureClass: research.exposureClass,
+        specificResearchConcern: research.scenarioDescription,
+        standardCapitalReferenceInr: research.standardCapitalReferenceInr,
+        standardMinimumHasExceptions: research.thresholdHasAccreditedInvestorExceptions,
+        nominalMaturityMonths: research.nominalMaturityMonths,
+        nominalMaturityDays: research.nominalMaturityDays,
+        evidenceScope: research.verifiedPublicFrameworkFact?.scope ?? 'NOT_VERIFIED',
+        officialFrameworkPublisherType: getFrameworkSourcePublisherType(
+          research.verifiedPublicFrameworkFact?.officialSourceUrl),
+        actualRiskScore: null,
+        issuerTermsVerified: false,
+        sourceRightsVerified: false,
+        reviewedOfficialFrameworkFact: research.verifiedPublicFrameworkFact
+          ? { ...research.verifiedPublicFrameworkFact } : null,
+        officialFrameworkVerification: research.publicFrameworkVerification,
+        postalSavingsAccessReview: research.postalSavingsAccessReview
+          ? structuredClone(research.postalSavingsAccessReview) : null,
+        aifCategoryAccessReview: research.aifCategoryAccessReview
+          ? structuredClone(research.aifCategoryAccessReview) : null,
+        sgsStripsAccessReview: research.sgsStripsAccessReview
+          ? structuredClone(research.sgsStripsAccessReview) : null,
+        bankDepositAccessReview: research.bankDepositAccessReview
+          ? structuredClone(research.bankDepositAccessReview) : null,
+        publicDepositAccessReview: research.nbfcPublicDepositAccessReview
+          ? structuredClone(research.nbfcPublicDepositAccessReview) : null,
+        retailDirectAccessReview: research.rbiRetailDirectAccessReview
+          ? structuredClone(research.rbiRetailDirectAccessReview) : null,
+        sebiDebtSchemeStructureReview: research.sebiDebtSchemeStructureReview
+          ? structuredClone(research.sebiDebtSchemeStructureReview) : null,
+        npsVatsalyaAccessReview: research.npsVatsalyaAccessReview
+          ? structuredClone(research.npsVatsalyaAccessReview) : null,
+        npsCommonSchemeReview: research.npsCommonSchemeReview
+          ? structuredClone(research.npsCommonSchemeReview) : null,
+        indexBenchmarkReview: research.indexBenchmarkReview
+          ? structuredClone(research.indexBenchmarkReview) : null,
+        etfBenchmarkReview: research.etfBenchmarkReview
+          ? structuredClone(research.etfBenchmarkReview) : null,
+        fundOfFundsCategoryReview: research.fundOfFundsCategoryReview
+          ? structuredClone(research.fundOfFundsCategoryReview) : null,
+        thematicIndexReview: research.thematicIndexReview
+          ? structuredClone(research.thematicIndexReview) : null,
+        debtInstrumentReview: research.debtInstrumentReview
+          ? structuredClone(research.debtInstrumentReview) : null,
+        individualCategoryReview: research.individualCategoryReview
+          ? structuredClone(research.individualCategoryReview) : null,
+        preciousMetalsCategoryReview: research.preciousMetalsCategoryReview
+          ? structuredClone(research.preciousMetalsCategoryReview) : null,
+        governmentBondStructureReview: research.governmentBondStructureReview
+          ? structuredClone(research.governmentBondStructureReview) : null,
+      };
+    })(),
     description: null, educationalRiskLabel: null,
     educationalRiskBasis: 'NOT_ESTABLISHED',
+    studyNotes: {
+      provenance: 'REGULATORY_CATEGORY_REFERENCE_ONLY',
+      possibleBenefits: [], keyTradeoffs: [], goalThemes: [],
+    },
     referenceUrl: httpsUrl(item.sourceUrl),
     referenceCheckedAsOf: item.researchEvidence?.referenceCheckedAsOf ?? null,
     productData: { ...missingFacts },
@@ -127,7 +231,58 @@ export function listFinancialDiscoveryDirectory() {
     disclaimer: '250 educational investment categories, not 250 verified purchasable products. No current prices, rates, tax outcomes or personalized investment recommendations are established by this catalog.',
     items: DIRECTORY.map(item => ({
       ...item, productData: { ...item.productData },
-      publicIssuerReferences: item.publicIssuerReferences.map(reference => ({ ...reference })),
+      frameworkResearch: item.frameworkResearch ? {
+        ...item.frameworkResearch,
+        categoryRiskConsiderations: [...item.frameworkResearch.categoryRiskConsiderations],
+        categoryInvestorAccessConstraints: [...item.frameworkResearch.categoryInvestorAccessConstraints],
+        reviewedOfficialFrameworkFact: item.frameworkResearch.reviewedOfficialFrameworkFact
+          ? { ...item.frameworkResearch.reviewedOfficialFrameworkFact } : null,
+        postalSavingsAccessReview: item.frameworkResearch.postalSavingsAccessReview
+          ? structuredClone(item.frameworkResearch.postalSavingsAccessReview) : null,
+        aifCategoryAccessReview: item.frameworkResearch.aifCategoryAccessReview
+          ? structuredClone(item.frameworkResearch.aifCategoryAccessReview) : null,
+        sgsStripsAccessReview: item.frameworkResearch.sgsStripsAccessReview
+          ? structuredClone(item.frameworkResearch.sgsStripsAccessReview) : null,
+        bankDepositAccessReview: item.frameworkResearch.bankDepositAccessReview
+          ? structuredClone(item.frameworkResearch.bankDepositAccessReview) : null,
+        publicDepositAccessReview: item.frameworkResearch.publicDepositAccessReview
+          ? structuredClone(item.frameworkResearch.publicDepositAccessReview) : null,
+        retailDirectAccessReview: item.frameworkResearch.retailDirectAccessReview
+          ? structuredClone(item.frameworkResearch.retailDirectAccessReview) : null,
+        sebiDebtSchemeStructureReview: item.frameworkResearch.sebiDebtSchemeStructureReview
+          ? structuredClone(item.frameworkResearch.sebiDebtSchemeStructureReview) : null,
+        npsVatsalyaAccessReview: item.frameworkResearch.npsVatsalyaAccessReview
+          ? structuredClone(item.frameworkResearch.npsVatsalyaAccessReview) : null,
+        npsCommonSchemeReview: item.frameworkResearch.npsCommonSchemeReview
+          ? structuredClone(item.frameworkResearch.npsCommonSchemeReview) : null,
+        indexBenchmarkReview: item.frameworkResearch.indexBenchmarkReview
+          ? structuredClone(item.frameworkResearch.indexBenchmarkReview) : null,
+        etfBenchmarkReview: item.frameworkResearch.etfBenchmarkReview
+          ? structuredClone(item.frameworkResearch.etfBenchmarkReview) : null,
+        fundOfFundsCategoryReview: item.frameworkResearch.fundOfFundsCategoryReview
+          ? structuredClone(item.frameworkResearch.fundOfFundsCategoryReview) : null,
+        thematicIndexReview: item.frameworkResearch.thematicIndexReview
+          ? structuredClone(item.frameworkResearch.thematicIndexReview) : null,
+        debtInstrumentReview: item.frameworkResearch.debtInstrumentReview
+          ? structuredClone(item.frameworkResearch.debtInstrumentReview) : null,
+        individualCategoryReview: item.frameworkResearch.individualCategoryReview
+          ? structuredClone(item.frameworkResearch.individualCategoryReview) : null,
+        preciousMetalsCategoryReview: item.frameworkResearch.preciousMetalsCategoryReview
+          ? structuredClone(item.frameworkResearch.preciousMetalsCategoryReview) : null,
+        governmentBondStructureReview: item.frameworkResearch.governmentBondStructureReview
+          ? structuredClone(item.frameworkResearch.governmentBondStructureReview) : null,
+      } : null,
+      studyNotes: {
+        ...item.studyNotes,
+        possibleBenefits: [...item.studyNotes.possibleBenefits],
+        keyTradeoffs: [...item.studyNotes.keyTradeoffs],
+        goalThemes: [...item.studyNotes.goalThemes],
+      },
+      publicIssuerReferences: item.publicIssuerReferences.map(reference => ({
+        ...reference,
+        sourceConsistencyNotice: reference.sourceConsistencyNotice
+          ? { ...reference.sourceConsistencyNotice } : null,
+      })),
     })),
   };
 }

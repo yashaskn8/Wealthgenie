@@ -13,7 +13,7 @@
   "regulatedAdviceAuthorizationVerified": false,
   "confidentiality": "NO_CONFIDENTIAL_APPROVAL_DOCUMENTS_OR_DERIVED_HASHES",
   "insuranceReferenceUrl": "https://www.dicgc.org.in/guide-to-deposit-insurance",
-  "note": "Issuer product existence and published reference-rate evidence, not a price/NAV feed, licensed product dataset, booked offer, tax determination, or suitability approval. Do not run production registration from this file.",
+  "note": "Issuer product existence and published reference-rate evidence, not a price/NAV feed, licensed product dataset, booked offer, tax determination, or suitability approval. Do not run production registration from this file. Booking-channel minimums can differ even for the same bank and tenor; never collapse them into a single applicant-specific quote. Separately inspected 18-month ordinary rate tables have DIFFERENT published values (SBI 6.25%, HDFC 6.45% on 2026-10-28); both remain research-only and are not included in the live market feed. On 2026-10-29 the HDFC main RD and dedicated SMS pages showed inconsistent monthly-minimum and SMS-default wording; the source conflict requires issuer confirmation and is not an applicant-specific booking fact.",
   "candidates": [
     {
       "researchId": "research_sbi_rd_resident_12m",
@@ -34,7 +34,36 @@
       "currentLivePublishedRateFeedAvailable": false,
       "taxClassificationReviewComplete": false,
       "independentSuitabilityReviewComplete": false,
-      "productionRecommendationEligible": false
+      "productionRecommendationEligible": false,
+      "publishedChannelMinimums": [
+        {
+          "channel": "STANDARD_RD",
+          "monthlyMinimumInr": 100,
+          "officialUrl": "https://sbi.bank.in/web/personal-banking/investments-deposits/deposits/recurring-deposit",
+          "caveat": "Published basic RD minimum, not proof any particular applicant can open it."
+        }
+      ],
+      "additionalOfficialTenorResearch": {
+        "tenorMonths": 18,
+        "ordinaryPublishedRatePercentPerAnnum": 6.25,
+        "issuerRateEffectiveFrom": "2025-12-15",
+        "officialSourceUrl": "https://sbi.bank.in/web/interest-rates/deposit-rates/retail-domestic-term-deposits",
+        "sourceReviewDate": "2026-10-28",
+        "sourceValueType": "TERM_DEPOSIT_RATE_USED_BY_RD",
+        "status": "PUBLIC_ISSUER_RESEARCH_ONLY_NOT_LICENSED_MARKET_OBSERVATION",
+        "licensedCommercialDisplay": false,
+        "bookedCustomerRateConfirmed": false,
+        "recommendationEligible": false
+      },
+      "publicWebsiteLicenseReview": {
+        "officialTermsUrl": null,
+        "reviewedOn": "2026-10-28",
+        "result": "BANK_PUBLIC_RATE_PAGE_HAS_NO_INDEPENDENTLY_VERIFIED_COMMERCIAL_ENTITLEMENT",
+        "independentlyAuthorizedCommercialDataFeed": false,
+        "apiAccessIsCommercialDataLicense": false,
+        "separateProviderGrantRequired": true,
+        "note": "Published issuer rates establish research references, not licensed third-party commercial redistribution rights."
+      }
     },
     {
       "researchId": "research_hdfc_rd_resident_12m",
@@ -55,7 +84,58 @@
       "currentLivePublishedRateFeedAvailable": false,
       "taxClassificationReviewComplete": false,
       "independentSuitabilityReviewComplete": false,
-      "productionRecommendationEligible": false
+      "productionRecommendationEligible": false,
+      "publishedChannelMinimums": [
+        {
+          "channel": "STANDARD_RD",
+          "monthlyMinimumInr": 500,
+          "officialUrl": "https://www.hdfc.bank.in/terms-and-conditions",
+          "caveat": "Bank's general RD conditions; not necessarily the minimum for every booking channel."
+        },
+        {
+          "channel": "SMS_RD",
+          "monthlyMinimumInr": 1000,
+          "officialUrl": "https://www.hdfc.bank.in/recurring-deposit/rd-booking-via-sms",
+          "caveat": "Separate SMS-only RD channel requires prior eligible registered SMS banking and linked account."
+        }
+      ],
+      "additionalOfficialTenorResearch": {
+        "tenorMonths": 18,
+        "ordinaryPublishedRatePercentPerAnnum": 6.45,
+        "issuerRateEffectiveFrom": "2025-12-17",
+        "officialSourceUrl": "https://www.hdfc.bank.in/interest-rates",
+        "sourceReviewDate": "2026-10-28",
+        "sourceValueType": "SPECIFIC_RD_RATE_ROW",
+        "status": "PUBLIC_ISSUER_RESEARCH_ONLY_NOT_LICENSED_MARKET_OBSERVATION",
+        "licensedCommercialDisplay": false,
+        "bookedCustomerRateConfirmed": false,
+        "recommendationEligible": false
+      },
+      "publicWebsiteLicenseReview": {
+        "officialTermsUrl": "https://www.hdfc.bank.in/useful-links/website-usage-terms",
+        "reviewedOn": "2026-10-28",
+        "result": "PUBLIC_TERMS_RESTRICT_COMMERCIAL_REPRODUCTION_STORAGE_AND_REDISTRIBUTION",
+        "independentlyAuthorizedCommercialDataFeed": false,
+        "apiAccessIsCommercialDataLicense": false,
+        "separateProviderGrantRequired": true,
+        "note": "Website visitor terms do not authorize commercial database reuse/display. A separately authenticated grant with exact scope is required."
+      },
+      "publicSourceConsistencyReview": {
+        "reviewedOn": "2026-10-29",
+        "officialMainProductUrl": "https://www.hdfc.bank.in/recurring-deposit",
+        "officialSmsBookingUrl": "https://www.hdfc.bank.in/recurring-deposit/rd-booking-via-sms",
+        "mainPageFeatureMinimumMonthlyInr": 500,
+        "mainPageFaqStartingMonthlyInr": 1000,
+        "mainPageSmsDefaultMonthlyInr": 21000,
+        "dedicatedSmsPageDefaultMonthlyInr": 1000,
+        "status": "CONFLICTING_OFFICIAL_PUBLIC_CHANNEL_TEXT_REQUIRES_ISSUER_CONFIRMATION",
+        "issuerChannelTermsReconciled": false,
+        "individualBookingEligibilityVerified": false,
+        "licensedCommercialDataRightsVerified": false,
+        "productionRecommendationEligible": false,
+        "note": "On 2026-10-29 HDFC's main RD page described a Rs 500 feature minimum but Rs 1,000 in its FAQ; its SMS example gave a Rs 21,000 default while the dedicated SMS page stated Rs 1,000. Do not infer a single applicant-specific minimum, SMS default or bookable offer from these inconsistent public statements."
+      }
     }
-  ]
+  ],
+  "commercialSourceAuthorizationSummary": "HDFC_BANK_PUBLIC_WEBSITE_REUSE_RESTRICTED__NO_INDEPENDENT_SIGNED_DATA_GRANT"
 }

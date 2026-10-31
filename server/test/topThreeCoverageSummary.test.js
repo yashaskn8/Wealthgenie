@@ -44,3 +44,22 @@ test('an empty 250-family product catalog reports 500 minimum slots without fict
   assert.equal(summary.remainingTopThreeSlots, 750);
   assert.equal(summary.missingOrUnderfilledFamilies.length, 250);
 });
+
+test('all 250 catalog families must match their actual database family IDs', () => {
+  const rows = Array.from({ length: 250 }, (_, i) => ({
+    id: 'family-' + i, name: 'Family ' + i,
+    category: 'Discovery', potentially_qualified: 0,
+  }));
+  const ids=rows.map(x=>x.id);
+  const out=summarizeTopThreeCoverage(rows,'2026-10-28T00:00:00Z',{expectedFamilyIds:ids});
+  assert.equal(out.remainingMinimumSlots,500);
+  for(const changed of [
+    rows.slice(1),
+    [...rows,{...rows[0],id:'extraneous'}],
+    rows.map((x,i)=>i===0?{...x,id:'unknown-family'}:x),
+    rows.map((x,i)=>i===0?{...x,id:rows[1].id}:x),
+  ])assert.throws(()=>summarizeTopThreeCoverage(changed,'2026-10-28T00:00:00Z',{expectedFamilyIds:ids}),
+     /FINANCIAL_250_FAMILY_DATABASE_INVENTORY_MISMATCH/);
+  assert.throws(()=>summarizeTopThreeCoverage([rows[0],rows[0]]),
+    /FINANCIAL_FAMILY_RESULT_DUPLICATE_OR_INVALID/);
+});

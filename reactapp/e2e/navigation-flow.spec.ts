@@ -112,6 +112,19 @@ test.describe('Beginner-First Navigation Architecture E2E Journey', () => {
   test.beforeEach(async ({ page }) => {
     unexpectedApiRequests = await installUnexpectedApiGuard(page);
     await mockTaxPolicyCatalog(page);
+    // Navigation is not a source-data audit: keep the discovery endpoint
+    // explicitly unavailable rather than leaking a live API request or
+    // inventing 250 product records in this isolated browser fixture.
+    await page.route('**/api/financial-universe/discovery', async route => {
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 'TEST_EDUCATIONAL_DIRECTORY_UNAVAILABLE',
+          message: 'No independently verified discovery evidence in navigation fixture.',
+        }),
+      });
+    });
     await page.route('**/api/goals', async route => {
       await route.fulfill({
         status: 200,

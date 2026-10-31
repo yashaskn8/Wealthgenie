@@ -150,9 +150,9 @@ test('Kind image builds use repository-root contexts for shared-module Dockerfil
   assert.ok(buildStep, 'CD Docker image build step is missing');
   const commands = buildStep.replace(/\\\r?\n\s*/g, ' ');
 
-  assert.match(commands, /docker build\s+--build-arg APP_BUILD_SHA="\$GITHUB_SHA"\s+-f server\/Dockerfile\s+-t "wealthgenie-server:\$IMAGE_TAG" -t wealthgenie-server:latest\s+\./);
+  assert.match(commands, /docker build\s+--build-arg APP_BUILD_SHA="\$RELEASE_SHA"\s+-f server\/Dockerfile\s+-t "wealthgenie-server:\$IMAGE_TAG" -t wealthgenie-server:latest\s+\./);
   assert.match(commands, /docker build\s+-f ml-service\/Dockerfile -t "wealthgenie-ml-service:\$IMAGE_TAG"\s+-t wealthgenie-ml-service:latest ml-service\//);
-  assert.match(commands, /docker build\s+--build-arg VITE_API_URL=\/api\s+--build-arg VITE_BUILD_SHA="\$GITHUB_SHA"\s+-f reactapp\/Dockerfile\s+-t "wealthgenie-frontend:\$IMAGE_TAG"/);
+  assert.match(commands, /docker build\s+--build-arg VITE_API_URL=\/api\s+--build-arg VITE_BUILD_SHA="\$RELEASE_SHA"\s+-f reactapp\/Dockerfile\s+-t "wealthgenie-frontend:\$IMAGE_TAG"/);
   assert.match(commands, /docker image inspect --format '\{\{\.Id\}\}' "wealthgenie-server:\$IMAGE_TAG"/);
   assert.match(commands, /docker cp "\$FRONTEND_CONTAINER:\/usr\/share\/nginx\/html\/\." build\/frontend-artifacts\//);
   assert.match(commands, /server\/scripts\/createBuildProvenance\.js/);
@@ -227,7 +227,7 @@ test('Kind smoke verification owns and cleans up its server port-forward', () =>
   assert.match(smokeStep, /trap 'kill "\$PORT_FORWARD_PID"[^\n]+EXIT/);
   assert.match(smokeStep, /for attempt in \$\(seq 1 "\$attempts"\)/);
   assert.match(smokeStep, /curl[^\n]*--connect-timeout 5[^\n]*--max-time 10/);
-  assert.match(smokeStep, /jq -e --arg expected "\$GITHUB_SHA" '\.buildSha == \$expected'/);
+  assert.match(smokeStep, /jq -e --arg expected "\$RELEASE_SHA" '\.buildSha == \$expected'/);
   assert.match(smokeStep, /http:\/\/127\.0\.0\.1:8080\/build-provenance\/provenance\.json > build\/frontend-provenance\.json/);
   assert.match(smokeStep, /build\/frontend-provenance\.json > \/dev\/null/);
   assert.match(smokeStep, /TAX_RES=\$\(curl[\s\S]*?--max-time 10[\s\S]*?"\$TAX_URL"\)/);
@@ -269,7 +269,7 @@ test('Kind CD runs a provenance-bound, isolated Phase 15 pre-mutation doctor and
   assert.match(databaseStep, /refusing to reuse prior data/);
   assert.match(databaseStep, /_id: 'wealthgenie-phase15-demo'/);
   assert.match(cdWorkflow, /DEMO_EXPECTED_MONGODB_ENVIRONMENT_ID=\$DEMO_ENVIRONMENT_ID/);
-  assert.match(liveStep, /DEMO_EXPECTED_BUILD_SHA: \$\{\{ github\.sha \}\}/);
+  assert.match(liveStep, /DEMO_EXPECTED_BUILD_SHA: \$\{\{ env\.RELEASE_SHA \}\}/);
   assert.match(liveStep, /DEMO_EXPECTED_BUILD_TREE_SHA: \$\{\{ steps\.build\.outputs\.git_tree_sha \}\}/);
   assert.match(liveStep, /DEMO_EXPECTED_BUILD_PROVENANCE_SHA256: \$\{\{ steps\.build\.outputs\.provenance_sha256 \}\}/);
   assert.match(liveStep, /DEMO_EXPECTED_FRONTEND_ARTIFACT_SET_SHA256: \$\{\{ steps\.build\.outputs\.frontend_artifact_set_sha256 \}\}/);

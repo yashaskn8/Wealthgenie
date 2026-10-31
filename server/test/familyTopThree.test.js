@@ -261,3 +261,44 @@ test('two distinct verified identities can be compared without padding a duplica
  assert.deepEqual(result.products.map(p=>p.id),['p1','p3']);
  assert.equal(result.exclusionCounts.PRODUCT_IDENTITY_MISSING_OR_DUPLICATE,1);
 });
+
+
+test('distinct source-verified instruments retain their own observations and profile-specific eligibility',async()=>{
+ const inputs=[
+   product('verified-deposit-A',{source_identity:'issuer-A:deposit-12m',
+     product_name:'Issuer A 12-month offer',min_horizon_years:1,annual_fee_bps:12,
+     evidence_url:'https://issuer-A.example/12m',terms_evidence_url:'https://issuer-A.example/terms'}),
+   product('verified-deposit-B',{source_identity:'issuer-B:deposit-48m',
+     product_name:'Issuer B 48-month offer',min_horizon_years:4,annual_fee_bps:30,
+     evidence_url:'https://issuer-B.example/48m',terms_evidence_url:'https://issuer-B.example/terms'}),
+ ];
+ const facts={
+   'verified-deposit-A':{
+     id:701,source_id:'verified-bank',value:'6.25',
+     unit:'PCT_PER_ANNUM',data_class:'PUBLISHED_RATE',observed_at:'2026-10-22T10:00:00Z',
+   },
+   'verified-deposit-B':{
+     id:702,source_id:'verified-bank',value:'7.10',
+     unit:'PCT_PER_ANNUM',data_class:'PUBLISHED_RATE',observed_at:'2026-10-22T10:15:00Z',
+   },
+ };
+ const h=harness(inputs,facts);
+ const eligible=await compare(h);
+ assert.equal(eligible.status,'AVAILABLE');
+ assert.deepEqual(eligible.products.map(x=>x.id),['verified-deposit-A','verified-deposit-B']);
+ assert.deepEqual(eligible.products.map(x=>x.marketFact.value),[6.25,7.10]);
+ assert.deepEqual(eligible.products.map(x=>x.marketFact.observationId),['701','702']);
+ assert.deepEqual(eligible.products.map(x=>x.evidence.product),
+   ['https://issuer-A.example/12m','https://issuer-B.example/48m']);
+ assert.notEqual(eligible.products[0].marketFact.asOf,eligible.products[1].marketFact.asOf);
+ assert.ok(eligible.products.every(x=>x.evidence.terms.startsWith('https://')));
+ assert.ok(eligible.products.every(x=>!Object.hasOwn(x,'guaranteedReturn')));
+ const shorter=await compare(h,{profileInput:canonicalProfile({investmentHorizonYears:1})});
+ assert.equal(shorter.status,'INSUFFICIENT_VERIFIED_PRODUCTS');
+ assert.deepEqual(shorter.products,[]);
+ assert.equal(shorter.exclusionCounts.INVESTMENT_HORIZON_TOO_SHORT,1);
+ assert.equal(shorter.verifiedProductCount,1);
+ const notLicensed=await compare(h,{adviceAuthorized:false});
+ assert.equal(notLicensed.reasonCode,'PERSONALIZED_ADVICE_AUTHORIZATION_REQUIRED');
+ assert.deepEqual(notLicensed.products,[]);
+});
