@@ -12,6 +12,7 @@ const TRUSTED_ISSUER_HOSTS = Object.freeze({
   'ICICI Prudential Mutual Fund': 'www.icicipruamc.com',
   'Bandhan Mutual Fund': 'bandhanmutual.com',
   'quant Mutual Fund': 'quantmutual.com',
+  'Motilal Oswal Mutual Fund': 'www.motilaloswalmf.com',
 });
 const fail = code => { throw new Error('FINANCIAL_RESEARCH_' + code); };
 
@@ -32,18 +33,20 @@ export function validateIssuerResearchBatch(batch = INDEX_RESEARCH, queue = buil
   for (const family of batch.families) {
     if (seenFamilies.has(family.familyId)
       || validFamilies.get(family.familyId) !== family.familyName
-      || !['Nifty Next 50 TRI', 'Nifty 100 TRI'].includes(family.benchmark)
+      || !['Nifty Next 50 TRI', 'Nifty 100 TRI',
+      'Nifty Midcap 150 TRI', 'Nifty Smallcap 250 TRI'].includes(family.benchmark)
       || !Array.isArray(family.researchCandidates)
       || family.researchCandidates.length < 1 || family.researchCandidates.length > 3)
       fail('FAMILY_OR_BENCHMARK_MISMATCH');
-    // Only match the two specific known index families. Never assume that two
-    // index products within the same category track the same benchmark.
-    if ((family.familyId === 'catalog_2026_index_nifty_next50'
-        && family.benchmark !== 'Nifty Next 50 TRI')
-      || (family.familyId === 'catalog_2026_index_nifty100'
-        && family.benchmark !== 'Nifty 100 TRI')
-      || !['catalog_2026_index_nifty_next50', 'catalog_2026_index_nifty100']
-        .includes(family.familyId)) fail('FAMILY_INDEX_MISMATCH');
+    // Exact benchmark per family. A category-level match is insufficient.
+    const expectedBenchmarks = Object.freeze({
+      catalog_2026_index_nifty_next50: 'Nifty Next 50 TRI',
+      catalog_2026_index_nifty100: 'Nifty 100 TRI',
+      catalog_2026_index_midcap150: 'Nifty Midcap 150 TRI',
+      catalog_2026_index_smallcap250: 'Nifty Smallcap 250 TRI',
+    });
+    if (expectedBenchmarks[family.familyId] !== family.benchmark)
+      fail('FAMILY_INDEX_MISMATCH');
     seenFamilies.add(family.familyId);
     const slots = new Set(), issuerSet = new Set();
     for (const candidate of family.researchCandidates) {
@@ -72,7 +75,12 @@ export function validateIssuerResearchBatch(batch = INDEX_RESEARCH, queue = buil
       if (names.has(family.familyId + '\0' + normalized)) fail('DUPLICATE_SCHEME_NAME');
       // Product identity research requires an exact index family, not merely
       // category-level matching that can substitute an unrelated index.
-      const expected = family.familyId.endsWith('nifty100') ? /nifty.?100/i : /nifty.?next.?50/i;
+      const expected = {
+        catalog_2026_index_nifty_next50: /nifty.?next.?50/i,
+        catalog_2026_index_nifty100: /nifty.?100/i,
+        catalog_2026_index_midcap150: /nifty.?midcap.?150/i,
+        catalog_2026_index_smallcap250: /nifty.?smallcap.?250/i,
+      }[family.familyId];
       if (!expected.test(candidate.schemeName)) fail('SCHEME_NOT_IN_FAMILY');
       slots.add(candidate.researchSlot);
       issuerSet.add(candidate.issuer);
