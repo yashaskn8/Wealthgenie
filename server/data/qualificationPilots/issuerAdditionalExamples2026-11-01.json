@@ -292,6 +292,28 @@
           "issuerUrl": "https://bandhanmutual.com/mutual-funds"
         }
       ]
+    },
+    {
+      "familyId": "catalog_2026_index_nifty_lowvol",
+      "benchmark": "Nifty100 Low Volatility 30 TRI",
+      "instrument": "INDEX_FUND",
+      "products": [
+        {
+          "name": "HDFC NIFTY100 Low Volatility 30 Index Fund",
+          "issuer": "HDFC Mutual Fund",
+          "issuerUrl": "https://www.hdfcfund.com/explore/mutual-funds/hdfc-nifty100-low-volatility-30-index-fund/direct"
+        },
+        {
+          "name": "SBI Nifty100 Low Volatility 30 Index Fund",
+          "issuer": "SBI Mutual Fund",
+          "issuerUrl": "https://www.sbimf.com/sbimf-scheme-details/sbi-nifty100-low-volatility-30-index-fund-676"
+        },
+        {
+          "name": "Kotak Nifty 100 Low Volatility 30 Index Fund",
+          "issuer": "Kotak Mutual Fund",
+          "issuerUrl": "https://www.kotakmf.com/mutual-funds/passive-funds/kotak-nifty-100-low-volatility-30-index-fund"
+        }
+      ]
     }
   ]
 }
