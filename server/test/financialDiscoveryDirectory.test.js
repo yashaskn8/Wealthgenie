@@ -1769,3 +1769,29 @@ test('passive 2026 replication reviews stay distinct and deep copied in the educ
   assert.ok(!freshReview.riskConsiderations.includes('FAKE FUND NAV'));
  }
 });
+
+// The directory must deep-copy research and must not turn benchmarks into purchasable products.
+test('three broad passive index reviews stay unapproved in the educational directory',()=>{
+ const ids=["catalog_2026_index_nifty500","catalog_2026_index_midcap150","catalog_2026_index_smallcap250"];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ for(const id of ids){
+  const item=get(id);
+  const v=item.frameworkResearch.indexBenchmarkReview.sebiFeb2026PassiveReplicationReview;
+  assert.equal(v.categoryMinimumIndexSecuritiesAllocationPct,95);
+  assert.equal(v.actualSchemeAlignmentNotInferred,true);
+  for(const key of ['actualNamedSchemeAndSidKimVerified',
+   'currentSchemeRiskometerVerified','currentNavOrExecutableQuoteVerified',
+   'individualKycAndRetailAccessVerified','commercialMarketDataRightsVerified',
+   'fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'])
+   assert.equal(v[key],false);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.equal(item.frameworkResearch.actualRiskScore,null);
+  assert.equal(item.frameworkResearch.issuerTermsVerified,false);
+  assert.ok(Object.values(item.productData).every(x=>x===null));
+  v.investorAccessConstraints.push('FORGED RETAIL APPROVAL');
+  assert.ok(!get(id).frameworkResearch.indexBenchmarkReview.sebiFeb2026PassiveReplicationReview
+   .investorAccessConstraints.includes('FORGED RETAIL APPROVAL'));
+ }
+});
