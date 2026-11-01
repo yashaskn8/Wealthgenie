@@ -75,6 +75,10 @@ const EXPECTED = Object.freeze({
     benchmark: 'LONG_DURATION_ABOVE_7_YEARS', instrument: 'DEBT_MUTUAL_FUND',
     pattern: /(?:long.?duration.?fund|nivesh.?lakshya.?long.?term.?fund|long.?term.?fund)/i,
   },
+  catalog_2026_index_nifty_lowvol: {
+    benchmark: 'Nifty100 Low Volatility 30 TRI', instrument: 'INDEX_FUND',
+    pattern: /nifty.?100.?low.?volatility.?30.?index.?fund/i,
+  },
 });
 const invalid = code => { throw new Error('FINANCIAL_ISSUER_EXAMPLES_' + code); };
 export function listAdditionalIssuerExamples(source = manifest) {
