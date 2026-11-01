@@ -3501,3 +3501,54 @@ test('October 2026 general REIT amendments do not create SM REIT unit or sponsor
  assert.ok(short.screeningReasonCodes.includes('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_SM_REIT_SECONDARY_LIQUIDITY_REVIEW'));
  assert.ok(!base.screeningReasonCodes.includes('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_SM_REIT_SECONDARY_LIQUIDITY_REVIEW'));
 });
+
+test('2026 SEBI Chapter 14.1 limits Category II PE and debt AIF borrowing without fund approval',()=>{
+ const ids=['catalog_2026_aif2_pe','catalog_2026_aif2_debt'];
+ const rows=listExtensionResearch();
+ const reviews=ids.map(id=>rows.find(x=>x.id===id).aifCategoryAccessReview.sebiJune2026BorrowingReview);
+ assert.equal(new Set(reviews.map(x=>x.categorySpecificFactCode)).size,2);
+ for(const r of reviews){
+  assert.equal(r.officialSebiMasterCircularPdfUrl,'https://www.sebi.gov.in/sebi_data/attachdocs/jun-2026/1781668468627.pdf');
+  assert.deepEqual(r.sourceParagraphs,['14.1.1','14.1.2','14.1.3(a)-(f)','14.1.4']);
+  assert.equal(r.ordinaryBorrowingMaximumDays,30);
+  assert.equal(r.ordinaryBorrowingMaximumOccasionsPerYear,4);
+  assert.equal(r.ordinaryBorrowingMaximumPercentOfInvestableFunds,10);
+  assert.equal(r.shortfallBorrowingMaximumPercentOfProposedInvesteeInvestment,20);
+  assert.equal(r.shortfallBorrowingUsesLowestApplicableLimit,true);
+  assert.equal(r.shortfallBorrowingCostChargedOnlyToDelayedInvestors,true);
+  assert.equal(r.coolingOffDaysAfterRepayment,30);
+  assert.equal(r.unrestrictedLeverageOrInvestorReturnGuaranteePermitted,false);
+  assert.equal(r.actualSchemePpmBorrowingAndCapitalCallsVerified,false);
+  assert.equal(r.investorAccreditationKycAndSubscriptionVerified,false);
+ }
+ const base=screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:10,investmentGoals:['Wealth Growth'],
+  emergencyFundMonths:null,riskTolerance:'Aggressive'
+ }));
+ const flagged=screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:2,investmentGoals:['Emergency Fund'],
+  emergencyFundMonths:0,riskTolerance:'Conservative'
+ }));
+ const always=['AIF_II_TEMPORARY_BORROWING_EXCEPTION_NOT_UNRESTRICTED_LEVERAGE_OR_APPROVED_SCHEME',
+  'AIF_II_DRAWDOWN_DEFAULT_COST_ALLOCATION_AND_PPM_TERMS_UNVERIFIED'];
+ const specific={
+  catalog_2026_aif2_pe:'SHORT_HORIZON_REQUIRES_PE_AIF_CAPITAL_CALL_BORROWING_AND_EXIT_REVIEW',
+  catalog_2026_aif2_debt:'EMERGENCY_FUND_GOAL_REQUIRES_DEBT_AIF_BORROWING_CREDIT_AND_EXIT_REVIEW'
+ };
+ for(const id of ids){
+  const a=base.find(x=>x.id===id),b=flagged.find(x=>x.id===id);
+  for(const code of always)assert.ok(a.screeningReasonCodes.includes(code)&&b.screeningReasonCodes.includes(code),id);
+  for(const code of [specific[id],'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_AIF_II_DRAWDOWN_LIQUIDITY_REVIEW']){
+   assert.ok(!a.screeningReasonCodes.includes(code),id);
+   assert.ok(b.screeningReasonCodes.includes(code),id);
+  }
+  for(const x of [a,b]){
+   assert.equal(x.productQualified,false);assert.equal(x.scoreAvailable,false);
+   assert.equal(x.productRiskLevel,null);
+   assert.equal(x.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+  }
+ }
+ reviews[0].actualSchemePpmBorrowingAndCapitalCallsVerified=true;
+ assert.equal(listExtensionResearch().find(x=>x.id===ids[0])
+  .aifCategoryAccessReview.sebiJune2026BorrowingReview.actualSchemePpmBorrowingAndCapitalCallsVerified,false);
+});

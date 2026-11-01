@@ -1687,3 +1687,18 @@ test('SM REIT regulation 26G exclusions are separate from actual listed unit qua
  assert.equal(clean.actualFinalKisKitAndListingVerified,false);
  assert.ok(!clean.investorAccessConstraints.includes('FORGED APPROVAL'));
 });
+
+test('Category II temporary-borrowing source facts never create purchasable PE or debt fund directory entries',()=>{
+ const items=listFinancialDiscoveryDirectory().items;
+ for(const id of ['catalog_2026_aif2_pe','catalog_2026_aif2_debt']){
+  const x=items.find(row=>row.id===id);
+  assert.equal(x.origin,'EXTENDED_95');
+  assert.equal(x.recommendationEligible,false);
+  assert.equal(x.productAvailability,'NOT_VERIFIED');
+  assert.equal(x.dataRights,'NOT_VERIFIED');
+  assert.equal(x.frameworkResearch.actualRiskScore,null);
+  assert.equal(x.frameworkResearch.issuerTermsVerified,false);
+  assert.ok(Object.values(x.productData).every(v=>v===null));
+  assert.deepEqual(x.publicIssuerReferences,[]);
+ }
+});

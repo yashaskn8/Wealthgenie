@@ -1118,6 +1118,44 @@ if(research.entries.filter(row=>row.aifCategoryAccessReview?.garudaPpmFilingRevi
     ||!Array.isArray(r.riskConsiderations)||r.riskConsiderations.length<2
     ||!Array.isArray(r.investorAccessConstraints)||r.investorAccessConstraints.length<2;
   }))throw new Error('FINANCIAL_AIF_OCT_2026_DISPUTE_PROCEDURE_NOT_PRODUCT_APPROVAL');
+
+const aifCategoryIIBorrowingFacts=Object.freeze({
+ 'catalog_2026_aif2_pe':'PE_AIF_TEMPORARY_DRAWDOWN_BORROWING_NOT_UNRESTRICTED_LEVERAGE',
+ 'catalog_2026_aif2_debt':'DEBT_AIF_TEMPORARY_DRAWDOWN_BORROWING_NOT_BORROWER_CREDIT_PROTECTION',
+});
+const aifBorrowing2026PdfUrl='https://www.sebi.gov.in/sebi_data/attachdocs/jun-2026/1781668468627.pdf';
+// SEBI's temporary drawdown funding exception does not prove actual fund
+// leverage, investor default, available liquidity or personalized eligibility.
+if(research.entries.filter(row=>row.aifCategoryAccessReview?.sebiJune2026BorrowingReview).length!==2
+ ||research.entries.some(row=>{
+   const v=row.aifCategoryAccessReview?.sebiJune2026BorrowingReview;
+   const expected=aifCategoryIIBorrowingFacts[row.id];
+   if(!expected)return v!==undefined;
+   return !v||v.officialSebiMasterCircularPdfUrl!==aifBorrowing2026PdfUrl
+    ||!isOfficialFrameworkReferenceUrl(v.officialSebiMasterCircularPdfUrl)
+    ||v.masterCircularIssuedOn!=='2026-06-03'
+    ||v.masterCircularLastUpdatedOn!=='2026-06-16'
+    ||v.reviewedOn!=='2026-11-01'
+    ||JSON.stringify(v.sourceParagraphs)!=='["14.1.1","14.1.2","14.1.3(a)-(f)","14.1.4"]'
+    ||v.regulatoryCategory!==aifCategoryStructures[row.id]
+    ||v.categorySpecificFactCode!==expected
+    ||typeof v.categoryInterpretation!=='string'||v.categoryInterpretation.length<150
+    ||v.sourceScope!=='CATEGORY_I_II_AIF_CONDITIONAL_TEMPORARY_BORROWING_NOT_VERIFIED_FUND_LEVERAGE_INVESTOR_ELIGIBILITY_OR_PRODUCT_APPROVAL'
+    ||v.ordinaryBorrowingMaximumDays!==30||v.ordinaryBorrowingMaximumOccasionsPerYear!==4
+    ||v.ordinaryBorrowingMaximumPercentOfInvestableFunds!==10
+    ||v.shortfallBorrowingMaximumPercentOfProposedInvesteeInvestment!==20
+    ||v.coolingOffDaysAfterRepayment!==30
+    ||['shortfallBorrowingAlsoCappedByTenPercentOfInvestableFunds',
+      'shortfallBorrowingAlsoCappedByOtherInvestorsUndrawnCommitments',
+      'shortfallBorrowingUsesLowestApplicableLimit','shortfallBorrowingLastResortAndPpmDisclosureRequired',
+      'shortfallBorrowingCostChargedOnlyToDelayedInvestors'].some(key=>v[key]!==true)
+    ||['unrestrictedLeverageOrInvestorReturnGuaranteePermitted',
+      'actualSchemePpmBorrowingAndCapitalCallsVerified',
+      'actualInvestorDefaultAndCostLiabilityVerified','currentFundBorrowingValuationAndExitVerified',
+      'investorAccreditationKycAndSubscriptionVerified','commercialMarketDataRightsVerified',
+      'personalizedAdviceAuthorizationVerified'].some(key=>v[key]!==false)
+    ||v.riskConsiderations?.length<2||v.investorAccessConstraints?.length<2;
+ }))throw new Error('FINANCIAL_AIF_II_TEMPORARY_BORROWING_NOT_PRODUCT_APPROVAL');
 const bankPortfolioRuleScopeIds=Object.freeze({
  'catalog_2026_bond_corporate_zero':['30(d)','COMMERCIAL_BANK_LONG_TERM_CORPORATE_ZCB_SINKING_FUND_EXCEPTION',true],
  'catalog_2026_bond_convertible':['30(b)(vi)(11)','COMMERCIAL_BANK_UNLISTED_CONVERTIBLE_PRUDENTIAL_LIMIT_EXCLUSION',false],
@@ -1799,6 +1837,19 @@ export function screenExtensionResearchForProfile(profileInput) {
         reasons.push('SHORT_HORIZON_REQUIRES_SGS_STRIP_CASH_FLOW_AND_EXIT_REVIEW');
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_STRIP_MARKET_PRICE_AND_LIQUIDITY_REVIEW');
+   }
+   if(row.aifCategoryAccessReview?.sebiJune2026BorrowingReview){
+     reasons.push('AIF_II_TEMPORARY_BORROWING_EXCEPTION_NOT_UNRESTRICTED_LEVERAGE_OR_APPROVED_SCHEME');
+     reasons.push('AIF_II_DRAWDOWN_DEFAULT_COST_ALLOCATION_AND_PPM_TERMS_UNVERIFIED');
+     if(row.id==='catalog_2026_aif2_pe'
+       && Number.isFinite(profile.investmentHorizonYears)
+       && profile.investmentHorizonYears<=3)
+       reasons.push('SHORT_HORIZON_REQUIRES_PE_AIF_CAPITAL_CALL_BORROWING_AND_EXIT_REVIEW');
+     if(row.id==='catalog_2026_aif2_debt'
+       && profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_DEBT_AIF_BORROWING_CREDIT_AND_EXIT_REVIEW');
+     if(profile.emergencyFundMonths===0)
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_AIF_II_DRAWDOWN_LIQUIDITY_REVIEW');
    }
    if(row.aifCategoryAccessReview) {
       reasons.push('AIF_PRIVATE_PLACEMENT_PPM_REGISTRATION_AND_KYC_UNVERIFIED');
