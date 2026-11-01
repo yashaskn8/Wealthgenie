@@ -3,8 +3,11 @@ import * as api from '../services/api';
 import { containsGenieProofSensitiveIdentifiers } from '../../../shared/genieProofPrivacyPolicy.js';
 import GenieProofCalculator from './GenieProofCalculator';
 import GenieProofNvidiaReview from './GenieProofNvidiaReview';
+import { genieProofResultPresentation } from './genieProofResultPresentation';
+import './GenieProofEntry.css';
 
 const MAX_BYTES = 16000;
+const PPF_SAMPLE = 'The current official PPF interest rate is 7.1% p.a.';
 const OFFICIAL_PPF_SOURCE = 'https://www.indiapost.gov.in/banking-services/savings';
 const layout = {
   maxWidth: 880, margin: '28px auto', padding: 24, color: '#e2e8f0',
@@ -127,7 +130,7 @@ export default function GenieProofEntry() {
   }
 
   return (
-    <main style={layout}>
+    <main style={layout} className="genieproof-entry">
       <nav aria-label="GenieProof tools" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18 }}>
         <button type="button" aria-pressed={selectedTool === 'CLAIM'}
           onClick={() => setSelectedTool('CLAIM')}
@@ -141,7 +144,8 @@ export default function GenieProofEntry() {
         </button>
       </nav>
       {selectedTool === 'MATH' ? <GenieProofCalculator /> : <>
-      <section style={panel} aria-labelledby="genieproof-title">
+      <section style={panel} className="gp-panel gp-intake" aria-labelledby="genieproof-title">
+        <p className="gp-eyebrow">GENIEPROOF / EVIDENCE WORKBENCH</p>
         <h1 id="genieproof-title" style={{ marginTop: 0, color: '#f8fafc' }}>GenieProof · Check a financial claim</h1>
         <p style={{ lineHeight: 1.65 }}>
           Seen an interest-rate, investment-return or safety claim? Paste the actual statement.
@@ -150,6 +154,22 @@ export default function GenieProofEntry() {
           will be marked Not verified; this is not a fraud or investment safety check.
           If we cannot verify it, we'll say so rather than guess.
         </p>
+        <div className="gp-check-steps" aria-label="How this check works">
+          <div><span className="gp-step-number">01</span><strong>Detect the claim</strong><small>Original wording is preserved</small></div>
+          <div><span className="gp-step-number">02</span><strong>Check the evidence</strong><small>Only approved official sources count</small></div>
+          <div><span className="gp-step-number">03</span><strong>Explain the result</strong><small>Reasons, limitations and next steps</small></div>
+        </div>
+        <aside className="gp-scope-notice" aria-label="Verification capabilities">
+          <div>
+            <strong>Current capability</strong>
+            <p>The current nominal PPF rate is the only potentially verifiable claim type.
+              Production evidence can be unavailable even when the wording is supported.</p>
+          </div>
+          <button type="button" className="gp-example" onClick={() => edit(PPF_SAMPLE)}>
+            Try supported wording
+          </button>
+          <small>This inserts an example for testing; it does not verify or change a provider’s original statement.</small>
+        </aside>
         <form onSubmit={check} aria-label="Financial claim check" aria-busy={checking || undefined}>
           <label htmlFor="genieproof-claim" style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>
             Financial statement to check
@@ -190,8 +210,13 @@ export default function GenieProofEntry() {
       </section>
 
       {result && (
-        <section style={panel} aria-labelledby="genieproof-results-title" aria-live="polite">
+        <section style={panel} className="gp-panel gp-results" aria-labelledby="genieproof-results-title" aria-live="polite">
+          <p className="gp-eyebrow">EVIDENCE RECEIPT / READ ONLY</p>
           <h2 id="genieproof-results-title" style={{ marginTop: 0 }}>Claim check results</h2>
+          <div className="gp-result-summary" role="status">
+            <span>{result.claims.length} detected financial {result.claims.length === 1 ? 'statement' : 'statements'}</span>
+            <span>{result.claims.filter(claim => claim.verdict === 'NOT_VERIFIED').length} without a verified conclusion</span>
+          </div>
           <p style={{ color: '#cbd5e1', fontSize: '.9rem' }}>
             Checked {new Date(result.checkedAt).toLocaleString('en-IN')}.
             Only the statements detected below were assessed. Other text may contain unchecked claims.
@@ -203,13 +228,17 @@ export default function GenieProofEntry() {
               that an offer is authentic or safe.
             </p>
           ) : result.claims.map((claim, index) => (
-            <article key={claim.claimId} style={{ borderTop: '1px solid rgba(148,163,184,.25)', paddingTop: 14, marginTop: 18 }}>
+            <article key={claim.claimId} className="gp-claim-card" style={{ borderTop: '1px solid rgba(148,163,184,.25)', paddingTop: 14, marginTop: 18 }}>
               <h3 style={{ fontSize: '1rem', marginBottom: 9 }}>Statement {index + 1}</h3>
               <blockquote style={{ margin: '0 0 12px', paddingLeft: 14, borderLeft: '3px solid #64748b', overflowWrap: 'anywhere' }}>
                 {claim.statement}
               </blockquote>
-              <strong style={{ color: verdicts[claim.verdict].color }}>{verdicts[claim.verdict].label}</strong>
+              <strong className="gp-verdict" style={{ color: verdicts[claim.verdict].color }}>{verdicts[claim.verdict].label}</strong>
               <p style={{ lineHeight: 1.55 }}>{claim.explanation}</p>
+              <div className="gp-diagnostic" aria-label="What this result means">
+                <strong>{genieProofResultPresentation(claim).heading}</strong>
+                <p>{genieProofResultPresentation(claim).detail}</p>
+              </div>
               {claim.source && (
                 <div style={{ color: '#cbd5e1', fontSize: '.92rem' }}>
                   <p style={{ margin: '4px 0' }}>
