@@ -2868,6 +2868,36 @@
           "individualKycAndRetailAccessVerified": false,
           "commercialMarketDataRightsVerified": false,
           "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
+        },
+        "nseSep2026SegmentEvidenceReview": {
+          "benchmarkCode": "NEXT50_EX_NIFTY50",
+          "benchmarkName": "Nifty Next 50",
+          "wrapper": "INDEX_MUTUAL_FUND",
+          "officialNseIndexPageUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-next-50",
+          "officialSebiFeb2026CircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "regulatoryCircularIssuedOn": "2026-02-26",
+          "benchmarkPageMarketCoverageObservationAsOf": "2026-09-30",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "NSE_BROAD_INDEX_CONSTRUCTION_AND_SEBI_PASSIVE_CATEGORY_NOT_SCHEME_APPROVAL",
+          "categoryInterpretation": "50 Nifty 100 constituents after excluding Nifty 50; free-float-capitalization weighted, not an equal-weight benchmark.",
+          "sebiPassiveIndexSecuritiesCategoryMinimumPercent": 95,
+          "benchmarkConstituentWeightsAndLiveCompositionNotVerified": true,
+          "marketCoveragePercentNotUsedForSuitability": true,
+          "riskConsiderations": [
+            "Nifty Next 50 equity losses and company weights differ from Nifty 50; large-cap classification does not imply principal safety.",
+            "Reconstitution, tracking differences and fund costs may change outcomes."
+          ],
+          "investorAccessConstraints": [
+            "Verify the specific AMC's index fund, benchmark variant, SID/KIM, riskometer and exit charges.",
+            "Investor KYC, minimum, licensed NAV, tax treatment and advice/data rights remain unverified."
+          ],
+          "actualNamedSchemeAndSidVerified": false,
+          "currentSchemeRiskometerAndHoldingsVerified": false,
+          "currentAuthorizedNavOrExchangeQuoteVerified": false,
+          "individualInvestorKycAndAccessVerified": false,
+          "signedCommercialDataAndProviderEntitlementsVerified": false,
+          "taxAndPersonalizedAdviceAuthorizationVerified": false,
+          "actualSchemePassiveComplianceVerified": false
         }
       }
     },
@@ -2953,6 +2983,36 @@
           "individualKycAndRetailAccessVerified": false,
           "commercialMarketDataRightsVerified": false,
           "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
+        },
+        "nseSep2026SegmentEvidenceReview": {
+          "benchmarkCode": "NIFTY100_LARGE_CAP_COMBINED",
+          "benchmarkName": "Nifty 100",
+          "wrapper": "INDEX_MUTUAL_FUND",
+          "officialNseIndexPageUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-100",
+          "officialSebiFeb2026CircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "regulatoryCircularIssuedOn": "2026-02-26",
+          "benchmarkPageMarketCoverageObservationAsOf": "2026-09-30",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "NSE_BROAD_INDEX_CONSTRUCTION_AND_SEBI_PASSIVE_CATEGORY_NOT_SCHEME_APPROVAL",
+          "categoryInterpretation": "Top 100 Nifty 500 companies by full market capitalization, combining Nifty 50 and Nifty Next 50.",
+          "sebiPassiveIndexSecuritiesCategoryMinimumPercent": 95,
+          "benchmarkConstituentWeightsAndLiveCompositionNotVerified": true,
+          "marketCoveragePercentNotUsedForSuitability": true,
+          "riskConsiderations": [
+            "Nifty 100's larger-company exposure still has equity drawdown and free-float-capitalization concentration risk.",
+            "A published benchmark cannot verify actual fund tracking, fees, holdings or downside protection."
+          ],
+          "investorAccessConstraints": [
+            "Verify an actual AMC scheme, SID/KIM, benchmark variant, riskometer and charges.",
+            "Investor KYC, redemption terms, current licensed NAV, tax and signed permissions are unverified."
+          ],
+          "actualNamedSchemeAndSidVerified": false,
+          "currentSchemeRiskometerAndHoldingsVerified": false,
+          "currentAuthorizedNavOrExchangeQuoteVerified": false,
+          "individualInvestorKycAndAccessVerified": false,
+          "signedCommercialDataAndProviderEntitlementsVerified": false,
+          "taxAndPersonalizedAdviceAuthorizationVerified": false,
+          "actualSchemePassiveComplianceVerified": false
         }
       }
     },
@@ -3038,6 +3098,36 @@
           "individualKycAndRetailAccessVerified": false,
           "commercialMarketDataRightsVerified": false,
           "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
+        },
+        "nseSep2026SegmentEvidenceReview": {
+          "benchmarkCode": "NIFTY500_BROAD_CAP_TURNOVER",
+          "benchmarkName": "Nifty 500",
+          "wrapper": "INDEX_MUTUAL_FUND",
+          "officialNseIndexPageUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-500",
+          "officialSebiFeb2026CircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "regulatoryCircularIssuedOn": "2026-02-26",
+          "benchmarkPageMarketCoverageObservationAsOf": "2026-09-30",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "NSE_BROAD_INDEX_CONSTRUCTION_AND_SEBI_PASSIVE_CATEGORY_NOT_SCHEME_APPROVAL",
+          "categoryInterpretation": "Nominal top-500 eligible-universe companies selected using full market capitalization and average daily turnover; actual constituent count can vary.",
+          "sebiPassiveIndexSecuritiesCategoryMinimumPercent": 95,
+          "benchmarkConstituentWeightsAndLiveCompositionNotVerified": true,
+          "marketCoveragePercentNotUsedForSuitability": true,
+          "riskConsiderations": [
+            "Large-, mid- and smaller-company equities can fall together despite broad benchmark coverage.",
+            "Replication of less-liquid constituents, turnover and scheme expenses can cause tracking differences."
+          ],
+          "investorAccessConstraints": [
+            "Verify a named Nifty 500 fund, current SID/KIM, scheme riskometer, benchmark variant and holdings.",
+            "Current KYC, access, licensed NAV, tax treatment and data/advice permissions are not established."
+          ],
+          "actualNamedSchemeAndSidVerified": false,
+          "currentSchemeRiskometerAndHoldingsVerified": false,
+          "currentAuthorizedNavOrExchangeQuoteVerified": false,
+          "individualInvestorKycAndAccessVerified": false,
+          "signedCommercialDataAndProviderEntitlementsVerified": false,
+          "taxAndPersonalizedAdviceAuthorizationVerified": false,
+          "actualSchemePassiveComplianceVerified": false
         }
       }
     },
@@ -3123,6 +3213,36 @@
           "individualKycAndRetailAccessVerified": false,
           "commercialMarketDataRightsVerified": false,
           "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
+        },
+        "nseSep2026SegmentEvidenceReview": {
+          "benchmarkCode": "MIDCAP150_RANKS_101_250",
+          "benchmarkName": "Nifty Midcap 150",
+          "wrapper": "INDEX_MUTUAL_FUND",
+          "officialNseIndexPageUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-midcap-150",
+          "officialSebiFeb2026CircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "regulatoryCircularIssuedOn": "2026-02-26",
+          "benchmarkPageMarketCoverageObservationAsOf": "2026-09-30",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "NSE_BROAD_INDEX_CONSTRUCTION_AND_SEBI_PASSIVE_CATEGORY_NOT_SCHEME_APPROVAL",
+          "categoryInterpretation": "150 Nifty 500 companies ranked 101–250 by full market capitalization; index is free-float-capitalization weighted.",
+          "sebiPassiveIndexSecuritiesCategoryMinimumPercent": 95,
+          "benchmarkConstituentWeightsAndLiveCompositionNotVerified": true,
+          "marketCoveragePercentNotUsedForSuitability": true,
+          "riskConsiderations": [
+            "Mid-cap share losses and liquidity deterioration may be substantial during stressed markets.",
+            "Constituent changes, tracking differences and redemption conditions may affect actual proceeds."
+          ],
+          "investorAccessConstraints": [
+            "Confirm actual Midcap 150 index-fund SID/KIM, riskometer, expenses and exit terms.",
+            "Verify KYC, minimum subscription, licensed NAV, tax applicability and advice/data rights."
+          ],
+          "actualNamedSchemeAndSidVerified": false,
+          "currentSchemeRiskometerAndHoldingsVerified": false,
+          "currentAuthorizedNavOrExchangeQuoteVerified": false,
+          "individualInvestorKycAndAccessVerified": false,
+          "signedCommercialDataAndProviderEntitlementsVerified": false,
+          "taxAndPersonalizedAdviceAuthorizationVerified": false,
+          "actualSchemePassiveComplianceVerified": false
         }
       }
     },
@@ -3208,6 +3328,36 @@
           "individualKycAndRetailAccessVerified": false,
           "commercialMarketDataRightsVerified": false,
           "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
+        },
+        "nseSep2026SegmentEvidenceReview": {
+          "benchmarkCode": "SMALLCAP250_RANKS_251_500",
+          "benchmarkName": "Nifty Smallcap 250",
+          "wrapper": "INDEX_MUTUAL_FUND",
+          "officialNseIndexPageUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/niftysmallcap250",
+          "officialSebiFeb2026CircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "regulatoryCircularIssuedOn": "2026-02-26",
+          "benchmarkPageMarketCoverageObservationAsOf": "2026-09-30",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "NSE_BROAD_INDEX_CONSTRUCTION_AND_SEBI_PASSIVE_CATEGORY_NOT_SCHEME_APPROVAL",
+          "categoryInterpretation": "250 Nifty 500 companies ranked 251–500 by full market capitalization; not the largest 250.",
+          "sebiPassiveIndexSecuritiesCategoryMinimumPercent": 95,
+          "benchmarkConstituentWeightsAndLiveCompositionNotVerified": true,
+          "marketCoveragePercentNotUsedForSuitability": true,
+          "riskConsiderations": [
+            "Small-cap share volatility and thin constituent trading depth can create equity losses.",
+            "Replication costs and index reconstitution can increase tracking differences or redemption friction."
+          ],
+          "investorAccessConstraints": [
+            "Verify named small-cap index fund, current SID/KIM, holdings, riskometer and fees.",
+            "Investor KYC, purchase minimum, exit conditions, licensed NAV and advice/data permissions remain unverified."
+          ],
+          "actualNamedSchemeAndSidVerified": false,
+          "currentSchemeRiskometerAndHoldingsVerified": false,
+          "currentAuthorizedNavOrExchangeQuoteVerified": false,
+          "individualInvestorKycAndAccessVerified": false,
+          "signedCommercialDataAndProviderEntitlementsVerified": false,
+          "taxAndPersonalizedAdviceAuthorizationVerified": false,
+          "actualSchemePassiveComplianceVerified": false
         }
       }
     },
@@ -4392,6 +4542,36 @@
           "individualKycAndRetailAccessVerified": false,
           "commercialMarketDataRightsVerified": false,
           "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
+        },
+        "nseSep2026SegmentEvidenceReview": {
+          "benchmarkCode": "SMALLCAP250_RANKS_251_500_ETF",
+          "benchmarkName": "Nifty Smallcap 250",
+          "wrapper": "EXCHANGE_TRADED_FUND",
+          "officialNseIndexPageUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/niftysmallcap250",
+          "officialSebiFeb2026CircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "regulatoryCircularIssuedOn": "2026-02-26",
+          "benchmarkPageMarketCoverageObservationAsOf": "2026-09-30",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "NSE_BROAD_INDEX_CONSTRUCTION_AND_SEBI_PASSIVE_CATEGORY_NOT_SCHEME_APPROVAL",
+          "categoryInterpretation": "ETF archetype tracking Nifty Smallcap 250 companies ranked 251–500; benchmark page is not a verified ETF listing.",
+          "sebiPassiveIndexSecuritiesCategoryMinimumPercent": 95,
+          "benchmarkConstituentWeightsAndLiveCompositionNotVerified": true,
+          "marketCoveragePercentNotUsedForSuitability": true,
+          "riskConsiderations": [
+            "Small-cap constituent illiquidity and equity losses may impair ETF replication.",
+            "Secondary ETF bid–ask spreads, market depth and price-to-NAV deviations cannot be inferred from an index page."
+          ],
+          "investorAccessConstraints": [
+            "Identify an actual listed ETF, AMC, ticker, ISIN, SID/KIM, scheme riskometer and settlement terms.",
+            "Verify investor demat/KYC, executable order book, licensed quote/iNAV and signed data/advice rights."
+          ],
+          "actualNamedSchemeAndSidVerified": false,
+          "currentSchemeRiskometerAndHoldingsVerified": false,
+          "currentAuthorizedNavOrExchangeQuoteVerified": false,
+          "individualInvestorKycAndAccessVerified": false,
+          "signedCommercialDataAndProviderEntitlementsVerified": false,
+          "taxAndPersonalizedAdviceAuthorizationVerified": false,
+          "actualSchemePassiveComplianceVerified": false
         }
       }
     },
