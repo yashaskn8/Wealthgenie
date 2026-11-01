@@ -1756,9 +1756,12 @@ test('passive 2026 replication reviews stay distinct and deep copied in the educ
   assert.equal(review.individualKycAndRetailAccessVerified,false);
   assert.equal(review.commercialMarketDataRightsVerified,false);
   assert.equal(review.fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified,false);
-  assert.equal(item.frameworkResearch.productRiskScore,null);
-  assert.equal(item.frameworkResearch.actualRetailProductEligible,false);
-  assert.equal(item.frameworkResearch.sourcePermissionVerified,false);
+  assert.equal(item.frameworkResearch.actualRiskScore,null);
+  assert.equal(item.frameworkResearch.issuerTermsVerified,false);
+  assert.equal(item.frameworkResearch.sourceRightsVerified,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.equal(item.recommendationEligible,false);
   review.riskConsiderations.push('FAKE FUND NAV');
   const fresh=get(item.id);
   const freshReview=(isEtf?fresh.frameworkResearch.etfBenchmarkReview:
