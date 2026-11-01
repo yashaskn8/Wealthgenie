@@ -98,7 +98,7 @@ async function loadFinancialDirectory(signal) {
         || typeof candidate.name !== 'string' || !candidate.name.trim()
         || typeof candidate.issuer !== 'string' || !candidate.issuer.trim()
         || !permittedEvidenceUrl(candidate.issuerUrl)
-        || !/^\\d{4}-\\d{2}-\\d{2}$/.test(candidate.researchedOn)
+        || !/^\d{4}-\d{2}-\d{2}$/.test(candidate.researchedOn)
         || candidate.displayScope !== 'PUBLIC_ISSUER_RESEARCH_ONLY')) {
       throw new Error('FINANCIAL_PUBLIC_RESEARCH_RESPONSE_INVALID');
     }
