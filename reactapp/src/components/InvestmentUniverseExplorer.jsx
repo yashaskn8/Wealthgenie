@@ -87,6 +87,21 @@ async function loadFinancialDirectory(signal) {
   const ids = new Set();
   const names = new Set();
   for (const item of directory.items) {
+    const researchCandidates = item?.researchCandidates ?? [];
+    const researchKeys = [
+      'displayScope', 'issuer', 'issuerUrl', 'name', 'researchedOn',
+    ].sort().join(',');
+    if (!Array.isArray(researchCandidates) || researchCandidates.length > 3
+      || new Set(researchCandidates.map(x => x?.issuer)).size !== researchCandidates.length
+      || researchCandidates.some(candidate => !candidate
+        || Object.keys(candidate).sort().join(',') !== researchKeys
+        || typeof candidate.name !== 'string' || !candidate.name.trim()
+        || typeof candidate.issuer !== 'string' || !candidate.issuer.trim()
+        || !permittedEvidenceUrl(candidate.issuerUrl)
+        || !/^\\d{4}-\\d{2}-\\d{2}$/.test(candidate.researchedOn)
+        || candidate.displayScope !== 'PUBLIC_ISSUER_RESEARCH_ONLY')) {
+      throw new Error('FINANCIAL_PUBLIC_RESEARCH_RESPONSE_INVALID');
+    }
     const name = typeof item?.name === 'string' ? item.name.trim() : '';
     const normalizedName = name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
     if (!isFamilyId(item?.id) || ids.has(item.id) || !normalizedName
@@ -488,8 +503,29 @@ export default function InvestmentUniverseExplorer({
                       <strong>{item.name}</strong>
                       <small>{item.category}{item.subcategory ? ' · ' + item.subcategory : ''}</small>
                     </div>
+                    {item.researchCandidates?.length > 0 && (
+                      <section className="wti-universe-public-candidates"
+                        aria-label={'Issuer-listed product examples for ' + item.name}>
+                        <strong>Issuer-listed product examples</strong>
+                        <ul>
+                          {item.researchCandidates.map(candidate => (
+                            <li key={candidate.issuer + ':' + candidate.name}>
+                              <a href={permittedEvidenceUrl(candidate.issuerUrl)}
+                                target="_blank" rel="noopener noreferrer">
+                                {candidate.name}
+                              </a>
+                              <small>{candidate.issuer}</small>
+                            </li>
+                          ))}
+                        </ul>
+                        <small>Public issuer research, not a personalized ranking.
+                          After-tax returns depend on the purchase, sale and taxpayer facts.</small>
+                      </section>
+                    )}
                     <span className="wti-universe-status">
-                      {assessments?.get(item.id)?.profileAssessment === 'MISSING_SUITABILITY_EVIDENCE'
+                      {item.researchCandidates?.length > 0
+                        ? 'Issuer listings for comparison'
+                        : assessments?.get(item.id)?.profileAssessment === 'MISSING_SUITABILITY_EVIDENCE'
                         ? 'Included in 250-category screen — risk and eligibility not yet established'
                         : assessments?.get(item.id)?.profileAssessment === 'PROFILE_EXCLUDED_CATEGORY'
                           ? 'Excluded under current profile category policy'
