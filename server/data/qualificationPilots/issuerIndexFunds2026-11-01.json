@@ -7,7 +7,7 @@
   "qualificationsGranted": 0,
   "afterTaxProductReturnsVerified": false,
   "dataRightsIndependentApproval": false,
-  "note": "Three unranked issuer-identified scheme candidates for each of two catalogue families. Not a Top 3 investment recommendation, purchase confirmation, live quote, verified source entitlement, retail eligibility review, or personalized suitability assessment.",
+  "note": "Three unranked scheme identities per researched index strategy, linked to first-party issuer material. These are public research candidates only. They cannot be shown as top-three personalized recommendations without current licensed observations, dated purchase and sale facts, tax assessment and independent product approval.",
   "families": [
     {
       "familyId": "catalog_2026_index_nifty_next50",
@@ -67,6 +67,68 @@
           "issuer": "quant Mutual Fund",
           "issuerDomain": "quantmutual.com",
           "officialSourceUrl": "https://quantmutual.com/Equity/quant-Nifty-100-Index-Fund.aspx",
+          "publicIssuerIdentityObserved": true
+        }
+      ]
+    },
+    {
+      "familyId": "catalog_2026_index_midcap150",
+      "familyName": "Nifty Midcap 150 Index-Tracking Fund Strategy",
+      "benchmark": "Nifty Midcap 150 TRI",
+      "researchCandidates": [
+        {
+          "researchSlot": 1,
+          "schemeName": "HDFC NIFTY Midcap 150 Index Fund",
+          "issuer": "HDFC Mutual Fund",
+          "issuerDomain": "www.hdfcfund.com",
+          "officialSourceUrl": "https://www.hdfcfund.com/explore/mutual-funds/hdfc-nifty-midcap-150-index-fund/direct",
+          "publicIssuerIdentityObserved": true
+        },
+        {
+          "researchSlot": 2,
+          "schemeName": "Motilal Oswal Nifty Midcap 150 Index Fund",
+          "issuer": "Motilal Oswal Mutual Fund",
+          "issuerDomain": "www.motilaloswalmf.com",
+          "officialSourceUrl": "https://www.motilaloswalmf.com/mutual-funds/motilal-oswal-nifty-midcap-150-index-fund",
+          "publicIssuerIdentityObserved": true
+        },
+        {
+          "researchSlot": 3,
+          "schemeName": "ICICI Prudential Nifty Midcap 150 Index Fund",
+          "issuer": "ICICI Prudential Mutual Fund",
+          "issuerDomain": "www.icicipruamc.com",
+          "officialSourceUrl": "https://www.icicipruamc.com/blob/sebi-repo/Advertisements/2026/January/Filing%20date%2020-02-2026/Release%20date%2018-02-2026/Advertisements/Annexure%205%20-%20Index%20Fund%20Bluebook.pdf",
+          "publicIssuerIdentityObserved": true
+        }
+      ]
+    },
+    {
+      "familyId": "catalog_2026_index_smallcap250",
+      "familyName": "Nifty Smallcap 250 Index-Tracking Fund Strategy",
+      "benchmark": "Nifty Smallcap 250 TRI",
+      "researchCandidates": [
+        {
+          "researchSlot": 1,
+          "schemeName": "HDFC NIFTY Smallcap 250 Index Fund",
+          "issuer": "HDFC Mutual Fund",
+          "issuerDomain": "www.hdfcfund.com",
+          "officialSourceUrl": "https://www.hdfcfund.com/explore/mutual-funds/hdfc-nifty-smallcap-250-index-fund/direct",
+          "publicIssuerIdentityObserved": true
+        },
+        {
+          "researchSlot": 2,
+          "schemeName": "Bandhan Nifty Smallcap 250 Index Fund",
+          "issuer": "Bandhan Mutual Fund",
+          "issuerDomain": "bandhanmutual.com",
+          "officialSourceUrl": "https://bandhanmutual.com/mutual-funds/index-funds-and-etfs/bandhan-nifty-smallcap-250-index-fund/regular",
+          "publicIssuerIdentityObserved": true
+        },
+        {
+          "researchSlot": 3,
+          "schemeName": "ICICI Prudential Nifty Smallcap 250 Index Fund",
+          "issuer": "ICICI Prudential Mutual Fund",
+          "issuerDomain": "www.icicipruamc.com",
+          "officialSourceUrl": "https://www.icicipruamc.com/blob/sebi-repo/Advertisements/2026/January/Filing%20date%2020-02-2026/Release%20date%2018-02-2026/Advertisements/Annexure%205%20-%20Index%20Fund%20Bluebook.pdf",
           "publicIssuerIdentityObserved": true
         }
       ]
