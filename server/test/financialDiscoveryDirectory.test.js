@@ -2045,3 +2045,26 @@ test('six FoF March 2026 SID benchmark reviews are discovery-only and copied',()
    .sebiMarch2026FoFSidBenchmarkReview.investorAccessConstraints.includes('FORGED RETAIL ACCESS'));
  }
 });
+
+test('six NSE broad-index research records remain unqualified and deeply copied in directory',()=>{
+ const codes={"catalog_2026_index_nifty_next50":"NEXT50_EX_NIFTY50","catalog_2026_index_nifty100":"NIFTY100_LARGE_CAP_COMBINED","catalog_2026_index_nifty500":"NIFTY500_BROAD_CAP_TURNOVER","catalog_2026_index_midcap150":"MIDCAP150_RANKS_101_250","catalog_2026_index_smallcap250":"SMALLCAP250_RANKS_251_500","catalog_2026_etf_smallcap250":"SMALLCAP250_RANKS_251_500_ETF"};
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ for(const [id,code] of Object.entries(codes)){
+  const item=get(id);
+  const v=(item.frameworkResearch.indexBenchmarkReview
+   ||item.frameworkResearch.etfBenchmarkReview).nseSep2026SegmentEvidenceReview;
+  assert.equal(v.benchmarkCode,code);
+  assert.equal(v.currentSchemeRiskometerAndHoldingsVerified,false);
+  assert.equal(v.individualInvestorKycAndAccessVerified,false);
+  assert.equal(v.signedCommercialDataAndProviderEntitlementsVerified,false);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.equal(item.frameworkResearch.actualRiskScore,null);
+  assert.ok(Object.values(item.productData).every(x=>x===null));
+  v.investorAccessConstraints.push('FORGED PURCHASE APPROVAL');
+  const fresh=(get(id).frameworkResearch.indexBenchmarkReview
+   ||get(id).frameworkResearch.etfBenchmarkReview).nseSep2026SegmentEvidenceReview;
+  assert.ok(!fresh.investorAccessConstraints.includes('FORGED PURCHASE APPROVAL'));
+ }
+});

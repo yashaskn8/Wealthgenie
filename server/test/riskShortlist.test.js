@@ -4221,3 +4221,53 @@ test('six March 2026 FoF SID benchmark reviews remain unqualified and use record
  assert.ok(!listExtensionResearch().find(x=>x.id===first).fundOfFundsCategoryReview
   .sebiMarch2026FoFSidBenchmarkReview.riskConsiderations.includes('FORGED APPROVAL'));
 });
+
+test('six NSE broad-index reviews distinguish benchmarks and screen only recorded facts',()=>{
+ const codes={"catalog_2026_index_nifty_next50":"NEXT50_EX_NIFTY50","catalog_2026_index_nifty100":"NIFTY100_LARGE_CAP_COMBINED","catalog_2026_index_nifty500":"NIFTY500_BROAD_CAP_TURNOVER","catalog_2026_index_midcap150":"MIDCAP150_RANKS_101_250","catalog_2026_index_smallcap250":"SMALLCAP250_RANKS_251_500","catalog_2026_etf_smallcap250":"SMALLCAP250_RANKS_251_500_ETF"};
+ const rows=listExtensionResearch();
+ const screen=change=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+  emergencyFundMonths:null,riskTolerance:'Moderate',...change
+ })).map(x=>[x.id,x]));
+ const base=screen({}),flagged=screen({investmentGoals:['Emergency Fund'],
+  investmentHorizonYears:2,emergencyFundMonths:0,riskTolerance:'Conservative'});
+ for(const [id,code] of Object.entries(codes)){
+  const row=rows.find(x=>x.id===id);
+  const v=(row.indexBenchmarkReview||row.etfBenchmarkReview).nseSep2026SegmentEvidenceReview;
+  assert.equal(v.benchmarkCode,code);
+  assert.equal(v.reviewedOn,'2026-11-01');
+  assert.equal(v.benchmarkPageMarketCoverageObservationAsOf,'2026-09-30');
+  assert.equal(v.sebiPassiveIndexSecuritiesCategoryMinimumPercent,95);
+  assert.ok(isOfficialFrameworkReferenceUrl(v.officialNseIndexPageUrl));
+  assert.ok(isOfficialFrameworkReferenceUrl(v.officialSebiFeb2026CircularUrl));
+  for(const key of ['actualNamedSchemeAndSidVerified','currentSchemeRiskometerAndHoldingsVerified',
+   'currentAuthorizedNavOrExchangeQuoteVerified','individualInvestorKycAndAccessVerified',
+   'signedCommercialDataAndProviderEntitlementsVerified',
+   'taxAndPersonalizedAdviceAuthorizationVerified','actualSchemePassiveComplianceVerified'])
+   assert.equal(v[key],false);
+  for(const result of [base.get(id),flagged.get(id)]){
+   assert.equal(result.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(result.productQualified,false);assert.equal(result.scoreAvailable,false);
+   assert.equal(result.productRiskLevel,null);
+   assert.ok(result.screeningReasonCodes.includes(
+    'NSE_BROAD_INDEX_'+code+'_NOT_SCHEME_RISKOMETER_OR_ELIGIBILITY'));
+  }
+  for(const c of ['SHORT_OR_EMERGENCY_GOAL_REQUIRES_BROAD_INDEX_EQUITY_EXIT_REVIEW',
+   'RECORDED_ZERO_BUFFER_REQUIRES_BROAD_INDEX_EXIT_LIQUIDITY_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_BROAD_INDEX_MARKET_LOSS_REVIEW']){
+   assert.ok(!base.get(id).screeningReasonCodes.includes(c),id+':'+c);
+   assert.ok(flagged.get(id).screeningReasonCodes.includes(c),id+':'+c);
+  }
+  if(id==='catalog_2026_etf_smallcap250')assert.ok(flagged.get(id)
+   .screeningReasonCodes.includes('SMALLCAP250_ETF_BENCHMARK_NOT_EXECUTABLE_SPREAD_INAV_OR_DEMAT_ACCESS'));
+ }
+ const missing=screen({investmentHorizonYears:2,emergencyFundMonths:null});
+ assert.ok(missing.get(Object.keys(codes)[0]).screeningReasonCodes.includes(
+  'SHORT_OR_EMERGENCY_GOAL_REQUIRES_BROAD_INDEX_EQUITY_EXIT_REVIEW'));
+ assert.ok(!missing.get(Object.keys(codes)[0]).screeningReasonCodes.includes(
+  'RECORDED_ZERO_BUFFER_REQUIRES_BROAD_INDEX_EXIT_LIQUIDITY_REVIEW'));
+ rows.find(x=>x.id===Object.keys(codes)[0]).indexBenchmarkReview
+  .nseSep2026SegmentEvidenceReview.riskConsiderations.push('FORGED APPROVAL');
+ assert.ok(!listExtensionResearch().find(x=>x.id===Object.keys(codes)[0])
+  .indexBenchmarkReview.nseSep2026SegmentEvidenceReview.riskConsiderations.includes('FORGED APPROVAL'));
+});

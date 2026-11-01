@@ -1987,6 +1987,32 @@ const frameworkPublisherCautions=Object.freeze({
   INDEX_PROVIDER_METHODOLOGY:'INDEX_PROVIDER_METHODOLOGY_NOT_A_SEBI_SCHEME_APPROVAL_OR_RISKOMETER',
   NATIONAL_STANDARDS_BODY:'BIS_GENERAL_STANDARDS_NOT_A_SPECIFIC_BULLION_CERTIFICATION',
 });
+// Six NSE broad-market benchmarks: construction evidence is never an approved scheme.
+const broadMarketSegmentCodes=Object.freeze({"catalog_2026_index_nifty_next50":["NEXT50_EX_NIFTY50","INDEX_MUTUAL_FUND","https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-next-50"],"catalog_2026_index_nifty100":["NIFTY100_LARGE_CAP_COMBINED","INDEX_MUTUAL_FUND","https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-100"],"catalog_2026_index_nifty500":["NIFTY500_BROAD_CAP_TURNOVER","INDEX_MUTUAL_FUND","https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-500"],"catalog_2026_index_midcap150":["MIDCAP150_RANKS_101_250","INDEX_MUTUAL_FUND","https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-midcap-150"],"catalog_2026_index_smallcap250":["SMALLCAP250_RANKS_251_500","INDEX_MUTUAL_FUND","https://www.niftyindices.com/indices/equity/broad-based-indices/niftysmallcap250"],"catalog_2026_etf_smallcap250":["SMALLCAP250_RANKS_251_500_ETF","EXCHANGE_TRADED_FUND","https://www.niftyindices.com/indices/equity/broad-based-indices/niftysmallcap250"]});
+if(research.entries.filter(row=>row.indexBenchmarkReview?.nseSep2026SegmentEvidenceReview
+ ||row.etfBenchmarkReview?.nseSep2026SegmentEvidenceReview).length!==6
+ ||Object.entries(broadMarketSegmentCodes).some(([id,[code,wrapper,url]])=>{
+  const row=research.entries.find(x=>x.id===id);
+  const v=row?.indexBenchmarkReview?.nseSep2026SegmentEvidenceReview
+   ||row?.etfBenchmarkReview?.nseSep2026SegmentEvidenceReview;
+  return !v||v.benchmarkCode!==code||v.wrapper!==wrapper
+   ||v.officialNseIndexPageUrl!==url||v.officialSebiFeb2026CircularUrl!=='https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html'
+   ||v.regulatoryCircularIssuedOn!=='2026-02-26'
+   ||v.benchmarkPageMarketCoverageObservationAsOf!=='2026-09-30'
+   ||v.reviewedOn!=='2026-11-01'
+   ||v.sebiPassiveIndexSecuritiesCategoryMinimumPercent!==95
+   ||v.sourceScope!=='NSE_BROAD_INDEX_CONSTRUCTION_AND_SEBI_PASSIVE_CATEGORY_NOT_SCHEME_APPROVAL'
+   ||v.categoryInterpretation?.length<70
+   ||v.riskConsiderations?.length!==2||v.investorAccessConstraints?.length!==2
+   ||v.benchmarkConstituentWeightsAndLiveCompositionNotVerified!==true
+   ||v.marketCoveragePercentNotUsedForSuitability!==true
+   ||['actualNamedSchemeAndSidVerified','currentSchemeRiskometerAndHoldingsVerified',
+    'currentAuthorizedNavOrExchangeQuoteVerified','individualInvestorKycAndAccessVerified',
+    'signedCommercialDataAndProviderEntitlementsVerified',
+    'taxAndPersonalizedAdviceAuthorizationVerified','actualSchemePassiveComplianceVerified']
+    .some(k=>v[k]!==false);
+ }))throw new Error('FINANCIAL_SIX_BROAD_INDEX_SOURCE_RESEARCH_INVALID');
+
 export function screenExtensionResearchForProfile(profileInput) {
  const profile=buildRecommendationProfile(profileInput);
  return research.entries.map(row=>{
@@ -2461,6 +2487,21 @@ export function screenExtensionResearchForProfile(profileInput) {
        reasons.push('SHORT_OR_EMERGENCY_GOAL_REQUIRES_PASSIVE_INDEX_NAV_REDEMPTION_AND_EQUITY_LOSS_REVIEW');
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_PASSIVE_INDEX_EQUITY_DRAWDOWN_REVIEW');
+   }
+   const broadReview=row.indexBenchmarkReview?.nseSep2026SegmentEvidenceReview
+     ||row.etfBenchmarkReview?.nseSep2026SegmentEvidenceReview;
+   if(broadReview){
+     reasons.push('NSE_BROAD_INDEX_'+broadReview.benchmarkCode+'_NOT_SCHEME_RISKOMETER_OR_ELIGIBILITY');
+     reasons.push('SEBI_PASSIVE_95PCT_RULE_NOT_VERIFIED_SCHEME_COMPLIANCE');
+     if(broadReview.wrapper==='EXCHANGE_TRADED_FUND')
+       reasons.push('SMALLCAP250_ETF_BENCHMARK_NOT_EXECUTABLE_SPREAD_INAV_OR_DEMAT_ACCESS');
+     if((Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
+       ||profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('SHORT_OR_EMERGENCY_GOAL_REQUIRES_BROAD_INDEX_EQUITY_EXIT_REVIEW');
+     if(profile.emergencyFundMonths===0)
+       reasons.push('RECORDED_ZERO_BUFFER_REQUIRES_BROAD_INDEX_EXIT_LIQUIDITY_REVIEW');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_BROAD_INDEX_MARKET_LOSS_REVIEW');
    }
    if(row.indexBenchmarkReview) {
      reasons.push('EQUITY_INDEX_BENCHMARK_NOT_AN_APPROVED_FUND_OR_ETF');
