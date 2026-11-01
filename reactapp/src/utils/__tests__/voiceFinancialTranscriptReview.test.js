@@ -54,6 +54,13 @@ describe('Financial voice ASR value-confirmation boundary', () => {
       'अठहत्तर', 'उन्यासी', 'अट्ठासी', 'चौरानवे', 'निन्यानवे',
     ]) expect(needsFinancialTranscriptReview('मेरे निवेश ' + word), word).toBe(true);
   });
+  it('detects Hindi numbers next to Devanagari punctuation without matching substrings', () => {
+    for (const sentence of [
+      'मेरी बचत बयालीस।', 'मेरी बचत पचहत्तर?',
+      'निन्यानवे, मेरी बचत', 'निन्यानवे।',
+    ]) expect(needsFinancialTranscriptReview(sentence), sentence).toBe(true);
+    expect(needsFinancialTranscriptReview('मेरे दोस्तों।')).toBe(false);
+  });
   it('does not match Indic numeral substrings inside unrelated words', () => {
     for (const question of [
       'मेरे दोस्त की योजना', 'सिप क्या है?', 'ಸಿಪ್ ಎಂದರೇನು?',
