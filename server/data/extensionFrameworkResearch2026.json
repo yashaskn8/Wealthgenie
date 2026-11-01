@@ -2926,7 +2926,38 @@
         "investorKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "sebiFeb2026PassiveReplicationReview": {
+          "officialSebiCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+          "circularNumber": "HO/24/13/15(2)2026-IMD-RAC4/I/5764/2026",
+          "circularIssuedOn": "2026-02-26",
+          "effectiveFrom": "2026-02-26",
+          "reviewedOn": "2026-11-01",
+          "sourceClause": "2.6.3(E) Other Schemes item 1, and 2.6.7 transition",
+          "categoryMinimumIndexSecuritiesAllocationPct": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "actualSchemeAlignmentNotInferred": true,
+          "benchmarkName": "Nifty 500",
+          "officialIndexProviderMethodologyUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-500",
+          "wrapper": "INDEX_MUTUAL_FUND",
+          "categoryInterpretation": "Top 500 eligible companies selected using market capitalization and turnover, with free-float-market-cap weighting rather than equal weights. The public benchmark and SEBI category rule do not authenticate any scheme, current holdings, riskometer or redemption NAV.",
+          "sourceScope": "SEBI_PASSIVE_CATEGORY_ALLOCATION_AND_NSE_BENCHMARK_NOT_SCHEME_HOLDINGS_OR_APPROVAL",
+          "riskConsiderations": [
+            "Broad exposure to large, mid and smaller companies still permits capitalization concentration and equity drawdowns; 500 benchmark names do not guarantee equal diversification.",
+            "Reconstitution, scheme cash drag, trading costs and tracking difference can reduce actual redemption NAV; 95% category allocation is not capital protection."
+          ],
+          "investorAccessConstraints": [
+            "Confirm actual AMC, benchmark variant, current SID/KIM, holdings and risk-o-meter rather than inferring them from a published index.",
+            "Verify individual KYC, purchase minimum, redemption timing, authorized NAV, fiscal-year tax, signed data and advice rights."
+          ],
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualPortfolioAndNinetyFivePctComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
@@ -2980,7 +3011,38 @@
         "investorKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "sebiFeb2026PassiveReplicationReview": {
+          "officialSebiCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+          "circularNumber": "HO/24/13/15(2)2026-IMD-RAC4/I/5764/2026",
+          "circularIssuedOn": "2026-02-26",
+          "effectiveFrom": "2026-02-26",
+          "reviewedOn": "2026-11-01",
+          "sourceClause": "2.6.3(E) Other Schemes item 1, and 2.6.7 transition",
+          "categoryMinimumIndexSecuritiesAllocationPct": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "actualSchemeAlignmentNotInferred": true,
+          "benchmarkName": "Nifty Midcap 150",
+          "officialIndexProviderMethodologyUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-midcap-150",
+          "wrapper": "INDEX_MUTUAL_FUND",
+          "categoryInterpretation": "Nifty 500 companies ranked 101 to 250 by full market capitalization; free-float-capitalization-weighted, not equal weighted. The public benchmark and SEBI category rule do not authenticate any scheme, current holdings, riskometer or redemption NAV.",
+          "sourceScope": "SEBI_PASSIVE_CATEGORY_ALLOCATION_AND_NSE_BENCHMARK_NOT_SCHEME_HOLDINGS_OR_APPROVAL",
+          "riskConsiderations": [
+            "Mid-cap equity prices can draw down materially; a 150-stock benchmark does not establish any actual scheme's risk-o-meter.",
+            "Underlying liquidity, index rebalancing, tracking difference and redemption NAV may impair exits in market stress."
+          ],
+          "investorAccessConstraints": [
+            "Verify named AMC, current SID/KIM, benchmark variant, actual portfolio, scheme risk-o-meter and applicable redemption rules.",
+            "Confirm KYC, individual purchase minimum, authorized NAV, settlement, fiscal-year tax and commercial data/advice entitlements."
+          ],
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualPortfolioAndNinetyFivePctComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
@@ -3034,7 +3096,38 @@
         "investorKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "sebiFeb2026PassiveReplicationReview": {
+          "officialSebiCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+          "circularNumber": "HO/24/13/15(2)2026-IMD-RAC4/I/5764/2026",
+          "circularIssuedOn": "2026-02-26",
+          "effectiveFrom": "2026-02-26",
+          "reviewedOn": "2026-11-01",
+          "sourceClause": "2.6.3(E) Other Schemes item 1, and 2.6.7 transition",
+          "categoryMinimumIndexSecuritiesAllocationPct": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "actualSchemeAlignmentNotInferred": true,
+          "benchmarkName": "Nifty Smallcap 250",
+          "officialIndexProviderMethodologyUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/niftysmallcap250",
+          "wrapper": "INDEX_MUTUAL_FUND",
+          "categoryInterpretation": "Nifty 500 companies ranked 251 to 500 by full market capitalization; benchmark weighted by free-float capitalization. The public benchmark and SEBI category rule do not authenticate any scheme, current holdings, riskometer or redemption NAV.",
+          "sourceScope": "SEBI_PASSIVE_CATEGORY_ALLOCATION_AND_NSE_BENCHMARK_NOT_SCHEME_HOLDINGS_OR_APPROVAL",
+          "riskConsiderations": [
+            "Small-company share-price losses and shallow constituent order books can make replication and fund redemptions more difficult.",
+            "Constituent changes, transaction costs, tracking difference and scheme cash drag may create NAV outcomes unlike benchmark levels."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual AMC index fund, current SID/KIM, benchmark variant, holdings, risk-o-meter and exit restrictions.",
+            "Confirm individual KYC, minimum subscription, authorized NAV, settlement, fiscal-year tax, licensed commercial data and advice rights."
+          ],
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualPortfolioAndNinetyFivePctComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
