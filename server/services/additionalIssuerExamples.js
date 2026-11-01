@@ -21,6 +21,8 @@ const HOSTS = Object.freeze({
   'HDFC Bank': ['www.hdfc.bank.in'],
   'Invesco India Mutual Fund': ['www.invescomutualfund.com'],
   'Mirae Asset Mutual Fund': ['www.miraeassetmf.co.in'],
+  'State Bank of India': ['sbi.bank.in'],
+  'ICICI Bank': ['www.icici.bank.in'],
 });
 const EXPECTED = Object.freeze({
   catalog_2026_index_nifty500: {
@@ -82,6 +84,10 @@ const EXPECTED = Object.freeze({
   catalog_2026_etf_nifty200_quality: {
     benchmark: 'Nifty200 Quality 30 TRI', instrument: 'ETF',
     pattern: /nifty.?200.?quality.?30.?etf/i,
+  },
+  catalog_2026_bank_sweep_fd: {
+    benchmark: 'BANK_SWEEP_IN_LINKED_FD', instrument: 'BANK_DEPOSIT',
+    pattern: /(?:multi.?option.?deposit|sweep.?in.?linked.?fixed.?deposit|money.?multiplier.?fixed.?deposit)/i,
   },
 });
 const invalid = code => { throw new Error('FINANCIAL_ISSUER_EXAMPLES_' + code); };
