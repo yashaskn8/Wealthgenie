@@ -4176,3 +4176,48 @@ test('PFRDA August 2026 trustee-bank cut-off distinguishes nine NPS categories a
  assert.ok(!listExtensionResearch().find(x=>x.id===ids[0]).npsCommonSchemeReview
   .pfrdaAug2026SameDayContributionReview.riskConsiderations.includes('FORGED NAV'));
 });
+
+
+test('six March 2026 FoF SID benchmark reviews remain unqualified and use recorded profile facts',()=>{
+ const codes={"catalog_2026_equity_diversified_fof":"DIVERSIFIED_EQUITY","catalog_2026_equity_sector_fof":"SECTORAL_THEMATIC_EQUITY","catalog_2026_fof_aggressive_hybrid":"AGGRESSIVE_HYBRID","catalog_2026_fof_conservative_hybrid":"CONSERVATIVE_HYBRID","catalog_2026_fof_income_arbitrage":"INCOME_PLUS_ARBITRAGE","catalog_2026_fof_dynamic_allocation":"DYNAMIC_ASSET_ALLOCATION"};
+ const rows=listExtensionResearch();
+ const screen=changes=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],investmentHorizonYears:10,emergencyFundMonths:null,
+  riskTolerance:'Moderate',...changes})).map(x=>[x.id,x]));
+ const base=screen({}),flagged=screen({investmentGoals:['Emergency Fund'],
+  investmentHorizonYears:2,emergencyFundMonths:0,riskTolerance:'Conservative'});
+ for(const [id,code] of Object.entries(codes)){
+  const v=rows.find(x=>x.id===id).fundOfFundsCategoryReview.sebiMarch2026FoFSidBenchmarkReview;
+  assert.equal(v.categoryCode,code);
+  assert.equal(v.officialSebiMasterCircularUrl,'https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf');
+  assert.ok(isOfficialFrameworkReferenceUrl(v.officialSebiMasterCircularUrl));
+  assert.equal(v.multiFundSelectionCannotAutomaticallyBeCalledPassive,true);
+  assert.equal(v.sidUnderlyingBenchmarkStrategyTerAumPerformanceAndTopHoldingsDisclosureRequired,true);
+  for(const k of ['currentSchemeAndUnderlyingIdentitiesVerified','actualUnderlyingHoldingsVerified',
+   'currentSchemeBenchmarkAndSidVerified','currentFoFAndUnderlyingRiskometersVerified',
+   'currentNavFeesAndRedemptionVerified','individualKycRetailAccessAndTaxVerified',
+   'licensedDataAndSignedProviderEntitlementsVerified','personalizedAdviceAuthorizationVerified'])assert.equal(v[k],false);
+  for(const x of [base.get(id),flagged.get(id)]){
+   assert.equal(x.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(x.productQualified,false);assert.equal(x.scoreAvailable,false);
+   assert.equal(x.productRiskLevel,null);
+   assert.ok(x.screeningReasonCodes.includes('FOF_SID_'+code+'_BENCHMARK_AND_RISK_UNVERIFIED'));
+  }
+  for(const c of ['SHORT_OR_EMERGENCY_GOAL_REQUIRES_FOF_BENCHMARK_AND_EXIT_REVIEW',
+   'RECORDED_ZERO_BUFFER_REQUIRES_FOF_UNDERLYING_SETTLEMENT_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_FOF_BENCHMARK_AND_LOSS_REVIEW']){
+   assert.ok(!base.get(id).screeningReasonCodes.includes(c),id+':'+c);
+   assert.ok(flagged.get(id).screeningReasonCodes.includes(c),id+':'+c);
+  }
+ }
+ const missing=screen({investmentHorizonYears:2,emergencyFundMonths:null});
+ assert.ok(missing.get(Object.keys(codes)[0]).screeningReasonCodes.includes(
+  'SHORT_OR_EMERGENCY_GOAL_REQUIRES_FOF_BENCHMARK_AND_EXIT_REVIEW'));
+ assert.ok(!missing.get(Object.keys(codes)[0]).screeningReasonCodes.includes(
+  'RECORDED_ZERO_BUFFER_REQUIRES_FOF_UNDERLYING_SETTLEMENT_REVIEW'));
+ const first=Object.keys(codes)[0];
+ rows.find(x=>x.id===first).fundOfFundsCategoryReview.sebiMarch2026FoFSidBenchmarkReview
+  .riskConsiderations.push('FORGED APPROVAL');
+ assert.ok(!listExtensionResearch().find(x=>x.id===first).fundOfFundsCategoryReview
+  .sebiMarch2026FoFSidBenchmarkReview.riskConsiderations.includes('FORGED APPROVAL'));
+});
