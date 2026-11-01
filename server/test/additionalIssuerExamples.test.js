@@ -16,11 +16,12 @@ const familyIds = [
   'catalog_2026_index_nifty100_equal',
   'catalog_2026_etf_nifty50_equal',
   'catalog_2026_index_nifty500_momentum',
+  'catalog_2026_bank_tax_saver_fd',
 ];
-test('18 distinct issuer-sourced names map to six exact 2026 catalog families', () => {
+test('21 distinct issuer-sourced names map to seven exact 2026 catalog families', () => {
   const candidates = listAdditionalIssuerExamples();
   assert.deepEqual([...candidates.keys()], familyIds);
-  assert.equal([...candidates.values()].reduce((sum, v) => sum + v.length, 0), 18);
+  assert.equal([...candidates.values()].reduce((sum, v) => sum + v.length, 0), 21);
   for (const [id, products] of candidates) {
     assert.equal(products.length, 3, id);
     assert.equal(new Set(products.map(x => x.issuer)).size, 3, id);
@@ -43,8 +44,8 @@ test('directory keeps all 250 archetypes and adds only independent issuer links,
     assert.ok(Object.values(item.productData).every(v => v === null));
   }
   assert.equal(indexed.get('catalog_2026_bank_rd').researchCandidates.length, 2);
-  assert.equal(response.items.reduce((sum, x) => sum + x.researchCandidates.length, 0), 32);
-  assert.equal(response.items.filter(x => x.researchCandidates.length > 0).length, 11);
+  assert.equal(response.items.reduce((sum, x) => sum + x.researchCandidates.length, 0), 35);
+  assert.equal(response.items.filter(x => x.researchCandidates.length > 0).length, 12);
   indexed.get(familyIds[0]).researchCandidates[0].name = 'Forged product';
   assert.notEqual(listFinancialDiscoveryDirectory().items
     .find(x => x.id === familyIds[0]).researchCandidates[0].name, 'Forged product');
@@ -68,8 +69,8 @@ test('the full 250-family catalog cannot recycle the same fund for two options i
   const response = listFinancialDiscoveryDirectory();
   const report = assertDistinctIssuerOptionsByCategory(response.items);
   assert.deepEqual(report, {
-    familyCount: 250, issuerExampleCount: 32,
-    familiesWithIssuerExamples: 11, crossFamilyCategoryDuplicates: 0,
+    familyCount: 250, issuerExampleCount: 35,
+    familiesWithIssuerExamples: 12, crossFamilyCategoryDuplicates: 0,
   });
   const rows = structuredClone(response.items);
   const a = rows.find(x => x.id === 'catalog_2026_index_nifty100');
