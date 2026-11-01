@@ -25,11 +25,12 @@ const familyIds = [
   'catalog_2026_long_duration_mf',
   'catalog_2026_index_nifty_lowvol',
   'catalog_2026_etf_nifty200_quality',
+  'catalog_2026_bank_sweep_fd',
 ];
-test('45 distinct issuer-sourced names map to 15 exact 2026 catalog families', () => {
+test('48 distinct issuer-sourced names map to 16 exact 2026 catalog families', () => {
   const candidates = listAdditionalIssuerExamples();
   assert.deepEqual([...candidates.keys()], familyIds);
-  assert.equal([...candidates.values()].reduce((sum, v) => sum + v.length, 0), 45);
+  assert.equal([...candidates.values()].reduce((sum, v) => sum + v.length, 0), 48);
   for (const [id, products] of candidates) {
     assert.equal(products.length, 3, id);
     assert.equal(new Set(products.map(x => x.issuer)).size, 3, id);
@@ -52,8 +53,8 @@ test('directory keeps all 250 archetypes and adds only independent issuer links,
     assert.ok(Object.values(item.productData).every(v => v === null));
   }
   assert.equal(indexed.get('catalog_2026_bank_rd').researchCandidates.length, 2);
-  assert.equal(response.items.reduce((sum, x) => sum + x.researchCandidates.length, 0), 59);
-  assert.equal(response.items.filter(x => x.researchCandidates.length > 0).length, 20);
+  assert.equal(response.items.reduce((sum, x) => sum + x.researchCandidates.length, 0), 62);
+  assert.equal(response.items.filter(x => x.researchCandidates.length > 0).length, 21);
   indexed.get(familyIds[0]).researchCandidates[0].name = 'Forged product';
   assert.notEqual(listFinancialDiscoveryDirectory().items
     .find(x => x.id === familyIds[0]).researchCandidates[0].name, 'Forged product');
@@ -77,8 +78,8 @@ test('the full 250-family catalog cannot recycle the same fund for two options i
   const response = listFinancialDiscoveryDirectory();
   const report = assertDistinctIssuerOptionsByCategory(response.items);
   assert.deepEqual(report, {
-    familyCount: 250, issuerExampleCount: 59,
-    familiesWithIssuerExamples: 20, crossFamilyCategoryDuplicates: 0,
+    familyCount: 250, issuerExampleCount: 62,
+    familiesWithIssuerExamples: 21, crossFamilyCategoryDuplicates: 0,
   });
   const rows = structuredClone(response.items);
   const a = rows.find(x => x.id === 'catalog_2026_index_nifty100');
@@ -121,4 +122,19 @@ test('equity index, ETF and debt-duration examples cannot be swapped between loo
     assert.throws(() => listAdditionalIssuerExamples(forged),
       /FINANCIAL_ISSUER_EXAMPLES_INSTRUMENT_IDENTITY/, familyId);
   }
+});
+
+// Bank sweep-in deposits are distinct from tax-saver fixed deposits and
+// ordinary recurring deposits; a shared issuer is not a shared product.
+test('sweep-linked deposits retain three distinct real bank scheme identities', () => {
+  const products = listAdditionalIssuerExamples().get('catalog_2026_bank_sweep_fd');
+  assert.deepEqual(products.map(product => product.issuer), [
+    'State Bank of India', 'HDFC Bank', 'ICICI Bank',
+  ]);
+  assert.ok(products.every(product => product.displayScope === 'PUBLIC_ISSUER_RESEARCH_ONLY'));
+  const altered = structuredClone(source);
+  altered.families.find(f => f.familyId === 'catalog_2026_bank_sweep_fd')
+    .products[0].name = 'SBI Ordinary Recurring Deposit';
+  assert.throws(() => listAdditionalIssuerExamples(altered),
+    /FINANCIAL_ISSUER_EXAMPLES_INSTRUMENT_IDENTITY/);
 });
