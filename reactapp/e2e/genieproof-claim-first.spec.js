@@ -14,6 +14,39 @@ const checkResponse = claims => ({
 });
 
 test.describe('GenieProof claim-first browser workflow', () => {
+  test('scope-first UI explains dated limitations and never silently submits the example', async ({ page }) => {
+    const requests = [];
+    const statement = "As of 1 November 2026, India's Public Provident Fund (PPF) annual interest rate is 7.1%.";
+    await page.route(routePath, route => {
+      requests.push(route.request().postDataJSON());
+      return route.fulfill({
+        status:200, contentType:'application/json',
+        body:JSON.stringify(checkResponse([{
+          claimId:'f'.repeat(32),statement,verdict:'NOT_VERIFIED',
+          reasonCode:'CLAIM_DATE_OUTSIDE_CURRENT_SCOPE',
+          explanation:'Date-specific claims are not assessed by the current verifier.',
+          warningSignals:[],source:null,
+        }])),
+      });
+    });
+    await page.setViewportSize({width:390,height:844});
+    await page.goto('/e2e/fixtures/genieproof-claim-harness.html');
+    await expect(page.getByText('Current capability')).toBeVisible();
+    await page.getByRole('button',{name:'Try supported wording'}).click();
+    await expect(page.getByLabel('Financial statement to check'))
+      .toHaveValue('The current official PPF interest rate is 7.1% p.a.');
+    expect(requests).toEqual([]);
+    await page.getByLabel('Financial statement to check').fill(statement);
+    await page.getByRole('button',{name:'Check claim'}).click();
+    await expect(page.getByText('Date-specific statement not supported')).toBeVisible();
+    await expect(page.getByText(/1 without a verified conclusion/)).toBeVisible();
+    await expect(page.getByText('Supported by evidence')).toHaveCount(0);
+    await expect(page.getByRole('link',{name:/India Post/})).toHaveCount(0);
+    expect(requests).toEqual([{offerText:statement}]);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+    expect(overflow).toBe(false);
+  });
+
   test('checks user-provided wording without presenting passport or saving controls', async ({ page }) => {
     const requests = [];
     await page.route(routePath, route => {
