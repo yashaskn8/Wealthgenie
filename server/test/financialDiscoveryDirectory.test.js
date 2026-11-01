@@ -1819,3 +1819,36 @@ test('three RBI T-bill reinvestment profiles are defensively copied and never qu
  }
  assert.equal(get('catalog_2026_sdl_dated').frameworkResearch.retailDirectAccessReview.retailDirectTbillReinvestmentReview,undefined);
 });
+
+// Public NSE issuer lists and index methodology do not prove actual retail ETF access.
+test('four NSE equal-weight reviews remain unqualified and defensively copied in discovery',()=>{
+ const ids=['catalog_2026_index_nifty50_equal','catalog_2026_index_nifty100_equal',
+  'catalog_2026_etf_nifty50_equal','catalog_2026_etf_nifty100_equal'];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ for(const [i,id] of ids.entries()){
+  const isEtf=i>=2;
+  const item=get(id);
+  const review=(isEtf?item.frameworkResearch.etfBenchmarkReview:
+   item.frameworkResearch.indexBenchmarkReview).nseEqualWeight2026Review;
+  assert.equal(review.categoryMinimumIndexSecuritiesAllocationPercent,95);
+  assert.equal(review.equalWeightCompanyResetFrequency,'QUARTERLY');
+  assert.equal(review.parentConstituentReviewFrequency,'SEMI_ANNUAL');
+  assert.equal(review.targetEqualCompanyWeightPercentAtReset,i%2===0?2:1);
+  assert.equal(review.actualNamedSchemeAndSidKimVerified,false);
+  assert.equal(review.currentSchemeRiskometerVerified,false);
+  assert.equal(review.currentNavOrExecutableQuoteVerified,false);
+  assert.equal(review.individualKycAndRetailAccessVerified,false);
+  assert.equal(review.commercialMarketDataRightsVerified,false);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.equal(item.frameworkResearch.actualRiskScore,null);
+  assert.equal(item.frameworkResearch.issuerTermsVerified,false);
+  assert.ok(Object.values(item.productData).every(x=>x===null));
+  review.investorAccessConstraints.push('FORGED RETAIL ETF ELIGIBILITY');
+  const fresh=get(id);
+  assert.ok(!(isEtf?fresh.frameworkResearch.etfBenchmarkReview:
+   fresh.frameworkResearch.indexBenchmarkReview).nseEqualWeight2026Review
+   .investorAccessConstraints.includes('FORGED RETAIL ETF ELIGIBILITY'));
+ }
+});
