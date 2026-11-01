@@ -35,7 +35,7 @@ const HINDI_SPOKEN_31_TO_99 = new Set(`
   इक्यानवे बानवे तिरानवे चौरानवे पचानवे छियानवे सत्तानवे अट्ठानवे निन्यानवे
 `.trim().split(/\s+/u));
 const hasHindiSpokenNumber = text =>
-  (text.match(/[\u0900-\u097F]+/gu) || []).some(word => HINDI_SPOKEN_31_TO_99.has(word));
+  (text.match(/[\p{L}\p{M}]+/gu) || []).some(word => HINDI_SPOKEN_31_TO_99.has(word));
 const INVALID = /[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}]/u;
 
 export function needsFinancialTranscriptReview(raw) {
