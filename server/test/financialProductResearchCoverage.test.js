@@ -15,13 +15,13 @@ describe('250-family actual-product research workflow keeps trust boundaries', (
     const result = buildFinancial250ResearchCoverage();
     assert.equal(result.familyCount, 250);
     assert.equal(result.researchSlotCapacity, 750);
-    assert.equal(result.researchedFamilyCount, 2);
-    assert.equal(result.issuerIdentitiesResearched, 6);
+    assert.equal(result.researchedFamilyCount, 4);
+    assert.equal(result.issuerIdentitiesResearched, 12);
     assert.equal(result.productionQualifiedFamilies, 'NOT_MEASURED');
     assert.equal(result.personalizedTopThreeComputed, false);
     assert.equal(result.afterTaxProductReturnsComputed, false);
     assert.equal(result.families.length, 250);
-    assert.equal(result.families.reduce((sum, f) => sum + f.researchOnlyCandidates.length, 0), 6);
+    assert.equal(result.families.reduce((sum, f) => sum + f.researchOnlyCandidates.length, 0), 12);
     assert.ok(result.families.every(f => f.productionComparisonReady === false));
     assert.ok(result.families.every(f => f.qualifiedProductCount === null));
     for (const f of result.families) for (const candidate of f.researchOnlyCandidates) {
