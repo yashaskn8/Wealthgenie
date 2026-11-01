@@ -184,6 +184,66 @@ describe('all 250 investment categories are browseable without product approval'
    expect(within(panel).getByText('Tradeoff unique to first category')).toBeTruthy();
    expect(within(panel).getByText(/unverified historical descriptions/)).toBeTruthy();
  });
+ it('shows source-bound after-tax XIRR only for a user-supplied dated tax scenario',async()=>{
+   const response=qualifiedResponse();
+   const p=response.products[0];
+   p.marketFact.type='PUBLISHED_RATE';
+   p.marketFact.dataClass='PUBLISHED_RATE';
+   p.marketFact.unit='PERCENT_PER_ANNUM';
+   p.afterTax={
+     status:'CALCULATED',metric:'ANNUALIZED_AFTER_TAX_CASHFLOW_XIRR',
+     basis:'VERIFIED_CONTRACT_AND_EXPLICIT_DATED_INVESTOR_TAX_FACTS',
+     taxContextSource:'EXPLICIT_REQUEST_NOT_STORED',
+     valuePercent:5.234,principalInr:10000,
+     sourceId:p.marketFact.sourceId,observationId:p.marketFact.observationId,
+     observedAt:p.marketFact.asOf,
+   };
+   api.getQualifiedFamilyTopProducts.mockResolvedValue(response);
+   const postTaxScenario={principal:10000,taxEventContext:{
+     eventDates:{opening:'2026-11-01'},taxContexts:{'FY2026-27':{}},
+   }};
+   render(<Explorer postTaxScenario={postTaxScenario}/>);
+   await waitFor(()=>expect(screen.getByText('Investment family 1')).toBeTruthy());
+   fireEvent.click(screen.getByRole('button',{name:'Check tailored top 3 for Investment family 1'}));
+   await waitFor(()=>expect(screen.getByText('Verified bond 1')).toBeTruthy());
+   expect(screen.getByText(/Exact annualized after-tax cashflow XIRR:/)).toBeTruthy();
+   expect(screen.getByText(/5\.2340%/)).toBeTruthy();
+   expect(api.getQualifiedFamilyTopProducts).toHaveBeenCalledWith(
+     'family_001','0123456789abcdef01234567',
+     expect.objectContaining({postTaxScenario}),
+   );
+   expect(screen.getByText(/a current quote is not a net return/)).toBeTruthy();
+ });
+ it.each([
+   ['wrong source',p=>{p.afterTax.sourceId='other_source';}],
+   ['wrong observation',p=>{p.afterTax.observationId='wrong';}],
+   ['wrong observation time',p=>{p.afterTax.observedAt='2026-01-01T00:00:00Z';}],
+   ['simulated rather than contract-based',p=>{p.afterTax.basis='SIMULATED_RATE';}],
+   ['untyped headline rate',p=>{p.marketFact.type='PRICE';p.marketFact.dataClass='END_OF_DAY';}],
+   ['invalid numeric return',p=>{p.afterTax.valuePercent=Infinity;}],
+ ])('rejects fabricated exact after-tax results: %s',async(_label,tamper)=>{
+   const response=qualifiedResponse();
+   const product=response.products[0];
+   product.marketFact.type='PUBLISHED_RATE';
+   product.marketFact.dataClass='PUBLISHED_RATE';
+   product.afterTax={
+     status:'CALCULATED',metric:'ANNUALIZED_AFTER_TAX_CASHFLOW_XIRR',
+     basis:'VERIFIED_CONTRACT_AND_EXPLICIT_DATED_INVESTOR_TAX_FACTS',
+     taxContextSource:'EXPLICIT_REQUEST_NOT_STORED',
+     valuePercent:5.234,principalInr:10000,
+     sourceId:product.marketFact.sourceId,
+     observationId:product.marketFact.observationId,
+     observedAt:product.marketFact.asOf,
+   };
+   tamper(product);
+   api.getQualifiedFamilyTopProducts.mockResolvedValueOnce(response);
+   const view=render(<Explorer/>);
+   await waitFor(()=>expect(screen.getByText('Investment family 1')).toBeTruthy());
+   fireEvent.click(screen.getByRole('button',{name:'Check tailored top 3 for Investment family 1'}));
+   await waitFor(()=>expect(screen.getByText(/CURRENT_PROFILE_OR_QUALIFIED_COMPARISON_UNAVAILABLE/)).toBeTruthy());
+   expect(screen.queryByText(/5\.2340%/)).toBeNull();
+   view.unmount();
+ });
  it('does not hide the directory when the qualified-product database fails',async()=>{
    api.getThreeProductReadyFamilies.mockRejectedValueOnce(new Error('Postgres unavailable'));
    render(<Explorer/>);
