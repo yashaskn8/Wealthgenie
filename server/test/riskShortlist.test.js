@@ -4118,9 +4118,11 @@ test('Nifty India Consumption ETF dated benchmark facts cannot qualify a scheme 
    assert.ok(!normal.screeningReasonCodes.includes(code),code);
    assert.ok(flagged.screeningReasonCodes.includes(code),code);
  }
- assert.ok(!screen({investmentHorizonYears:null,emergencyFundMonths:null})
-   .screeningReasonCodes.includes(
-     'SHORT_OR_EMERGENCY_GOAL_REQUIRES_CONSUMPTION_ETF_SPREAD_AND_EXIT_REVIEW'));
+ const shortOnly=screen({investmentHorizonYears:2,emergencyFundMonths:null});
+ assert.ok(shortOnly.screeningReasonCodes.includes(
+   'SHORT_OR_EMERGENCY_GOAL_REQUIRES_CONSUMPTION_ETF_SPREAD_AND_EXIT_REVIEW'));
+ assert.ok(!shortOnly.screeningReasonCodes.includes(
+   'ZERO_EMERGENCY_BUFFER_REQUIRES_CONSUMPTION_ETF_ORDERBOOK_EXIT_REVIEW'));
  v.riskConsiderations.push('FORGED ETF APPROVAL');
  assert.ok(!listExtensionResearch().find(x=>x.id===id).etfBenchmarkReview
    .nseNov2026ConsumptionEtfReview.riskConsiderations.includes('FORGED ETF APPROVAL'));
