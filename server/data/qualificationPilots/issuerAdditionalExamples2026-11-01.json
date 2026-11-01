@@ -160,6 +160,138 @@
           "issuerUrl": "https://www.hdfc.bank.in/fixed-deposit/five-year-tax-saving-fixed-deposit"
         }
       ]
+    },
+    {
+      "familyId": "catalog_2026_index_nifty200_quality",
+      "benchmark": "Nifty200 Quality 30 TRI",
+      "instrument": "INDEX_FUND",
+      "products": [
+        {
+          "name": "UTI Nifty200 Quality 30 Index Fund",
+          "issuer": "UTI Mutual Fund",
+          "issuerUrl": "https://www.utimf.com/mutual-funds/uti-nifty200-quality-30-index-fund"
+        },
+        {
+          "name": "Bandhan Nifty 200 Quality 30 Index Fund",
+          "issuer": "Bandhan Mutual Fund",
+          "issuerUrl": "https://bandhanmutual.com/mutual-funds/index-funds-and-etfs/bandhan-nifty-200-quality-30-index-fund/regular"
+        },
+        {
+          "name": "ICICI Prudential Nifty200 Quality 30 Index Fund",
+          "issuer": "ICICI Prudential Mutual Fund",
+          "issuerUrl": "https://digitalfactsheet.icicipruamc.com/passive/icici-prudential-nifty-200-quality-30-index-fund.php"
+        }
+      ]
+    },
+    {
+      "familyId": "catalog_2026_index_india_defence",
+      "benchmark": "Nifty India Defence TRI",
+      "instrument": "INDEX_FUND",
+      "products": [
+        {
+          "name": "Axis Nifty India Defence Index Fund",
+          "issuer": "Axis Mutual Fund",
+          "issuerUrl": "https://www.axismf.com/mutual-funds/index-funds/axis-nifty-india-defence-index-fund/nd-dg/direct"
+        },
+        {
+          "name": "Motilal Oswal Nifty India Defence Index Fund",
+          "issuer": "Motilal Oswal Mutual Fund",
+          "issuerUrl": "https://www.motilaloswalmf.com/mutual-funds/motilal-oswal-nifty-india-defence-index-fund"
+        },
+        {
+          "name": "Invesco India Nifty India Defence Index Fund",
+          "issuer": "Invesco India Mutual Fund",
+          "issuerUrl": "https://www.invescomutualfund.com/our-funds/index/invesco-india-nifty-india-defence-index-fund/degp"
+        }
+      ]
+    },
+    {
+      "familyId": "catalog_2026_etf_smallcap250",
+      "benchmark": "Nifty Smallcap 250 TRI",
+      "instrument": "ETF",
+      "products": [
+        {
+          "name": "HDFC NIFTY Smallcap 250 ETF",
+          "issuer": "HDFC Mutual Fund",
+          "issuerUrl": "https://www.hdfcfund.com/explore/mutual-funds/hdfc-nifty-smallcap-250-etf/regular"
+        },
+        {
+          "name": "Motilal Oswal Nifty Smallcap 250 ETF",
+          "issuer": "Motilal Oswal Mutual Fund",
+          "issuerUrl": "https://www.motilaloswalmf.com/mutual-funds/motilal-oswal-nifty-smallcap-250-etf"
+        },
+        {
+          "name": "Mirae Asset Nifty Smallcap 250 ETF",
+          "issuer": "Mirae Asset Mutual Fund",
+          "issuerUrl": "https://www.miraeassetmf.co.in/mutual-fund-scheme/etf"
+        }
+      ]
+    },
+    {
+      "familyId": "catalog_2026_gilt_10y_constant",
+      "benchmark": "10_YEAR_CONSTANT_MATURITY_GILT",
+      "instrument": "DEBT_MUTUAL_FUND",
+      "products": [
+        {
+          "name": "SBI Constant Maturity 10-Year Gilt Fund",
+          "issuer": "SBI Mutual Fund",
+          "issuerUrl": "https://www.sbimf.com/docs/default-source/scheme-factsheets/sbi-constant-maturity-10-year-gilt-fund-factsheet-december-2025.pdf?sfvrsn=cde908c5_2"
+        },
+        {
+          "name": "ICICI Prudential 10 year Constant Maturity Gilt Fund",
+          "issuer": "ICICI Prudential Mutual Fund",
+          "issuerUrl": "https://www.icicipruamc.com/mutual-fund/debt-funds/icici-prudential-10-year-constant-maturity-gilt-fund-%28erstwhile-constant-maturity-gilt-fund%29/713"
+        },
+        {
+          "name": "Bandhan 10 year Constant Maturity Gilt Fund",
+          "issuer": "Bandhan Mutual Fund",
+          "issuerUrl": "https://bandhanmutual.com/mutual-funds"
+        }
+      ]
+    },
+    {
+      "familyId": "catalog_2026_medium_long_duration_mf",
+      "benchmark": "MEDIUM_TO_LONG_DURATION_4_TO_7_YEARS",
+      "instrument": "DEBT_MUTUAL_FUND",
+      "products": [
+        {
+          "name": "SBI Medium to Long Duration Fund",
+          "issuer": "SBI Mutual Fund",
+          "issuerUrl": "https://www.sbimf.com/docs/default-source/scheme-factsheets/sbi-medium-to-long-duration-fund-factsheet-december-2025.pdf?sfvrsn=c27d5461_2"
+        },
+        {
+          "name": "Nippon India Medium to Long Term Fund",
+          "issuer": "Nippon India Mutual Fund",
+          "issuerUrl": "https://mf.nipponindiaim.com/FundsAndPerformance/Pages/NipponIndia-Medium-to-Long-Term-Fund.aspx"
+        },
+        {
+          "name": "Bandhan Medium to Long Term Fund",
+          "issuer": "Bandhan Mutual Fund",
+          "issuerUrl": "https://bandhanmutual.com/mutual-funds"
+        }
+      ]
+    },
+    {
+      "familyId": "catalog_2026_long_duration_mf",
+      "benchmark": "LONG_DURATION_ABOVE_7_YEARS",
+      "instrument": "DEBT_MUTUAL_FUND",
+      "products": [
+        {
+          "name": "SBI Long Duration Fund",
+          "issuer": "SBI Mutual Fund",
+          "issuerUrl": "https://www.sbimf.com/docs/default-source/sif-forms/sid---sbi-long-duration-fund.pdf?sfvrsn=a27267cc_0"
+        },
+        {
+          "name": "Nippon India Nivesh Lakshya Long Term Fund",
+          "issuer": "Nippon India Mutual Fund",
+          "issuerUrl": "https://mf.nipponindiaim.com/FundsAndPerformance/Pages/NipponIndia-Nivesh-Lakshya-Long-Term-Fund.aspx"
+        },
+        {
+          "name": "Bandhan Long Term Fund",
+          "issuer": "Bandhan Mutual Fund",
+          "issuerUrl": "https://bandhanmutual.com/mutual-funds"
+        }
+      ]
     }
   ]
 }
