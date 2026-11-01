@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { listAdditionalIssuerExamples } from '../services/additionalIssuerExamples.js';
 import { listFinancialDiscoveryDirectory } from '../services/financialDiscoveryDirectory.js';
+import { assertDistinctIssuerOptionsByCategory } from '../services/issuerCandidateUniqueness.js';
 
 const source = JSON.parse(readFileSync(
   new URL('../data/qualificationPilots/issuerAdditionalExamples2026-11-01.json', import.meta.url),
@@ -12,11 +13,13 @@ const familyIds = [
   'catalog_2026_index_nifty500',
   'catalog_2026_index_nifty50_equal',
   'catalog_2026_etf_nifty100',
+  'catalog_2026_index_nifty100_equal',
+  'catalog_2026_etf_nifty50_equal',
 ];
-test('exactly nine issuer-sourced names map to three distinct 2026 catalog families', () => {
+test('15 distinct issuer-sourced names map to five exact 2026 catalog families', () => {
   const candidates = listAdditionalIssuerExamples();
   assert.deepEqual([...candidates.keys()], familyIds);
-  assert.equal([...candidates.values()].reduce((sum, v) => sum + v.length, 0), 9);
+  assert.equal([...candidates.values()].reduce((sum, v) => sum + v.length, 0), 15);
   for (const [id, products] of candidates) {
     assert.equal(products.length, 3, id);
     assert.equal(new Set(products.map(x => x.issuer)).size, 3, id);
@@ -39,8 +42,8 @@ test('directory keeps all 250 archetypes and adds only independent issuer links,
     assert.ok(Object.values(item.productData).every(v => v === null));
   }
   assert.equal(indexed.get('catalog_2026_bank_rd').researchCandidates.length, 2);
-  assert.equal(response.items.reduce((sum, x) => sum + x.researchCandidates.length, 0), 23);
-  assert.equal(response.items.filter(x => x.researchCandidates.length > 0).length, 8);
+  assert.equal(response.items.reduce((sum, x) => sum + x.researchCandidates.length, 0), 29);
+  assert.equal(response.items.filter(x => x.researchCandidates.length > 0).length, 10);
   indexed.get(familyIds[0]).researchCandidates[0].name = 'Forged product';
   assert.notEqual(listFinancialDiscoveryDirectory().items
     .find(x => x.id === familyIds[0]).researchCandidates[0].name, 'Forged product');
@@ -58,4 +61,34 @@ test('unrelated index benchmarks and fund-versus-ETF substitutions cannot enter 
   const etf = structuredClone(source);
   etf.families[2].instrument = 'INDEX_FUND';
   assert.throws(() => listAdditionalIssuerExamples(etf), /FINANCIAL_ISSUER_EXAMPLES_FAMILY_OR_BENCHMARK/);
+});
+
+test('the full 250-family catalog cannot recycle the same fund for two options in one category', () => {
+  const response = listFinancialDiscoveryDirectory();
+  const report = assertDistinctIssuerOptionsByCategory(response.items);
+  assert.deepEqual(report, {
+    familyCount: 250, issuerExampleCount: 29,
+    familiesWithIssuerExamples: 10, crossFamilyCategoryDuplicates: 0,
+  });
+  const rows = structuredClone(response.items);
+  const a = rows.find(x => x.id === 'catalog_2026_index_nifty100');
+  const b = rows.find(x => x.id === 'catalog_2026_index_nifty100_equal');
+  assert.equal(a.category, b.category);
+  // An unrelated index fund must not be recycled for another strategy under
+  // "Equity Mutual Funds", even if its official source URL is legitimate.
+  b.researchCandidates[0] = { ...a.researchCandidates[0] };
+  assert.throws(() => assertDistinctIssuerOptionsByCategory(rows),
+    /FINANCIAL_DUPLICATE_PRODUCT_IN_CATEGORY/);
+  // Different strings describing one scheme are also treated as duplicates.
+  b.researchCandidates[0].name = a.researchCandidates[0].name.replace(/\\W+/g, '');
+  assert.throws(() => assertDistinctIssuerOptionsByCategory(rows),
+    /FINANCIAL_DUPLICATE_PRODUCT_IN_CATEGORY/);
+  // The same name in a different category is not automatically a duplicate
+  // instrument (product form could differ); benchmark/type checks still apply.
+  b.category = 'ETFs';
+  assert.equal(assertDistinctIssuerOptionsByCategory(rows).crossFamilyCategoryDuplicates, 0);
+  b.category = a.category;
+  b.researchCandidates[0] = { ...b.researchCandidates[1] };
+  assert.throws(() => assertDistinctIssuerOptionsByCategory(rows),
+    /FINANCIAL_DUPLICATE_PRODUCT_IN_CATEGORY/);
 });
