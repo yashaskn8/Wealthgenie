@@ -1702,3 +1702,33 @@ test('Category II temporary-borrowing source facts never create purchasable PE o
   assert.deepEqual(x.publicIssuerReferences,[]);
  }
 });
+
+test('NPS Class C NDB circular evidence remains discovery-only and deeply copied',()=>{
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id==='catalog_2026_'+id);
+ const c=get('nps_asset_c');
+ const g=get('nps_asset_g');
+ const r=c.frameworkResearch.npsCommonSchemeReview.ndbRupeeBond2026InvestmentGuidelineReview;
+ assert.equal(r.officialPfrdaCircularPdfUrl,
+  'https://www.pfrda.org.in/documents/33652/154008/Inclusion%2Bof%2BRupee%2BBonds%2Bissued%2Bby%2BNew%2BDevelopment%2BBank%2Bin%2Bthe%2Beligible%2Binvestment%2Buniverse%2Bunder%2BNPS.pdf');
+ assert.equal(r.effectiveFrom,'2026-05-13');
+ assert.equal(r.assetClass,'C');
+ assert.equal(r.eligibleInstrumentCurrency,'INR');
+ assert.equal(r.existingCreditRatingRequirement,'AA_OR_ABOVE');
+ assert.equal(r.specificNdbBondIsinAndRatingVerified,false);
+ assert.equal(r.actualPensionFundHoldingAndNavVerified,false);
+ assert.equal(r.individualSubscriberSectorKycAndAccessVerified,false);
+ assert.equal(r.commercialNavAndMarketDataRightsVerified,false);
+ assert.equal(r.personalizedAdviceAuthorizationVerified,false);
+ assert.equal(g.frameworkResearch.npsCommonSchemeReview.ndbRupeeBond2026InvestmentGuidelineReview,undefined);
+ for(const item of [c,g]){
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.ok(Object.values(item.productData).every(value=>value===null));
+ }
+ r.actualPensionFundHoldingAndNavVerified=true;
+ r.investorAccessConstraints.push('FABRICATED NDB ISSUE');
+ const fresh=get('nps_asset_c').frameworkResearch.npsCommonSchemeReview.ndbRupeeBond2026InvestmentGuidelineReview;
+ assert.equal(fresh.actualPensionFundHoldingAndNavVerified,false);
+ assert.ok(!fresh.investorAccessConstraints.includes('FABRICATED NDB ISSUE'));
+});
