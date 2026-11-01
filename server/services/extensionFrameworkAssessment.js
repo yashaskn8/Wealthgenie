@@ -989,7 +989,7 @@ if(research.entries.filter(r=>r.npsCommonSchemeReview?.pfrdaAug2026SameDayContri
    ||row.npsVatsalyaAccessReview?.pfrdaAug2026SameDayContributionReview;
   const code=npsAug2026CutoffCodes[row.id];
   if(!code)return v!==undefined;
-  return !v||v.categoryCode!==code||v.officialPfrdaCircularPdfUrl!=="https://www.pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf"
+  return !v||v.categoryCode!==code||v.officialPfrdaCircularPdfUrl!=="https://pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf"
    ||!isOfficialFrameworkReferenceUrl(v.officialPfrdaCircularPdfUrl)
    ||v.circularNumber!=='PFRDA/2026/42/REG-PF/08'||v.issuedOn!=='2026-08-04'
    ||v.reviewedOn!=='2026-11-01'||v.newCutoffLocalTime!=='13:30'

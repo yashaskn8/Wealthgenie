@@ -4141,7 +4141,7 @@ test('PFRDA August 2026 trustee-bank cut-off distinguishes nine NPS categories a
  for(const id of ids){
   const row=rows.find(x=>x.id===id);
   const v=(row.npsCommonSchemeReview||row.npsVatsalyaAccessReview).pfrdaAug2026SameDayContributionReview;
-  assert.equal(v.officialPfrdaCircularPdfUrl,"https://www.pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf");
+  assert.equal(v.officialPfrdaCircularPdfUrl,"https://pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf");
   assert.ok(isOfficialFrameworkReferenceUrl(v.officialPfrdaCircularPdfUrl));
   assert.equal(v.issuedOn,'2026-08-04');
   assert.equal(v.newCutoffLocalTime,'13:30');
