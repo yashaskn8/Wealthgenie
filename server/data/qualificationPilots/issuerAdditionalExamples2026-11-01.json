@@ -116,6 +116,28 @@
           "issuerUrl": "https://www.dspim.com/invest/mutual-fund-schemes/exchange-traded-funds/nifty-50-equal-weight/dnew-direct-daily-idcw"
         }
       ]
+    },
+    {
+      "familyId": "catalog_2026_index_nifty500_momentum",
+      "benchmark": "Nifty500 Momentum 50 TRI",
+      "instrument": "INDEX_FUND",
+      "products": [
+        {
+          "name": "Kotak Nifty500 Momentum 50 Index Fund",
+          "issuer": "Kotak Mutual Fund",
+          "issuerUrl": "https://www.kotakmf.com/mutual-funds/passive-funds/kotak-nifty500-momentum-50-index-fund"
+        },
+        {
+          "name": "Motilal Oswal Nifty 500 Momentum 50 Index Fund",
+          "issuer": "Motilal Oswal Mutual Fund",
+          "issuerUrl": "https://www.motilaloswalmf.com/mutual-funds/motilal-oswal-nifty-500-momentum-50-index-fund"
+        },
+        {
+          "name": "Bandhan Nifty 500 Momentum 50 Index Fund",
+          "issuer": "Bandhan Mutual Fund",
+          "issuerUrl": "https://bandhanmutual.com/mutual-funds/index-funds-and-etfs/bandhan-nifty-500-momentum-50-index-fund/regular"
+        }
+      ]
     }
   ]
 }
