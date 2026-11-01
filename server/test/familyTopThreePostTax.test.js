@@ -9,7 +9,7 @@ const sample = () => ({
     name: 'Official Time Deposit ' + id,
     marketFact: {
       type: 'PUBLISHED_RATE', sourceId: 'licensed_government', observationId: String(id),
-      asOf: '2026-10-30T12:00:00.000Z',
+      asOf: '2026-10-30T12:00:00.000Z', value: 6.25,
     },
   })),
 });
@@ -20,6 +20,8 @@ const approvedResult = id => ({
     'government:india-post:post-office-td-' + id + 'y',
   postTaxXirr: 0.05234, postTaxProceeds: 10052.34,
   officialSourceId: 'licensed_government', officialObservationId: String(id),
+  sourceObservationTime: '2026-10-30T12:00:00.000Z',
+  source: { nominalAnnualRatePct: 6.25 },
   sourceTermsReviewedIndependently: true,
 });
 
@@ -59,6 +61,8 @@ describe('contractual Top-3 net return qualification', () => {
     for (const invalid of [
       { ...approvedResult(2), officialSourceId: 'other_provider' },
       { ...approvedResult(2), officialObservationId: 'other_observation' },
+      { ...approvedResult(2), sourceObservationTime: '2026-10-29T12:00:00.000Z' },
+      { ...approvedResult(2), source: { nominalAnnualRatePct: 6.5 } },
       { ...approvedResult(2), dataClass: 'USER_ASSUMPTION' },
       { ...approvedResult(2), postTaxStatus: 'UNAVAILABLE' },
       { ...approvedResult(2), postTaxXirr: Number.NaN },
