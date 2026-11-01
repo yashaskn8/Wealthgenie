@@ -397,6 +397,39 @@ if(Object.entries(broadPassiveIndexSpecs).some(([id,name])=>{
     'fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'].some(key=>v[key]!==false);
 }))throw new Error('FINANCIAL_SEBI_2026_BROAD_PASSIVE_INDEX_SOURCE_BOUNDARY_INVALID');
 
+// NSE's 2019 methodology is a dated published snapshot; the current index
+// landing page supports the broad 30-stock quality construction, not a
+// verified current methodology revision or a particular fund/ETF's risk.
+const nseQuality2026Specs=Object.freeze({
+ 'catalog_2026_index_nifty200_quality':'INDEX_MUTUAL_FUND',
+ 'catalog_2026_etf_nifty200_quality':'EXCHANGE_TRADED_FUND',
+});
+if(Object.entries(nseQuality2026Specs).some(([id,wrapper])=>{
+ const row=research.entries.find(x=>x.id===id);
+ const review=(wrapper==='EXCHANGE_TRADED_FUND'
+  ?row?.etfBenchmarkReview:row?.indexBenchmarkReview)?.nseQuality2026SourceReview;
+ return !review||review.wrapper!==wrapper||review.benchmarkName!=='Nifty200 Quality 30'
+  ||review.officialNseBenchmarkUrl!=='https://www.niftyindices.com/indices/equity/strategy-indices/nifty200-quality-30'
+  ||review.officialNseMethodologyPdfUrl!=='https://www.niftyindices.com/Methodology/Method_NIFTY200_Quality30.pdf'
+  ||review.methodologyDocumentPublished!=='2019-09'
+  ||review.currentMethodologyRevisionIndependentlyVerified!==false
+  ||review.officialSebiCategorizationCircularUrl!==sebiDebtSchemeCircularUrl
+  ||review.sebiCircularIssuedOn!=='2026-02-26'||review.reviewedOn!=='2026-11-01'
+  ||review.selectionUniverse!=='NIFTY_200'||review.targetConstituentCount!==30
+  ||review.publishedRebalanceFrequency!=='SEMI_ANNUAL'
+  ||review.publishedWeightingBasis!=='QUALITY_SCORE_AND_FREE_FLOAT_MARKET_CAP'
+  ||JSON.stringify(review.publishedSelectionSignals)!=='["RETURN_ON_EQUITY","DEBT_EQUITY_WITH_FINANCIAL_SECTOR_EXCEPTION","FIVE_YEAR_EPS_GROWTH_VARIABILITY"]'
+  ||review.categoryMinimumIndexSecuritiesAllocationPct!==95
+  ||review.qualityFactorIsNotCapitalOrDownsideProtection!==true
+  ||review.indexProviderIssuerListIsNotSchemeVerification!==true
+  ||review.sourceScope!=='NSE_PUBLISHED_INDEX_RULES_AND_SEBI_2026_PASSIVE_CATEGORY_NOT_CURRENT_SCHEME_OR_ETF'
+  ||review.riskConsiderations?.length<2||review.investorAccessConstraints?.length<2
+  ||['actualNamedSchemeAndSidKimVerified','actualPortfolioAndNinetyFivePctComplianceVerified',
+    'currentSchemeRiskometerVerified','currentNavOrExecutableQuoteVerified',
+    'individualKycAndRetailAccessVerified','commercialMarketDataRightsVerified',
+    'fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'].some(key=>review[key]!==false);
+}))throw new Error('FINANCIAL_NSE_QUALITY_2026_SOURCE_SCOPE_INVALID');
+
 // NSE index constituent/weight methodology and SEBI passive-category allocation
 // are general references, never scheme holdings, a live ETF quote or retail approval.
 const equalWeightPassive2026Specs=Object.freeze({
@@ -2100,6 +2133,53 @@ export function screenExtensionResearchForProfile(profileInput) {
        reasons.push('EMERGENCY_FUND_REQUIRES_DEBT_SCHEME_SETTLEMENT_AND_LIQUIDITY_REVIEW');
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_DEBT_SCHEME_RATE_AND_CREDIT_RISK_REVIEW');
+   }
+   // The NSE calendar distinguishes quarterly Nifty100 low-volatility reviews
+   // from semiannual Nifty500 low-volatility/momentum reviews. Historical
+   // factor scores and index-provider issuer lists are not fund permissions.
+   if(row.indexBenchmarkReview?.nseFactorRebalance2026Review
+     ||row.etfBenchmarkReview?.nseFactorRebalance2026Review){
+     const factorReview=row.indexBenchmarkReview?.nseFactorRebalance2026Review
+       ||row.etfBenchmarkReview.nseFactorRebalance2026Review;
+     const isEtf=factorReview.wrapper==='EXCHANGE_TRADED_FUND';
+     reasons.push('NSE_FACTOR_RECONSTITUTION_CALENDAR_NOT_VERIFIED_SCHEME_PORTFOLIO');
+     reasons.push(factorReview.categoryFactor==='LOW_VOLATILITY_NIFTY100'
+       ?'NIFTY100_LOWVOL_QUARTERLY_REVIEW_NOT_CAPITAL_PROTECTION'
+       :factorReview.categoryFactor==='LOW_VOLATILITY_NIFTY500'
+       ?'NIFTY500_LOWVOL_SEMIANNUAL_PAGE_WEIGHTING_WORDING_REQUIRES_METHODOLOGY_REVIEW'
+       :'NIFTY500_MOMENTUM_SEMIANNUAL_REVIEW_REVERSAL_AND_TURNOVER_RISK');
+     reasons.push(isEtf
+       ?'SEBI_2026_FACTOR_ETF_95PCT_RULE_NOT_VERIFIED_LISTING_OR_QUOTE'
+       :'SEBI_2026_FACTOR_INDEX_95PCT_RULE_NOT_SCHEME_RISKOMETER_OR_NAV');
+     if(isEtf)
+       reasons.push('FACTOR_ETF_INDEX_PAGE_NOT_EXECUTABLE_ORDERBOOK_OR_BROKER_ACCESS');
+     if((Number.isFinite(profile.investmentHorizonYears)
+       &&profile.investmentHorizonYears<=3)
+       ||profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('SHORT_OR_EMERGENCY_GOAL_REQUIRES_FACTOR_EQUITY_LOSS_AND_EXIT_REVIEW');
+     if(profile.emergencyFundMonths===0)
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_FACTOR_LIQUIDITY_REVIEW');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_FACTOR_DRAWDOWN_REVIEW');
+   }
+   // Published quality-factor accounting metrics are benchmark methodology,
+   // not capital protection or a named scheme's riskometer or live NAV.
+   if(row.indexBenchmarkReview?.nseQuality2026SourceReview
+     ||row.etfBenchmarkReview?.nseQuality2026SourceReview){
+     const isEtf=Boolean(row.etfBenchmarkReview);
+     reasons.push('NSE_QUALITY30_ROE_LEVERAGE_EPS_FACTOR_NOT_DOWNSIDE_PROTECTION');
+     reasons.push('NSE_QUALITY30_SEMIANNUAL_REBALANCE_NOT_VERIFIED_SCHEME_HOLDINGS');
+     reasons.push(isEtf
+       ?'SEBI_2026_QUALITY_ETF_95PCT_RULE_NOT_LISTING_OR_EXECUTABLE_QUOTE'
+       :'SEBI_2026_QUALITY_INDEX_95PCT_RULE_NOT_SCHEME_RISKOMETER_OR_NAV');
+     if(isEtf)
+       reasons.push('QUALITY_ETF_INDEX_PROVIDER_ISSUER_LIST_NOT_VERIFIED_TICKER_SPREAD_OR_DEMAT_ACCESS');
+     if(profile.investmentHorizonYears<=3||profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('SHORT_OR_EMERGENCY_GOAL_REQUIRES_QUALITY_EQUITY_LOSS_AND_EXIT_REVIEW');
+     if(profile.emergencyFundMonths===0)
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_QUALITY_FUND_LIQUIDITY_REVIEW');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_QUALITY_FACTOR_DRAWDOWN_REVIEW');
    }
    // Quarterly equal-weight resets and semi-annual parent reconstitution are
    // benchmark mechanics, not a scheme's current holdings or a liquidity promise.
