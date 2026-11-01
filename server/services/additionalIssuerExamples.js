@@ -16,6 +16,9 @@ const HOSTS = Object.freeze({
   'Sundaram Mutual Fund': ['www.sundarammutual.com'],
   'DSP Mutual Fund': ['www.dspim.com'],
   'Bandhan Mutual Fund': ['bandhanmutual.com'],
+  'Axis Bank': ['www.axis.bank.in'],
+  'Kotak Mahindra Bank': ['www.kotak.bank.in'],
+  'HDFC Bank': ['www.hdfc.bank.in'],
 });
 const EXPECTED = Object.freeze({
   catalog_2026_index_nifty500: {
@@ -41,6 +44,10 @@ const EXPECTED = Object.freeze({
   catalog_2026_index_nifty500_momentum: {
     benchmark: 'Nifty500 Momentum 50 TRI', instrument: 'INDEX_FUND',
     pattern: /nifty.?500.?momentum.?50.?index.?fund/i,
+  },
+  catalog_2026_bank_tax_saver_fd: {
+    benchmark: 'FIVE_YEAR_BANK_TAX_SAVER_FD', instrument: 'BANK_DEPOSIT',
+    pattern: /(?:tax.?saver|tax.?saving).?fixed.?deposit/i,
   },
 });
 const invalid = code => { throw new Error('FINANCIAL_ISSUER_EXAMPLES_' + code); };
