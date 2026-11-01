@@ -177,6 +177,26 @@ function validProductComparisonResponse(response, familyId, profileId, now = Dat
       || !timestamp(evidence?.reviewedAt) || !timestamp(evidence?.expiresAt)
       || reviewedAt > now + 5 * 60 * 1000 || expiresAt <= now
       || expiresAt <= reviewedAt) return false;
+    // Even a qualified product's NAV or yield cannot be presented as an
+    // individual's exact return. Accept ONLY the source- and observation-bound
+    // dated-tax cashflow XIRR produced by the server contract engine.
+    if (product.afterTax !== undefined) {
+      const net = product.afterTax;
+      if (net?.status !== 'CALCULATED'
+        || net.metric !== 'ANNUALIZED_AFTER_TAX_CASHFLOW_XIRR'
+        || net.basis !== 'VERIFIED_CONTRACT_AND_EXPLICIT_DATED_INVESTOR_TAX_FACTS'
+        || net.taxContextSource !== 'EXPLICIT_REQUEST_NOT_STORED'
+        || typeof net.valuePercent !== 'number'
+        || !Number.isFinite(net.valuePercent)
+        || net.valuePercent <= -100 || net.valuePercent >= 100000
+        || typeof net.principalInr !== 'number'
+        || !Number.isFinite(net.principalInr)
+        || net.principalInr <= 0
+        || net.sourceId !== fact.sourceId
+        || net.observationId !== fact.observationId
+        || net.observedAt !== fact.asOf
+        || fact.type !== 'PUBLISHED_RATE') return false;
+    }
     productIds.add(product.id);
     observationKeys.add(observationKey);
     return true;
@@ -683,7 +703,14 @@ export default function InvestmentUniverseExplorer({
                               · Source classification: {product.marketFact?.dataClass || 'Unavailable'}
                             </div>
                             <div>Tax class: {product.verifiedTaxClass || 'Not established'}.
-                              Personalized post-tax return: not calculated by this comparison.
+                              {product.afterTax?.status === 'CALCULATED'
+                                ? <> Exact annualized after-tax cashflow XIRR:
+                                  {' '}{product.afterTax.valuePercent.toFixed(4)}%
+                                  {' '}on ₹{product.afterTax.principalInr.toLocaleString('en-IN')}
+                                  {' '}under explicitly supplied dated tax facts.
+                                </>
+                                : <> After-tax XIRR requires dated cashflows and
+                                  applicable investor tax facts; a current quote is not a net return.</>}
                             </div>
                             <div>
                               Reviewed: {product.evidence?.reviewedAt
