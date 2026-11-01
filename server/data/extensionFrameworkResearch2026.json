@@ -5140,6 +5140,36 @@
             "The circular excludes Government-sector-tagged accounts; subscriber sector, PRAN, account type and actual choice eligibility are not verified.",
             "The subscriber-facing comparison requirement does not authenticate any selected pension fund, scheme riskometer, NAV, fees, permissions or advice entitlement."
           ]
+        },
+        "ndbRupeeBond2026InvestmentGuidelineReview": {
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Inclusion%2Bof%2BRupee%2BBonds%2Bissued%2Bby%2BNew%2BDevelopment%2BBank%2Bin%2Bthe%2Beligible%2Binvestment%2Buniverse%2Bunder%2BNPS.pdf",
+          "circularNumber": "PFRDA/2026/29/REG-PF/06",
+          "issuedOn": "2026-05-13",
+          "effectiveFrom": "2026-05-13",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "PFRDA_NON_GOVT_NPS_ASSET_CLASS_C_ELIGIBLE_MULTILATERAL_RUPEE_BOND_UNIVERSE_NOT_ACTUAL_HOLDINGS_OR_RETAIL_OFFER",
+          "assetClass": "C",
+          "amendsNonGovernmentGuidelinesDated": "2025-12-10",
+          "alsoAmendsGovernmentSectorDebtGuidelines": true,
+          "eligibleIssuer": "New Development Bank",
+          "eligibleInstrumentCurrency": "INR",
+          "existingCreditRatingRequirement": "AA_OR_ABOVE",
+          "applicableMaturityRequirementsRemain": true,
+          "otherAssetClassesAutomaticallyAuthorized": false,
+          "categoryInterpretation": "PFRDA added New Development Bank INR-denominated bonds to the permitted non-government NPS Asset Class C investment universe on 13 May 2026, while leaving applicable AA-or-above rating and maturity conditions unchanged. This is permission for pension-fund investment subject to rules, not an investor's ability to purchase a named bond or evidence that any NPS C portfolio owns one.",
+          "riskConsiderations": [
+            "A permitted multilateral issuer does not eliminate bond credit, spread, interest-rate, currency-of-issuance or pension-NAV risks; the circular does not certify a specific NDB issue's rating.",
+            "The NPS Asset Class C label and this eligible-investment amendment do not establish the current pension-fund holdings, market valuation, exit value or subscriber-specific riskometer."
+          ],
+          "investorAccessConstraints": [
+            "Verify the chosen registered pension fund and applicable non-government scheme, its actual holdings, current NAV and risk disclosure; the circular is not a New Development Bank bond prospectus or a retail-access approval.",
+            "The circular preserves applicable AA-or-above rating and maturity requirements; the specific ISIN, CRA rating, subscriber PRAN/sector/KYC, Tier I withdrawal rights, fees, market-data license and financial-advice authorization are unverified."
+          ],
+          "specificNdbBondIsinAndRatingVerified": false,
+          "actualPensionFundHoldingAndNavVerified": false,
+          "individualSubscriberSectorKycAndAccessVerified": false,
+          "commercialNavAndMarketDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
         }
       }
     },
