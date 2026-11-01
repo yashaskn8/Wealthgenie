@@ -1921,3 +1921,127 @@ test('four factor calendar reviews remain educational and defensively copied in 
    .investorAccessConstraints.includes('FORGED FACTOR ETF APPROVAL'));
  }
 });
+
+test('three NSE index category reviews remain unqualified and defensively copied',()=>{
+ const ids=['catalog_2026_index_nifty500_equal','catalog_2026_index_india_digital',
+  'catalog_2026_index_india_consumption'];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ for(const id of ids){
+  const x=get(id),v=(x.frameworkResearch.indexBenchmarkReview
+   ||x.frameworkResearch.thematicIndexReview).nseNov2026CategoryReview;
+  assert.equal(x.recommendationEligible,false);
+  assert.equal(x.productAvailability,'NOT_VERIFIED');
+  assert.equal(x.dataRights,'NOT_VERIFIED');
+  assert.ok(Object.values(x.productData).every(y=>y===null));
+  assert.equal(x.frameworkResearch.actualRiskScore,null);
+  assert.equal(x.frameworkResearch.issuerTermsVerified,false);
+  assert.equal(x.frameworkResearch.sourceRightsVerified,false);
+  assert.equal(v.reviewedOn,'2026-11-01');
+  assert.equal(v.currentSchemeRiskometerVerified,false);
+  assert.equal(v.currentNavOrExecutableQuoteVerified,false);
+  assert.equal(v.individualKycAndRetailAccessVerified,false);
+  assert.equal(v.commercialMarketDataRightsVerified,false);
+  v.investorAccessConstraints.push('FORGED APPROVAL');
+  assert.ok(!(get(id).frameworkResearch.indexBenchmarkReview
+   ||get(id).frameworkResearch.thematicIndexReview).nseNov2026CategoryReview
+   .investorAccessConstraints.includes('FORGED APPROVAL'));
+ }
+});
+
+
+test('three NSE benchmark reviews remain discovery-only and defensively copied',()=>{
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ for(const [id,reviewKey,benchmark] of [
+  ['catalog_2026_index_india_defence','thematicIndexReview','NIFTY_INDIA_DEFENCE'],
+  ['catalog_2026_etf_india_defence','etfBenchmarkReview','NIFTY_INDIA_DEFENCE'],
+  ['catalog_2026_etf_nifty500','etfBenchmarkReview','NIFTY500'],
+ ]){
+  const item=get(id);
+  const v=item.frameworkResearch[reviewKey].nseNov2026RemainingPassiveReview;
+  assert.equal(v.benchmarkCode,benchmark);
+  assert.equal(v.reviewedOn,'2026-11-01');
+  assert.equal(v.categoryMinimumIndexSecuritiesAllocationPct,95);
+  assert.equal(v.currentSchemeRiskometerVerified,false);
+  assert.equal(v.actualNamedSchemeAndSidKimVerified,false);
+  assert.equal(v.currentNavOrExecutableQuoteVerified,false);
+  assert.equal(v.individualKycAndRetailAccessVerified,false);
+  assert.equal(v.commercialMarketDataRightsVerified,false);
+  assert.equal(v.fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified,false);
+  assert.equal(item.recommendationEligible,false);
+  assert.ok(Object.values(item.productData).every(value=>value===null));
+  v.investorAccessConstraints.push('FORGED ETF PERMISSION');
+  assert.ok(!get(id).frameworkResearch[reviewKey].nseNov2026RemainingPassiveReview
+   .investorAccessConstraints.includes('FORGED ETF PERMISSION'));
+ }
+});
+
+test('Nifty India Consumption ETF benchmark research remains discovery-only and copied',()=>{
+ const id='catalog_2026_etf_india_consumption';
+ const get=()=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ const item=get(),v=item.frameworkResearch.etfBenchmarkReview.nseNov2026ConsumptionEtfReview;
+ assert.equal(v.factsheetAsOf,'2026-04-30');
+ assert.equal(v.publishedConstituentCount,30);
+ assert.equal(v.publishedConstituentCapAtRebalancePct,10);
+ assert.equal(v.categoryMinimumIndexSecuritiesAllocationPct,95);
+ assert.equal(v.currentSchemeRiskometerVerified,false);
+ assert.equal(v.currentNavOrExecutableQuoteVerified,false);
+ assert.equal(v.actualNamedSchemeAndSidKimVerified,false);
+ assert.equal(v.individualKycAndRetailAccessVerified,false);
+ assert.equal(v.commercialMarketDataRightsVerified,false);
+ assert.equal(v.fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified,false);
+ assert.equal(item.recommendationEligible,false);
+ assert.equal(item.productAvailability,'NOT_VERIFIED');
+ assert.equal(item.dataRights,'NOT_VERIFIED');
+ assert.equal(item.frameworkResearch.actualRiskScore,null);
+ assert.equal(item.frameworkResearch.issuerTermsVerified,false);
+ assert.equal(item.frameworkResearch.sourceRightsVerified,false);
+ assert.ok(Object.values(item.productData).every(x=>x===null));
+ v.investorAccessConstraints.push('FORGED PURCHASE APPROVAL');
+ assert.ok(!get().frameworkResearch.etfBenchmarkReview.nseNov2026ConsumptionEtfReview
+   .investorAccessConstraints.includes('FORGED PURCHASE APPROVAL'));
+});
+
+test('nine NPS August 2026 contribution cut-off reviews remain discovery-only and deeply copied',()=>{
+ const ids=["catalog_2026_nps_lc25","catalog_2026_nps_lc50","catalog_2026_nps_lc75","catalog_2026_nps_lc_aggressive","catalog_2026_nps_asset_e","catalog_2026_nps_asset_c","catalog_2026_nps_asset_g","catalog_2026_nps_asset_a","catalog_2026_nps_vatsalya"];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ for(const id of ids){
+  const item=get(id);
+  const v=(item.frameworkResearch.npsCommonSchemeReview
+   ||item.frameworkResearch.npsVatsalyaAccessReview).pfrdaAug2026SameDayContributionReview;
+  assert.equal(v.circularNumber,'PFRDA/2026/42/REG-PF/08');
+  assert.equal(v.newCutoffLocalTime,'13:30');
+  assert.equal(v.actualMatchingBookingAndNavVerified,false);
+  assert.equal(v.guardianOrSubscriberKycAndEligibilityVerified,false);
+  assert.equal(v.licensedNavRightsAndSignedProviderEntitlementsVerified,false);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.equal(item.frameworkResearch.actualRiskScore,null);
+  assert.ok(Object.values(item.productData).every(x=>x===null));
+  v.investorAccessConstraints.push('FORGED ACCOUNT APPROVAL');
+  assert.ok(!(get(id).frameworkResearch.npsCommonSchemeReview
+   ||get(id).frameworkResearch.npsVatsalyaAccessReview)
+   .pfrdaAug2026SameDayContributionReview.investorAccessConstraints.includes('FORGED ACCOUNT APPROVAL'));
+ }
+});
+
+
+test('six FoF March 2026 SID benchmark reviews are discovery-only and copied',()=>{
+ const codes={"catalog_2026_equity_diversified_fof":"DIVERSIFIED_EQUITY","catalog_2026_equity_sector_fof":"SECTORAL_THEMATIC_EQUITY","catalog_2026_fof_aggressive_hybrid":"AGGRESSIVE_HYBRID","catalog_2026_fof_conservative_hybrid":"CONSERVATIVE_HYBRID","catalog_2026_fof_income_arbitrage":"INCOME_PLUS_ARBITRAGE","catalog_2026_fof_dynamic_allocation":"DYNAMIC_ASSET_ALLOCATION"};
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ for(const [id,code] of Object.entries(codes)){
+  const item=get(id),v=item.frameworkResearch.fundOfFundsCategoryReview.sebiMarch2026FoFSidBenchmarkReview;
+  assert.equal(v.categoryCode,code);
+  assert.equal(v.currentSchemeBenchmarkAndSidVerified,false);
+  assert.equal(v.currentFoFAndUnderlyingRiskometersVerified,false);
+  assert.equal(v.licensedDataAndSignedProviderEntitlementsVerified,false);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.equal(item.frameworkResearch.actualRiskScore,null);
+  assert.ok(Object.values(item.productData).every(x=>x===null));
+  v.investorAccessConstraints.push('FORGED RETAIL ACCESS');
+  assert.ok(!get(id).frameworkResearch.fundOfFundsCategoryReview
+   .sebiMarch2026FoFSidBenchmarkReview.investorAccessConstraints.includes('FORGED RETAIL ACCESS'));
+ }
+});

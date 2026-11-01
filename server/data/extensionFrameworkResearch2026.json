@@ -3689,7 +3689,7 @@
       "id": "catalog_2026_index_nifty500_equal",
       "exposureClass": "FACTOR_TRACKING_AND_EQUITY_MARKET_LOSS",
       "scenarioDescription": "Nifty 500 Equal Weight Index-Tracking Fund Strategy: Equal Weight Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating. Official NSE benchmark construction: Nifty 500 constituents weighted equally, with periodic reconstitution and quarterly rebalancing. This is not an authenticated fund or ETF; scheme-specific riskometer, NAV, KYC, access, permissions, tax and suitability remain unverified.",
-      "referenceUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty500--equal--weight",
+      "referenceUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty500-equal-weight",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
       "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
@@ -3738,7 +3738,38 @@
         "investorKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "nseNov2026CategoryReview": {
+          "benchmarkCode": "NIFTY500_EQUAL_WEIGHT",
+          "officialNseIndexPageUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty500-equal-weight",
+          "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "officialDatedFactsheetUrl": null,
+          "factsheetAsOf": null,
+          "datedFactsheetStockCapPct": null,
+          "datedFactsheetSectorCapPct": null,
+          "publishedConstituentCount": 500,
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "NSE_INDEX_STRUCTURE_AND_GENERAL_SEBI_PASSIVE_RULE_NOT_VERIFIED_SCHEME",
+          "categoryInterpretation": "Nifty500 Equal Weight uses the Nifty 500 parent constituents and equal stock weights at quarterly resets, with semiannual constituent reconstitution. Weights drift between resets; an equal-weight benchmark is not a current AMC portfolio or NAV.",
+          "categoryMinimumIndexSecuritiesAllocationPct": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "datedFactsheetIsCurrentFundEvidence": false,
+          "riskConsiderations": [
+            "Smaller-company liquidity, turnover and market drawdowns can affect index replication and investor losses.",
+            "Index rules do not verify fund tracking costs, current scheme riskometer, actual NAV or redemption liquidity."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual AMC scheme, SID/KIM, holdings, scheme riskometer, NAV, expenses, KYC, redemption and settlement.",
+            "Verify individual retail eligibility, licensed market-data rights, fiscal-year tax treatment and advice authorization before purchase-level display."
+          ],
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualSchemeHoldingsAnd95PctComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
@@ -3791,7 +3822,42 @@
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
         "personalizedAdviceAuthorizationVerified": false,
-        "currentSchemeRiskometerVerified": false
+        "currentSchemeRiskometerVerified": false,
+        "nseNov2026RemainingPassiveReview": {
+          "benchmarkCode": "NIFTY_INDIA_DEFENCE",
+          "wrapper": "INDEX_FUND",
+          "officialNseIndexPageUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-defence",
+          "officialNseDatedFactsheetUrl": "https://www.niftyindices.com/Factsheet/Factsheet_NiftyIndiaDefence.pdf",
+          "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "reviewedOn": "2026-11-01",
+          "datedFactsheetAsOf": "2026-03-30",
+          "publishedConstituentCount": null,
+          "publishedSingleStockCapPct": 20,
+          "benchmarkSelectionBasis": "Nifty Total Market eligible defence basic industries or qualifying companies with at least 10% defence revenue; six-month average free-float market-cap selection.",
+          "benchmarkWeightingAndReconstitution": "Free-float capitalization weights with a published 20% constituent cap; the dated factsheet describes semiannual index reconstitution.",
+          "categoryMinimumIndexSecuritiesAllocationPct": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "datedFactsheetIsCurrentSchemeEvidence": false,
+          "publishedIndexCapProvesActualSchemeHoldings": false,
+          "nseIndexPageIssuerListProvesSpecificProductTerms": false,
+          "sourceScope": "OFFICIAL_INDEX_CONSTRUCTION_AND_GENERAL_PASSIVE_RULE_NOT_SCHEME_RISKOMETER_QUOTE_OR_ELIGIBILITY",
+          "categoryInterpretation": "Nifty India Defence is a concentrated thematic benchmark. A 20% published index constituent cap and March 2026 methodology do not establish a fund's current holdings, scheme riskometer, actual redemption liquidity or individual subscription eligibility.",
+          "riskConsiderations": [
+            "Defence procurement cycles, policy changes and a concentrated eligible-company universe can cause equity drawdowns despite the published index cap.",
+            "A tracking index fund can deviate from benchmark returns through cash drag, expenses, constituent liquidity and reconstitution trades."
+          ],
+          "investorAccessConstraints": [
+            "Verify the actual AMC, scheme documents, current holdings, current scheme-specific riskometer, redemption terms, NAV, KYC and investor eligibility before presenting any fund.",
+            "The NSE index page and dated factsheet are benchmark references only; their listed issuers do not verify an individual scheme, data license or personalized advice authority."
+          ],
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualSchemeHoldingsAnd95PctComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
@@ -3844,7 +3910,38 @@
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
         "personalizedAdviceAuthorizationVerified": false,
-        "currentSchemeRiskometerVerified": false
+        "currentSchemeRiskometerVerified": false,
+        "nseNov2026CategoryReview": {
+          "benchmarkCode": "NIFTY_INDIA_DIGITAL",
+          "officialNseIndexPageUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-digital",
+          "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "officialDatedFactsheetUrl": "https://www.niftyindices.com/Factsheet/Factsheet_NiftyIndiaDigital.pdf",
+          "factsheetAsOf": "2025-10-31",
+          "datedFactsheetStockCapPct": 7.5,
+          "datedFactsheetSectorCapPct": 50,
+          "publishedConstituentCount": 30,
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "NSE_INDEX_STRUCTURE_AND_GENERAL_SEBI_PASSIVE_RULE_NOT_VERIFIED_SCHEME",
+          "categoryInterpretation": "Nifty India Digital selects up to 30 Nifty 500 companies from eligible AMFI digital-related basic industries using six-month average free-float capitalization and free-float weighting. The 31 October 2025 factsheet's 7.5% stock and 50% sector caps are historical, not verified unchanged rules in November 2026.",
+          "categoryMinimumIndexSecuritiesAllocationPct": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "datedFactsheetIsCurrentFundEvidence": false,
+          "riskConsiderations": [
+            "Digital-sector valuations, technology disruption and industry concentration can create large equity losses despite historical caps.",
+            "Index rules do not verify fund tracking costs, current scheme riskometer, actual NAV or redemption liquidity."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual AMC scheme, SID/KIM, holdings, scheme riskometer, NAV, expenses, KYC, redemption and settlement.",
+            "Verify individual retail eligibility, licensed market-data rights, fiscal-year tax treatment and advice authorization before purchase-level display."
+          ],
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualSchemeHoldingsAnd95PctComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
@@ -3897,7 +3994,38 @@
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
         "personalizedAdviceAuthorizationVerified": false,
-        "currentSchemeRiskometerVerified": false
+        "currentSchemeRiskometerVerified": false,
+        "nseNov2026CategoryReview": {
+          "benchmarkCode": "NIFTY_INDIA_CONSUMPTION",
+          "officialNseIndexPageUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-consumption",
+          "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "officialDatedFactsheetUrl": "https://niftyindices.com/Factsheet/ind_Nifty_India_Consumption.pdf",
+          "factsheetAsOf": "2026-04-30",
+          "datedFactsheetStockCapPct": 10,
+          "datedFactsheetSectorCapPct": null,
+          "publishedConstituentCount": 30,
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "NSE_INDEX_STRUCTURE_AND_GENERAL_SEBI_PASSIVE_RULE_NOT_VERIFIED_SCHEME",
+          "categoryInterpretation": "Nifty India Consumption covers consumer-facing sectors with an NSE index screen of more than 50% domestic company revenue excluding exports. The 30 April 2026 factsheet describes 30 companies and a 10% stock cap at rebalancing or index changes, not a continuous fund-level guarantee.",
+          "categoryMinimumIndexSecuritiesAllocationPct": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "datedFactsheetIsCurrentFundEvidence": false,
+          "riskConsiderations": [
+            "Domestic demand, household income, consumer-credit and valuation shocks can affect several sectors together.",
+            "Index rules do not verify fund tracking costs, current scheme riskometer, actual NAV or redemption liquidity."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual AMC scheme, SID/KIM, holdings, scheme riskometer, NAV, expenses, KYC, redemption and settlement.",
+            "Verify individual retail eligibility, licensed market-data rights, fiscal-year tax treatment and advice authorization before purchase-level display."
+          ],
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualSchemeHoldingsAnd95PctComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
@@ -4108,6 +4236,41 @@
             "Verify named AMC ETF, ticker, ISIN, SID/KIM and current riskometer. An underlying index is not a listed ETF.",
             "Verify licensed live bid/ask, spread, NAV/iNAV, settlement, demat/KYC, broker permissions and actual exchange implementation; a circular is not an executable offer."
           ]
+        },
+        "nseNov2026RemainingPassiveReview": {
+          "benchmarkCode": "NIFTY500",
+          "wrapper": "ETF",
+          "officialNseIndexPageUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-500",
+          "officialNseDatedFactsheetUrl": null,
+          "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "reviewedOn": "2026-11-01",
+          "datedFactsheetAsOf": null,
+          "publishedConstituentCount": 500,
+          "publishedSingleStockCapPct": null,
+          "benchmarkSelectionBasis": "NSE describes a 500-company broad-market benchmark selected from the eligible universe using full market capitalization and average daily turnover.",
+          "benchmarkWeightingAndReconstitution": "Broad-market index methodology does not establish an ETF's actual security weights, replication method or current trading liquidity.",
+          "categoryMinimumIndexSecuritiesAllocationPct": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "datedFactsheetIsCurrentSchemeEvidence": false,
+          "publishedIndexCapProvesActualSchemeHoldings": false,
+          "nseIndexPageIssuerListProvesSpecificProductTerms": false,
+          "sourceScope": "OFFICIAL_INDEX_CONSTRUCTION_AND_GENERAL_PASSIVE_RULE_NOT_SCHEME_RISKOMETER_QUOTE_OR_ELIGIBILITY",
+          "categoryInterpretation": "Nifty 500 benchmark breadth is not a verified diversified ETF portfolio or a liquid exchange market. The actual scheme's index replication, tracking differences, holdings, current riskometer, order book and investor permissions remain independently unverified.",
+          "riskConsiderations": [
+            "A broad 500-company equity benchmark remains exposed to market losses, capitalization concentration and smaller-constituent liquidity constraints.",
+            "ETF secondary-market spreads, NAV premiums or discounts and replication costs can produce a different realized outcome from benchmark index performance."
+          ],
+          "investorAccessConstraints": [
+            "Verify named listed ETF, AMC, ticker, ISIN, current SID/KIM, holdings, scheme-specific riskometer and actual price/NAV before product-level presentation.",
+            "Verify live licensed order-book quotes, demat/broker/KYC access, current exchange liquidity, applicable fees, tax and authorized advice; the NSE benchmark page is not an order."
+          ],
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualSchemeHoldingsAnd95PctComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -4965,6 +5128,41 @@
             "Independently verify actual AMC scheme, exchange ticker/ISIN, SID/KIM, current scheme riskometer, fees and tracking disclosures. An underlying index is not a listed ETF.",
             "Verify licensed live bid/ask, spread, NAV/iNAV, settlement, demat/KYC, broker permissions and actual exchange implementation; a circular is not an executable offer."
           ]
+        },
+        "nseNov2026RemainingPassiveReview": {
+          "benchmarkCode": "NIFTY_INDIA_DEFENCE",
+          "wrapper": "ETF",
+          "officialNseIndexPageUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-defence",
+          "officialNseDatedFactsheetUrl": "https://www.niftyindices.com/Factsheet/Factsheet_NiftyIndiaDefence.pdf",
+          "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "reviewedOn": "2026-11-01",
+          "datedFactsheetAsOf": "2026-03-30",
+          "publishedConstituentCount": null,
+          "publishedSingleStockCapPct": 20,
+          "benchmarkSelectionBasis": "Nifty Total Market eligible defence basic industries or qualifying companies with at least 10% defence revenue; six-month average free-float market-cap selection.",
+          "benchmarkWeightingAndReconstitution": "Free-float capitalization weights with a published 20% constituent cap; the dated factsheet describes semiannual index reconstitution.",
+          "categoryMinimumIndexSecuritiesAllocationPct": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "datedFactsheetIsCurrentSchemeEvidence": false,
+          "publishedIndexCapProvesActualSchemeHoldings": false,
+          "nseIndexPageIssuerListProvesSpecificProductTerms": false,
+          "sourceScope": "OFFICIAL_INDEX_CONSTRUCTION_AND_GENERAL_PASSIVE_RULE_NOT_SCHEME_RISKOMETER_QUOTE_OR_ELIGIBILITY",
+          "categoryInterpretation": "The defence-theme benchmark and its constituent cap are not evidence of an authenticated exchange-traded fund. ETF execution also requires a named listed ISIN, current order-book depth, bid-ask spread, NAV comparison, account permissions and scheme-specific risk disclosures.",
+          "riskConsiderations": [
+            "Defence-theme policy and procurement concentration can amplify underlying equity losses; an index cap does not protect ETF principal.",
+            "Exchange bid-ask spreads, discounts or premiums to NAV, tracking costs and settlement constraints can worsen an ETF exit beyond benchmark movements."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual listed AMC scheme, exchange ticker and ISIN, SID/KIM, riskometer, live authorized bid/ask and NAV before any ETF purchase presentation.",
+            "Verify demat/broker/KYC eligibility, trade settlement, fees, quote redistribution permissions and advice authorization; an NSE benchmark issuer list is not a verified order book."
+          ],
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualSchemeHoldingsAnd95PctComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -5056,6 +5254,40 @@
             "Independently verify actual AMC scheme, exchange ticker/ISIN, SID/KIM, current scheme riskometer, fees and tracking disclosures. An underlying index is not a listed ETF.",
             "Verify licensed live bid/ask, spread, NAV/iNAV, settlement, demat/KYC, broker permissions and actual exchange implementation; a circular is not an executable offer."
           ]
+        },
+        "nseNov2026ConsumptionEtfReview": {
+          "benchmarkCode": "NIFTY_INDIA_CONSUMPTION",
+          "wrapper": "ETF",
+          "officialNseFactsheetUrl": "https://niftyindices.com/Factsheet/ind_Nifty_India_Consumption.pdf",
+          "officialNseIndexPageUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-consumption",
+          "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "factsheetAsOf": "2026-04-30",
+          "reviewedOn": "2026-11-01",
+          "publishedConstituentCount": 30,
+          "domesticRevenueShareMustExceedPct": 50,
+          "publishedConstituentCapAtRebalancePct": 10,
+          "indexRebalanceFrequency": "SEMIANNUAL",
+          "categoryMinimumIndexSecuritiesAllocationPct": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "categoryInterpretation": "The 30-stock NSE India Consumption benchmark uses a domestic-revenue eligibility test (>50% excluding exports), semiannual rebalancing and a 10% constituent cap applied at rebalancing or specified index changes in its 30 April 2026 factsheet. These are dated index rules, not a continuous holding cap, a verified AMC ETF portfolio or a guarantee of domestic-only sales, downside protection, current riskometer, exchange liquidity or access.",
+          "riskConsiderations": [
+            "Consumption-related companies across industries can decline together when demand, valuations or sector sentiment change; a domestic-revenue selection rule does not remove foreign business exposure or market loss.",
+            "An actual ETF can trade away from NAV and incur tracking difference, spreads and order-book illiquidity; the dated benchmark constituent cap cannot establish a current ETF's holdings or executable price."
+          ],
+          "investorAccessConstraints": [
+            "Independently identify the actual AMC ETF, exchange listing, ISIN/ticker, SID/KIM, fees, tracking disclosures, holdings, 95% compliance and current scheme-specific riskometer before any product-level assessment.",
+            "Independently verify the investor's applicable KYC/demat/broker permissions, authorized live bid/ask and NAV/iNAV data, settlement, tax position and financial-advice authorization; a benchmark factsheet establishes none of these."
+          ],
+          "datedFactsheetIsCurrentEtfOrSchemeEvidence": false,
+          "publishedIndexCapProvesActualEtfHoldings": false,
+          "domesticRevenueRuleGuaranteesDomesticOnlyExposure": false,
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualSchemeHoldingsAnd95PctComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -5183,6 +5415,37 @@
           "investorAccessConstraints": [
             "The circular excludes Government-sector-tagged accounts; subscriber sector, PRAN, account type and actual choice eligibility are not verified.",
             "The subscriber-facing comparison requirement does not authenticate any selected pension fund, scheme riskometer, NAV, fees, permissions or advice entitlement."
+          ]
+        },
+        "pfrdaAug2026SameDayContributionReview": {
+          "officialPfrdaCircularPdfUrl": "https://pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf",
+          "circularNumber": "PFRDA/2026/42/REG-PF/08",
+          "issuedOn": "2026-08-04",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "PFRDA_NPS_TRUSTEE_BANK_CONTRIBUTION_RECEIPT_AND_MATCHING_NOT_ACCOUNT_ELIGIBILITY_OR_EXIT",
+          "categoryCode": "LC25",
+          "categoryInterpretation": "LC25's age-tapered allocation remains exposed to fund NAV changes; timely contribution processing cannot guarantee a unit price or withdrawal.",
+          "formerCutoffLocalTime": "11:00",
+          "newCutoffLocalTime": "13:30",
+          "businessSettlementDayRequired": true,
+          "trusteeBankReceiptByCutoffRequired": true,
+          "successfulMatchingAndBookingRequired": true,
+          "applicableClosingNavNotKnownWhenPaymentInitiated": true,
+          "allContributionChannelsSubjectToReceiptRule": true,
+          "actualAccountAndTrusteeBankReceiptVerified": false,
+          "actualMatchingBookingAndNavVerified": false,
+          "actualSchemeAndAllocationVerified": false,
+          "guardianOrSubscriberKycAndEligibilityVerified": false,
+          "earlyWithdrawalOrLiquidityAuthorized": false,
+          "licensedNavRightsAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "LC25's age-tapered allocation remains exposed to fund NAV changes; timely contribution processing cannot guarantee a unit price or withdrawal.",
+            "Bank receipt, matching or booking delays can change the investment date and NAV; the cut-off does not limit pension-fund losses."
+          ],
+          "investorAccessConstraints": [
+            "Verify business settlement day, actual Trustee Bank receipt by 1:30 PM, successful matching and booking; initiating payment before 1:30 PM alone is insufficient.",
+            "Verify actual pension fund, account and guardian where relevant, NAV, fees, contribution channel, withdrawal restrictions and licensed provider permissions; no individual suitability is established."
           ]
         }
       }
@@ -5312,6 +5575,37 @@
             "The circular excludes Government-sector-tagged accounts; subscriber sector, PRAN, account type and actual choice eligibility are not verified.",
             "The subscriber-facing comparison requirement does not authenticate any selected pension fund, scheme riskometer, NAV, fees, permissions or advice entitlement."
           ]
+        },
+        "pfrdaAug2026SameDayContributionReview": {
+          "officialPfrdaCircularPdfUrl": "https://pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf",
+          "circularNumber": "PFRDA/2026/42/REG-PF/08",
+          "issuedOn": "2026-08-04",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "PFRDA_NPS_TRUSTEE_BANK_CONTRIBUTION_RECEIPT_AND_MATCHING_NOT_ACCOUNT_ELIGIBILITY_OR_EXIT",
+          "categoryCode": "LC50",
+          "categoryInterpretation": "LC50's age-dependent allocation is distinct from trustee-bank contribution settlement and does not verify current scheme holdings.",
+          "formerCutoffLocalTime": "11:00",
+          "newCutoffLocalTime": "13:30",
+          "businessSettlementDayRequired": true,
+          "trusteeBankReceiptByCutoffRequired": true,
+          "successfulMatchingAndBookingRequired": true,
+          "applicableClosingNavNotKnownWhenPaymentInitiated": true,
+          "allContributionChannelsSubjectToReceiptRule": true,
+          "actualAccountAndTrusteeBankReceiptVerified": false,
+          "actualMatchingBookingAndNavVerified": false,
+          "actualSchemeAndAllocationVerified": false,
+          "guardianOrSubscriberKycAndEligibilityVerified": false,
+          "earlyWithdrawalOrLiquidityAuthorized": false,
+          "licensedNavRightsAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "LC50's age-dependent allocation is distinct from trustee-bank contribution settlement and does not verify current scheme holdings.",
+            "Bank receipt, matching or booking delays can change the investment date and NAV; the cut-off does not limit pension-fund losses."
+          ],
+          "investorAccessConstraints": [
+            "Verify business settlement day, actual Trustee Bank receipt by 1:30 PM, successful matching and booking; initiating payment before 1:30 PM alone is insufficient.",
+            "Verify actual pension fund, account and guardian where relevant, NAV, fees, contribution channel, withdrawal restrictions and licensed provider permissions; no individual suitability is established."
+          ]
         }
       }
     },
@@ -5439,6 +5733,37 @@
           "investorAccessConstraints": [
             "The circular excludes Government-sector-tagged accounts; subscriber sector, PRAN, account type and actual choice eligibility are not verified.",
             "The subscriber-facing comparison requirement does not authenticate any selected pension fund, scheme riskometer, NAV, fees, permissions or advice entitlement."
+          ]
+        },
+        "pfrdaAug2026SameDayContributionReview": {
+          "officialPfrdaCircularPdfUrl": "https://pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf",
+          "circularNumber": "PFRDA/2026/42/REG-PF/08",
+          "issuedOn": "2026-08-04",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "PFRDA_NPS_TRUSTEE_BANK_CONTRIBUTION_RECEIPT_AND_MATCHING_NOT_ACCOUNT_ELIGIBILITY_OR_EXIT",
+          "categoryCode": "LC75",
+          "categoryInterpretation": "LC75's higher equity exposure can produce losses; a contribution cut-off is not a scheme-specific risk assessment or NAV guarantee.",
+          "formerCutoffLocalTime": "11:00",
+          "newCutoffLocalTime": "13:30",
+          "businessSettlementDayRequired": true,
+          "trusteeBankReceiptByCutoffRequired": true,
+          "successfulMatchingAndBookingRequired": true,
+          "applicableClosingNavNotKnownWhenPaymentInitiated": true,
+          "allContributionChannelsSubjectToReceiptRule": true,
+          "actualAccountAndTrusteeBankReceiptVerified": false,
+          "actualMatchingBookingAndNavVerified": false,
+          "actualSchemeAndAllocationVerified": false,
+          "guardianOrSubscriberKycAndEligibilityVerified": false,
+          "earlyWithdrawalOrLiquidityAuthorized": false,
+          "licensedNavRightsAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "LC75's higher equity exposure can produce losses; a contribution cut-off is not a scheme-specific risk assessment or NAV guarantee.",
+            "Bank receipt, matching or booking delays can change the investment date and NAV; the cut-off does not limit pension-fund losses."
+          ],
+          "investorAccessConstraints": [
+            "Verify business settlement day, actual Trustee Bank receipt by 1:30 PM, successful matching and booking; initiating payment before 1:30 PM alone is insufficient.",
+            "Verify actual pension fund, account and guardian where relevant, NAV, fees, contribution channel, withdrawal restrictions and licensed provider permissions; no individual suitability is established."
           ]
         }
       }
@@ -5568,6 +5893,37 @@
             "The circular excludes Government-sector-tagged accounts; subscriber sector, PRAN, account type and actual choice eligibility are not verified.",
             "The subscriber-facing comparison requirement does not authenticate any selected pension fund, scheme riskometer, NAV, fees, permissions or advice entitlement."
           ]
+        },
+        "pfrdaAug2026SameDayContributionReview": {
+          "officialPfrdaCircularPdfUrl": "https://pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf",
+          "circularNumber": "PFRDA/2026/42/REG-PF/08",
+          "issuedOn": "2026-08-04",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "PFRDA_NPS_TRUSTEE_BANK_CONTRIBUTION_RECEIPT_AND_MATCHING_NOT_ACCOUNT_ELIGIBILITY_OR_EXIT",
+          "categoryCode": "LC_AGGRESSIVE",
+          "categoryInterpretation": "The renamed Aggressive lifecycle is not LC75; contribution matching does not establish the pension fund's actual allocation.",
+          "formerCutoffLocalTime": "11:00",
+          "newCutoffLocalTime": "13:30",
+          "businessSettlementDayRequired": true,
+          "trusteeBankReceiptByCutoffRequired": true,
+          "successfulMatchingAndBookingRequired": true,
+          "applicableClosingNavNotKnownWhenPaymentInitiated": true,
+          "allContributionChannelsSubjectToReceiptRule": true,
+          "actualAccountAndTrusteeBankReceiptVerified": false,
+          "actualMatchingBookingAndNavVerified": false,
+          "actualSchemeAndAllocationVerified": false,
+          "guardianOrSubscriberKycAndEligibilityVerified": false,
+          "earlyWithdrawalOrLiquidityAuthorized": false,
+          "licensedNavRightsAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "The renamed Aggressive lifecycle is not LC75; contribution matching does not establish the pension fund's actual allocation.",
+            "Bank receipt, matching or booking delays can change the investment date and NAV; the cut-off does not limit pension-fund losses."
+          ],
+          "investorAccessConstraints": [
+            "Verify business settlement day, actual Trustee Bank receipt by 1:30 PM, successful matching and booking; initiating payment before 1:30 PM alone is insufficient.",
+            "Verify actual pension fund, account and guardian where relevant, NAV, fees, contribution channel, withdrawal restrictions and licensed provider permissions; no individual suitability is established."
+          ]
         }
       }
     },
@@ -5695,6 +6051,37 @@
           "investorAccessConstraints": [
             "The circular excludes Government-sector-tagged accounts; subscriber sector, PRAN, account type and actual choice eligibility are not verified.",
             "The subscriber-facing comparison requirement does not authenticate any selected pension fund, scheme riskometer, NAV, fees, permissions or advice entitlement."
+          ]
+        },
+        "pfrdaAug2026SameDayContributionReview": {
+          "officialPfrdaCircularPdfUrl": "https://pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf",
+          "circularNumber": "PFRDA/2026/42/REG-PF/08",
+          "issuedOn": "2026-08-04",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "PFRDA_NPS_TRUSTEE_BANK_CONTRIBUTION_RECEIPT_AND_MATCHING_NOT_ACCOUNT_ELIGIBILITY_OR_EXIT",
+          "categoryCode": "CLASS_E",
+          "categoryInterpretation": "Class E equity exposure can fluctuate before units are allotted; trustee-bank timing is not an equity-loss limit.",
+          "formerCutoffLocalTime": "11:00",
+          "newCutoffLocalTime": "13:30",
+          "businessSettlementDayRequired": true,
+          "trusteeBankReceiptByCutoffRequired": true,
+          "successfulMatchingAndBookingRequired": true,
+          "applicableClosingNavNotKnownWhenPaymentInitiated": true,
+          "allContributionChannelsSubjectToReceiptRule": true,
+          "actualAccountAndTrusteeBankReceiptVerified": false,
+          "actualMatchingBookingAndNavVerified": false,
+          "actualSchemeAndAllocationVerified": false,
+          "guardianOrSubscriberKycAndEligibilityVerified": false,
+          "earlyWithdrawalOrLiquidityAuthorized": false,
+          "licensedNavRightsAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Class E equity exposure can fluctuate before units are allotted; trustee-bank timing is not an equity-loss limit.",
+            "Bank receipt, matching or booking delays can change the investment date and NAV; the cut-off does not limit pension-fund losses."
+          ],
+          "investorAccessConstraints": [
+            "Verify business settlement day, actual Trustee Bank receipt by 1:30 PM, successful matching and booking; initiating payment before 1:30 PM alone is insufficient.",
+            "Verify actual pension fund, account and guardian where relevant, NAV, fees, contribution channel, withdrawal restrictions and licensed provider permissions; no individual suitability is established."
           ]
         }
       }
@@ -5854,6 +6241,37 @@
           "individualSubscriberSectorKycAndAccessVerified": false,
           "commercialNavAndMarketDataRightsVerified": false,
           "personalizedAdviceAuthorizationVerified": false
+        },
+        "pfrdaAug2026SameDayContributionReview": {
+          "officialPfrdaCircularPdfUrl": "https://pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf",
+          "circularNumber": "PFRDA/2026/42/REG-PF/08",
+          "issuedOn": "2026-08-04",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "PFRDA_NPS_TRUSTEE_BANK_CONTRIBUTION_RECEIPT_AND_MATCHING_NOT_ACCOUNT_ELIGIBILITY_OR_EXIT",
+          "categoryCode": "CLASS_C",
+          "categoryInterpretation": "Class C corporate debt NAV has credit and duration risks; same-day processing does not establish issuer quality.",
+          "formerCutoffLocalTime": "11:00",
+          "newCutoffLocalTime": "13:30",
+          "businessSettlementDayRequired": true,
+          "trusteeBankReceiptByCutoffRequired": true,
+          "successfulMatchingAndBookingRequired": true,
+          "applicableClosingNavNotKnownWhenPaymentInitiated": true,
+          "allContributionChannelsSubjectToReceiptRule": true,
+          "actualAccountAndTrusteeBankReceiptVerified": false,
+          "actualMatchingBookingAndNavVerified": false,
+          "actualSchemeAndAllocationVerified": false,
+          "guardianOrSubscriberKycAndEligibilityVerified": false,
+          "earlyWithdrawalOrLiquidityAuthorized": false,
+          "licensedNavRightsAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Class C corporate debt NAV has credit and duration risks; same-day processing does not establish issuer quality.",
+            "Bank receipt, matching or booking delays can change the investment date and NAV; the cut-off does not limit pension-fund losses."
+          ],
+          "investorAccessConstraints": [
+            "Verify business settlement day, actual Trustee Bank receipt by 1:30 PM, successful matching and booking; initiating payment before 1:30 PM alone is insufficient.",
+            "Verify actual pension fund, account and guardian where relevant, NAV, fees, contribution channel, withdrawal restrictions and licensed provider permissions; no individual suitability is established."
+          ]
         }
       }
     },
@@ -5982,6 +6400,37 @@
             "The circular excludes Government-sector-tagged accounts; subscriber sector, PRAN, account type and actual choice eligibility are not verified.",
             "The subscriber-facing comparison requirement does not authenticate any selected pension fund, scheme riskometer, NAV, fees, permissions or advice entitlement."
           ]
+        },
+        "pfrdaAug2026SameDayContributionReview": {
+          "officialPfrdaCircularPdfUrl": "https://pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf",
+          "circularNumber": "PFRDA/2026/42/REG-PF/08",
+          "issuedOn": "2026-08-04",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "PFRDA_NPS_TRUSTEE_BANK_CONTRIBUTION_RECEIPT_AND_MATCHING_NOT_ACCOUNT_ELIGIBILITY_OR_EXIT",
+          "categoryCode": "CLASS_G",
+          "categoryInterpretation": "Class G government bond NAV can fluctuate with rates; same-day processing is not a capital guarantee.",
+          "formerCutoffLocalTime": "11:00",
+          "newCutoffLocalTime": "13:30",
+          "businessSettlementDayRequired": true,
+          "trusteeBankReceiptByCutoffRequired": true,
+          "successfulMatchingAndBookingRequired": true,
+          "applicableClosingNavNotKnownWhenPaymentInitiated": true,
+          "allContributionChannelsSubjectToReceiptRule": true,
+          "actualAccountAndTrusteeBankReceiptVerified": false,
+          "actualMatchingBookingAndNavVerified": false,
+          "actualSchemeAndAllocationVerified": false,
+          "guardianOrSubscriberKycAndEligibilityVerified": false,
+          "earlyWithdrawalOrLiquidityAuthorized": false,
+          "licensedNavRightsAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Class G government bond NAV can fluctuate with rates; same-day processing is not a capital guarantee.",
+            "Bank receipt, matching or booking delays can change the investment date and NAV; the cut-off does not limit pension-fund losses."
+          ],
+          "investorAccessConstraints": [
+            "Verify business settlement day, actual Trustee Bank receipt by 1:30 PM, successful matching and booking; initiating payment before 1:30 PM alone is insufficient.",
+            "Verify actual pension fund, account and guardian where relevant, NAV, fees, contribution channel, withdrawal restrictions and licensed provider permissions; no individual suitability is established."
+          ]
         }
       }
     },
@@ -6109,6 +6558,37 @@
           "investorAccessConstraints": [
             "The circular excludes Government-sector-tagged accounts; subscriber sector, PRAN, account type and actual choice eligibility are not verified.",
             "The circular's Active Choice E/C/G table does not list A; do not presume an A option is available or forbidden without current PFRDA and subscriber-channel confirmation."
+          ]
+        },
+        "pfrdaAug2026SameDayContributionReview": {
+          "officialPfrdaCircularPdfUrl": "https://pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf",
+          "circularNumber": "PFRDA/2026/42/REG-PF/08",
+          "issuedOn": "2026-08-04",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "PFRDA_NPS_TRUSTEE_BANK_CONTRIBUTION_RECEIPT_AND_MATCHING_NOT_ACCOUNT_ELIGIBILITY_OR_EXIT",
+          "categoryCode": "CLASS_A",
+          "categoryInterpretation": "Class A availability and alternative-asset permissions require independent verification; a cut-off does not authorize allocation.",
+          "formerCutoffLocalTime": "11:00",
+          "newCutoffLocalTime": "13:30",
+          "businessSettlementDayRequired": true,
+          "trusteeBankReceiptByCutoffRequired": true,
+          "successfulMatchingAndBookingRequired": true,
+          "applicableClosingNavNotKnownWhenPaymentInitiated": true,
+          "allContributionChannelsSubjectToReceiptRule": true,
+          "actualAccountAndTrusteeBankReceiptVerified": false,
+          "actualMatchingBookingAndNavVerified": false,
+          "actualSchemeAndAllocationVerified": false,
+          "guardianOrSubscriberKycAndEligibilityVerified": false,
+          "earlyWithdrawalOrLiquidityAuthorized": false,
+          "licensedNavRightsAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Class A availability and alternative-asset permissions require independent verification; a cut-off does not authorize allocation.",
+            "Bank receipt, matching or booking delays can change the investment date and NAV; the cut-off does not limit pension-fund losses."
+          ],
+          "investorAccessConstraints": [
+            "Verify business settlement day, actual Trustee Bank receipt by 1:30 PM, successful matching and booking; initiating payment before 1:30 PM alone is insufficient.",
+            "Verify actual pension fund, account and guardian where relevant, NAV, fees, contribution channel, withdrawal restrictions and licensed provider permissions; no individual suitability is established."
           ]
         }
       }
@@ -6276,6 +6756,37 @@
           "investorAccessConstraints": [
             "NPS Vatsalya is a 4A category; guardian, minor-beneficiary, fund and account permissions require current scheme-specific verification.",
             "The subscriber-facing comparison requirement does not authenticate any selected pension fund, scheme riskometer, NAV, fees, permissions or advice entitlement."
+          ]
+        },
+        "pfrdaAug2026SameDayContributionReview": {
+          "officialPfrdaCircularPdfUrl": "https://pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf",
+          "circularNumber": "PFRDA/2026/42/REG-PF/08",
+          "issuedOn": "2026-08-04",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "PFRDA_NPS_TRUSTEE_BANK_CONTRIBUTION_RECEIPT_AND_MATCHING_NOT_ACCOUNT_ELIGIBILITY_OR_EXIT",
+          "categoryCode": "VATSALYA",
+          "categoryInterpretation": "Vatsalya contributions require minor and guardian checks; same-day processing does not verify guardian KYC or withdrawal eligibility.",
+          "formerCutoffLocalTime": "11:00",
+          "newCutoffLocalTime": "13:30",
+          "businessSettlementDayRequired": true,
+          "trusteeBankReceiptByCutoffRequired": true,
+          "successfulMatchingAndBookingRequired": true,
+          "applicableClosingNavNotKnownWhenPaymentInitiated": true,
+          "allContributionChannelsSubjectToReceiptRule": true,
+          "actualAccountAndTrusteeBankReceiptVerified": false,
+          "actualMatchingBookingAndNavVerified": false,
+          "actualSchemeAndAllocationVerified": false,
+          "guardianOrSubscriberKycAndEligibilityVerified": false,
+          "earlyWithdrawalOrLiquidityAuthorized": false,
+          "licensedNavRightsAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Vatsalya contributions require minor and guardian checks; same-day processing does not verify guardian KYC or withdrawal eligibility.",
+            "Bank receipt, matching or booking delays can change the investment date and NAV; the cut-off does not limit pension-fund losses."
+          ],
+          "investorAccessConstraints": [
+            "Verify business settlement day, actual Trustee Bank receipt by 1:30 PM, successful matching and booking; initiating payment before 1:30 PM alone is insufficient.",
+            "Verify actual pension fund, account and guardian where relevant, NAV, fees, contribution channel, withdrawal restrictions and licensed provider permissions; no individual suitability is established."
           ]
         }
       }
@@ -10148,6 +10659,42 @@
           "currentNavAndSchemeRiskometerVerified": false,
           "investorKycAndAccessVerified": false,
           "commercialDataRightsAndAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026FoFSidBenchmarkReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-11-01",
+          "paragraphsAndFormatsReviewed": [
+            "4.1.1",
+            "7.22.5",
+            "7.23.2",
+            "Format No. 5A - Investment Strategies",
+            "Format No. 5A - FoF Underlying Details"
+          ],
+          "sourceScope": "SEBI_MULTI_UNDERLYING_FOF_SID_BENCHMARK_RULES_NOT_SCHEME_APPROVAL",
+          "categoryCode": "DIVERSIFIED_EQUITY",
+          "categoryInterpretation": "For this DIVERSIFIED_EQUITY multi-underlying fund-of-funds category, SEBI's March 2026 benchmark and SID disclosure rules require a scheme-specific strategy and underlying-fund review; the category archetype is not an actual scheme or a passive-index replication claim.",
+          "multiFundSelectionCannotAutomaticallyBeCalledPassive": true,
+          "multipleUnderlyingFoFBenchmarkSubjectToFeb2026Framework": true,
+          "schemeBenchmarkMustMatchActualObjectiveAllocationAndStrategy": true,
+          "sidUnderlyingBenchmarkStrategyTerAumPerformanceAndTopHoldingsDisclosureRequired": true,
+          "fofAndUnderlyingExpensesMustBeDisclosed": true,
+          "riskConsiderations": [
+            "Underlying diversified equity schemes may overlap heavily across market caps; multi-fund selection is not automatically passive index tracking.",
+            "Benchmark disclosure and fund-of-funds expenses are not current scheme risk, a live NAV, or a return guarantee."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual underlying equity holdings and overlap, benchmark, SID, TER, riskometer and redemption access.",
+            "No named AMC scheme, verified SID, account-specific KYC, commercial market-data permission or investment-advice authorization is established."
+          ],
+          "currentSchemeAndUnderlyingIdentitiesVerified": false,
+          "actualUnderlyingHoldingsVerified": false,
+          "currentSchemeBenchmarkAndSidVerified": false,
+          "currentFoFAndUnderlyingRiskometersVerified": false,
+          "currentNavFeesAndRedemptionVerified": false,
+          "individualKycRetailAccessAndTaxVerified": false,
+          "licensedDataAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -10286,6 +10833,42 @@
           "currentNavAndSchemeRiskometerVerified": false,
           "investorKycAndAccessVerified": false,
           "commercialDataRightsAndAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026FoFSidBenchmarkReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-11-01",
+          "paragraphsAndFormatsReviewed": [
+            "4.1.1",
+            "7.22.5",
+            "7.23.2",
+            "Format No. 5A - Investment Strategies",
+            "Format No. 5A - FoF Underlying Details"
+          ],
+          "sourceScope": "SEBI_MULTI_UNDERLYING_FOF_SID_BENCHMARK_RULES_NOT_SCHEME_APPROVAL",
+          "categoryCode": "SECTORAL_THEMATIC_EQUITY",
+          "categoryInterpretation": "For this SECTORAL_THEMATIC_EQUITY multi-underlying fund-of-funds category, SEBI's March 2026 benchmark and SID disclosure rules require a scheme-specific strategy and underlying-fund review; the category archetype is not an actual scheme or a passive-index replication claim.",
+          "multiFundSelectionCannotAutomaticallyBeCalledPassive": true,
+          "multipleUnderlyingFoFBenchmarkSubjectToFeb2026Framework": true,
+          "schemeBenchmarkMustMatchActualObjectiveAllocationAndStrategy": true,
+          "sidUnderlyingBenchmarkStrategyTerAumPerformanceAndTopHoldingsDisclosureRequired": true,
+          "fofAndUnderlyingExpensesMustBeDisclosed": true,
+          "riskConsiderations": [
+            "Several sector/thematic funds may share correlated issuer and industry exposures; benchmark performance is not downside protection.",
+            "Benchmark disclosure and fund-of-funds expenses are not current scheme risk, a live NAV, or a return guarantee."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual sector/theme overlap, named funds, SID benchmark, TER, KYC and redemption access.",
+            "No named AMC scheme, verified SID, account-specific KYC, commercial market-data permission or investment-advice authorization is established."
+          ],
+          "currentSchemeAndUnderlyingIdentitiesVerified": false,
+          "actualUnderlyingHoldingsVerified": false,
+          "currentSchemeBenchmarkAndSidVerified": false,
+          "currentFoFAndUnderlyingRiskometersVerified": false,
+          "currentNavFeesAndRedemptionVerified": false,
+          "individualKycRetailAccessAndTaxVerified": false,
+          "licensedDataAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -10424,6 +11007,42 @@
           "currentNavAndSchemeRiskometerVerified": false,
           "investorKycAndAccessVerified": false,
           "commercialDataRightsAndAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026FoFSidBenchmarkReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-11-01",
+          "paragraphsAndFormatsReviewed": [
+            "4.1.1",
+            "7.22.5",
+            "7.23.2",
+            "Format No. 5A - Investment Strategies",
+            "Format No. 5A - FoF Underlying Details"
+          ],
+          "sourceScope": "SEBI_MULTI_UNDERLYING_FOF_SID_BENCHMARK_RULES_NOT_SCHEME_APPROVAL",
+          "categoryCode": "AGGRESSIVE_HYBRID",
+          "categoryInterpretation": "For this AGGRESSIVE_HYBRID multi-underlying fund-of-funds category, SEBI's March 2026 benchmark and SID disclosure rules require a scheme-specific strategy and underlying-fund review; the category archetype is not an actual scheme or a passive-index replication claim.",
+          "multiFundSelectionCannotAutomaticallyBeCalledPassive": true,
+          "multipleUnderlyingFoFBenchmarkSubjectToFeb2026Framework": true,
+          "schemeBenchmarkMustMatchActualObjectiveAllocationAndStrategy": true,
+          "sidUnderlyingBenchmarkStrategyTerAumPerformanceAndTopHoldingsDisclosureRequired": true,
+          "fofAndUnderlyingExpensesMustBeDisclosed": true,
+          "riskConsiderations": [
+            "Equity-heavy underlying schemes can suffer drawdowns alongside debt credit and duration losses; a category allocation band is not current holdings.",
+            "Benchmark disclosure and fund-of-funds expenses are not current scheme risk, a live NAV, or a return guarantee."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual equity/debt holdings, benchmark, riskometer, exit terms and eligible investor access.",
+            "No named AMC scheme, verified SID, account-specific KYC, commercial market-data permission or investment-advice authorization is established."
+          ],
+          "currentSchemeAndUnderlyingIdentitiesVerified": false,
+          "actualUnderlyingHoldingsVerified": false,
+          "currentSchemeBenchmarkAndSidVerified": false,
+          "currentFoFAndUnderlyingRiskometersVerified": false,
+          "currentNavFeesAndRedemptionVerified": false,
+          "individualKycRetailAccessAndTaxVerified": false,
+          "licensedDataAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -10562,6 +11181,42 @@
           "investorKycAndAccessVerified": false,
           "commercialDataRightsAndAdviceAuthorizationVerified": false,
           "categoryInterpretation": "A conservative-hybrid multi-underlying FoF may allocate 75%-90% to debt-oriented and 10%-25% to equity-oriented funds under Annexure C, but Chapter 4.1 expense disclosures and the category label do not establish capital protection, a current scheme risk-o-meter or actual two-layer charges."
+        },
+        "sebiMarch2026FoFSidBenchmarkReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-11-01",
+          "paragraphsAndFormatsReviewed": [
+            "4.1.1",
+            "7.22.5",
+            "7.23.2",
+            "Format No. 5A - Investment Strategies",
+            "Format No. 5A - FoF Underlying Details"
+          ],
+          "sourceScope": "SEBI_MULTI_UNDERLYING_FOF_SID_BENCHMARK_RULES_NOT_SCHEME_APPROVAL",
+          "categoryCode": "CONSERVATIVE_HYBRID",
+          "categoryInterpretation": "For this CONSERVATIVE_HYBRID multi-underlying fund-of-funds category, SEBI's March 2026 benchmark and SID disclosure rules require a scheme-specific strategy and underlying-fund review; the category archetype is not an actual scheme or a passive-index replication claim.",
+          "multiFundSelectionCannotAutomaticallyBeCalledPassive": true,
+          "multipleUnderlyingFoFBenchmarkSubjectToFeb2026Framework": true,
+          "schemeBenchmarkMustMatchActualObjectiveAllocationAndStrategy": true,
+          "sidUnderlyingBenchmarkStrategyTerAumPerformanceAndTopHoldingsDisclosureRequired": true,
+          "fofAndUnderlyingExpensesMustBeDisclosed": true,
+          "riskConsiderations": [
+            "Debt-oriented holdings can incur credit and interest-rate losses and equity exposure remains; a conservative label is not capital protection.",
+            "Benchmark disclosure and fund-of-funds expenses are not current scheme risk, a live NAV, or a return guarantee."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual debt duration/credit and equity exposure, benchmark, NAV, TER and KYC.",
+            "No named AMC scheme, verified SID, account-specific KYC, commercial market-data permission or investment-advice authorization is established."
+          ],
+          "currentSchemeAndUnderlyingIdentitiesVerified": false,
+          "actualUnderlyingHoldingsVerified": false,
+          "currentSchemeBenchmarkAndSidVerified": false,
+          "currentFoFAndUnderlyingRiskometersVerified": false,
+          "currentNavFeesAndRedemptionVerified": false,
+          "individualKycRetailAccessAndTaxVerified": false,
+          "licensedDataAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -10700,6 +11355,42 @@
           "investorKycAndAccessVerified": false,
           "commercialDataRightsAndAdviceAuthorizationVerified": false,
           "categoryInterpretation": "An income-plus-arbitrage multi-underlying FoF may hold debt and arbitrage-oriented underlying funds under Annexure C; Chapter 4.1 requires both expense layers to be disclosed, not a guaranteed arbitrage spread, deposit-like liquidity or a verified current cost."
+        },
+        "sebiMarch2026FoFSidBenchmarkReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-11-01",
+          "paragraphsAndFormatsReviewed": [
+            "4.1.1",
+            "7.22.5",
+            "7.23.2",
+            "Format No. 5A - Investment Strategies",
+            "Format No. 5A - FoF Underlying Details"
+          ],
+          "sourceScope": "SEBI_MULTI_UNDERLYING_FOF_SID_BENCHMARK_RULES_NOT_SCHEME_APPROVAL",
+          "categoryCode": "INCOME_PLUS_ARBITRAGE",
+          "categoryInterpretation": "For this INCOME_PLUS_ARBITRAGE multi-underlying fund-of-funds category, SEBI's March 2026 benchmark and SID disclosure rules require a scheme-specific strategy and underlying-fund review; the category archetype is not an actual scheme or a passive-index replication claim.",
+          "multiFundSelectionCannotAutomaticallyBeCalledPassive": true,
+          "multipleUnderlyingFoFBenchmarkSubjectToFeb2026Framework": true,
+          "schemeBenchmarkMustMatchActualObjectiveAllocationAndStrategy": true,
+          "sidUnderlyingBenchmarkStrategyTerAumPerformanceAndTopHoldingsDisclosureRequired": true,
+          "fofAndUnderlyingExpensesMustBeDisclosed": true,
+          "riskConsiderations": [
+            "Arbitrage spreads can compress while debt funds suffer credit or rate losses; benchmark comparisons do not promise deposit-like returns.",
+            "Benchmark disclosure and fund-of-funds expenses are not current scheme risk, a live NAV, or a return guarantee."
+          ],
+          "investorAccessConstraints": [
+            "Verify underlying arbitrage/debt funds, benchmark, fees, riskometer, redemption and KYC.",
+            "No named AMC scheme, verified SID, account-specific KYC, commercial market-data permission or investment-advice authorization is established."
+          ],
+          "currentSchemeAndUnderlyingIdentitiesVerified": false,
+          "actualUnderlyingHoldingsVerified": false,
+          "currentSchemeBenchmarkAndSidVerified": false,
+          "currentFoFAndUnderlyingRiskometersVerified": false,
+          "currentNavFeesAndRedemptionVerified": false,
+          "individualKycRetailAccessAndTaxVerified": false,
+          "licensedDataAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -10838,6 +11529,42 @@
           "investorKycAndAccessVerified": false,
           "commercialDataRightsAndAdviceAuthorizationVerified": false,
           "categoryInterpretation": "A dynamic-allocation multi-underlying FoF can change its underlying equity and debt mix; Chapter 4.1 expense disclosures do not verify current weights, the scheme risk-o-meter, redemption costs or the actual FoF and underlying expense ratios."
+        },
+        "sebiMarch2026FoFSidBenchmarkReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-11-01",
+          "paragraphsAndFormatsReviewed": [
+            "4.1.1",
+            "7.22.5",
+            "7.23.2",
+            "Format No. 5A - Investment Strategies",
+            "Format No. 5A - FoF Underlying Details"
+          ],
+          "sourceScope": "SEBI_MULTI_UNDERLYING_FOF_SID_BENCHMARK_RULES_NOT_SCHEME_APPROVAL",
+          "categoryCode": "DYNAMIC_ASSET_ALLOCATION",
+          "categoryInterpretation": "For this DYNAMIC_ASSET_ALLOCATION multi-underlying fund-of-funds category, SEBI's March 2026 benchmark and SID disclosure rules require a scheme-specific strategy and underlying-fund review; the category archetype is not an actual scheme or a passive-index replication claim.",
+          "multiFundSelectionCannotAutomaticallyBeCalledPassive": true,
+          "multipleUnderlyingFoFBenchmarkSubjectToFeb2026Framework": true,
+          "schemeBenchmarkMustMatchActualObjectiveAllocationAndStrategy": true,
+          "sidUnderlyingBenchmarkStrategyTerAumPerformanceAndTopHoldingsDisclosureRequired": true,
+          "fofAndUnderlyingExpensesMustBeDisclosed": true,
+          "riskConsiderations": [
+            "Changes in underlying equity/debt fund weights introduce allocation-timing, turnover and market-loss risks; no static benchmark proves a fixed exposure.",
+            "Benchmark disclosure and fund-of-funds expenses are not current scheme risk, a live NAV, or a return guarantee."
+          ],
+          "investorAccessConstraints": [
+            "Verify dynamic allocation policy, actual holdings, benchmark, turnover, TER and exit terms.",
+            "No named AMC scheme, verified SID, account-specific KYC, commercial market-data permission or investment-advice authorization is established."
+          ],
+          "currentSchemeAndUnderlyingIdentitiesVerified": false,
+          "actualUnderlyingHoldingsVerified": false,
+          "currentSchemeBenchmarkAndSidVerified": false,
+          "currentFoFAndUnderlyingRiskometersVerified": false,
+          "currentNavFeesAndRedemptionVerified": false,
+          "individualKycRetailAccessAndTaxVerified": false,
+          "licensedDataAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
         }
       }
     }

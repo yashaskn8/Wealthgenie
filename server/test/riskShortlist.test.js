@@ -3946,3 +3946,278 @@ test('four low-volatility and momentum factor archetypes retain distinct calenda
  assert.ok(!listExtensionResearch().find(x=>x.id===specs[0][0]).indexBenchmarkReview
   .nseFactorRebalance2026Review.riskConsiderations.includes('FORGED DOWNSIDE GUARANTEE'));
 });
+
+test('three NSE 2026 index profiles preserve distinct source and financial screens',()=>{
+ const specs=[
+  ['catalog_2026_index_nifty500_equal','NIFTY500_EQUAL_WEIGHT','NIFTY500_EQUAL_RESET_NOT_SCHEME_WEIGHTS',
+   'SHORT_OR_EMERGENCY_GOAL_REQUIRES_NIFTY500_EQUAL_EXIT_REVIEW','ZERO_EMERGENCY_BUFFER_REQUIRES_NIFTY500_EQUAL_LIQUIDITY_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_NIFTY500_EQUAL_LOSS_REVIEW'],
+  ['catalog_2026_index_india_digital','NIFTY_INDIA_DIGITAL','NIFTY_DIGITAL_2025_CAPS_NOT_CURRENT_SCHEME_LIMITS',
+   'SHORT_OR_EMERGENCY_GOAL_REQUIRES_DIGITAL_THEME_EXIT_REVIEW','ZERO_EMERGENCY_BUFFER_REQUIRES_DIGITAL_THEME_LIQUIDITY_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_DIGITAL_THEME_LOSS_REVIEW'],
+  ['catalog_2026_index_india_consumption','NIFTY_INDIA_CONSUMPTION','NIFTY_CONSUMPTION_DOMESTIC_REVENUE_NOT_RISK_PROTECTION',
+   'SHORT_OR_EMERGENCY_GOAL_REQUIRES_CONSUMPTION_THEME_EXIT_REVIEW','ZERO_EMERGENCY_BUFFER_REQUIRES_CONSUMPTION_THEME_LIQUIDITY_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_CONSUMPTION_THEME_LOSS_REVIEW'],
+ ];
+ const screen=overrides=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],investmentHorizonYears:10,emergencyFundMonths:null,
+  riskTolerance:'Aggressive',...overrides,
+ })).map(x=>[x.id,x]));
+ const base=screen({}),flagged=screen({investmentGoals:['Emergency Fund'],
+  investmentHorizonYears:2,emergencyFundMonths:0,riskTolerance:'Conservative'});
+ const rows=listExtensionResearch(),interpretations=new Set();
+ for(const [id,code,structure,horizon,zero,conservative] of specs){
+  const row=rows.find(x=>x.id===id);
+  const v=(row.indexBenchmarkReview||row.thematicIndexReview).nseNov2026CategoryReview;
+  assert.equal(v.benchmarkCode,code);
+  assert.equal(v.reviewedOn,'2026-11-01');
+  assert.equal(v.categoryMinimumIndexSecuritiesAllocationPct,95);
+  assert.equal(v.datedFactsheetIsCurrentFundEvidence,false);
+  assert.ok(isOfficialFrameworkReferenceUrl(v.officialNseIndexPageUrl));
+  interpretations.add(v.categoryInterpretation);
+  for(const k of ['actualNamedSchemeAndSidKimVerified','actualSchemeHoldingsAnd95PctComplianceVerified',
+   'currentSchemeRiskometerVerified','currentNavOrExecutableQuoteVerified',
+   'individualKycAndRetailAccessVerified','commercialMarketDataRightsVerified',
+   'fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'])assert.equal(v[k],false);
+  for(const x of [base.get(id),flagged.get(id)]){
+   assert.equal(x.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(x.productQualified,false);assert.equal(x.scoreAvailable,false);assert.equal(x.productRiskLevel,null);
+   for(const c of [structure,'NSE_INDEX_NOT_VERIFIED_AMC_SCHEME_OR_RISKOMETER',
+    'SEBI_2026_PASSIVE_95PCT_NOT_VERIFIED_SCHEME_COMPLIANCE'])
+    assert.ok(x.screeningReasonCodes.includes(c),id+':'+c);
+  }
+  for(const c of [horizon,zero,conservative]){
+   assert.ok(!base.get(id).screeningReasonCodes.includes(c),id+':'+c);
+   assert.ok(flagged.get(id).screeningReasonCodes.includes(c),id+':'+c);
+  }
+ }
+ assert.equal(interpretations.size,3);
+ assert.equal(rows.find(x=>x.id===specs[0][0]).referenceUrl,
+  'https://www.niftyindices.com/indices/equity/strategy-indices/nifty500-equal-weight');
+ rows.find(x=>x.id===specs[0][0]).indexBenchmarkReview.nseNov2026CategoryReview.riskConsiderations.push('FORGED');
+ assert.ok(!listExtensionResearch().find(x=>x.id===specs[0][0]).indexBenchmarkReview
+  .nseNov2026CategoryReview.riskConsiderations.includes('FORGED'));
+});
+
+
+test('three remaining NSE passive benchmarks distinguish dated index facts from verified scheme and ETF access',()=>{
+ const specs=[
+  ['catalog_2026_index_india_defence','NIFTY_INDIA_DEFENCE','INDEX_FUND',
+   'DEFENCE_INDEX_20PCT_CAP_NOT_CURRENT_FUND_DIVERSIFICATION',
+   'SHORT_OR_EMERGENCY_GOAL_REQUIRES_DEFENCE_INDEX_EXIT_AND_LOSS_REVIEW',
+   'ZERO_EMERGENCY_BUFFER_REQUIRES_DEFENCE_INDEX_REDEMPTION_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_DEFENCE_INDEX_CONCENTRATION_REVIEW'],
+  ['catalog_2026_etf_india_defence','NIFTY_INDIA_DEFENCE','ETF',
+   'DEFENCE_ETF_20PCT_INDEX_CAP_NOT_EXECUTABLE_DIVERSIFICATION',
+   'SHORT_OR_EMERGENCY_GOAL_REQUIRES_DEFENCE_ETF_SPREAD_AND_LOSS_REVIEW',
+   'ZERO_EMERGENCY_BUFFER_REQUIRES_DEFENCE_ETF_ORDERBOOK_EXIT_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_DEFENCE_ETF_CONCENTRATION_REVIEW'],
+  ['catalog_2026_etf_nifty500','NIFTY500','ETF',
+   'NIFTY500_ETF_BENCHMARK_BREADTH_NOT_VERIFIED_HOLDINGS',
+   'SHORT_OR_EMERGENCY_GOAL_REQUIRES_NIFTY500_ETF_SPREAD_AND_EXIT_REVIEW',
+   'ZERO_EMERGENCY_BUFFER_REQUIRES_NIFTY500_ETF_ORDERBOOK_EXIT_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_NIFTY500_ETF_EQUITY_LOSS_REVIEW'],
+ ];
+ const screen=overrides=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+  emergencyFundMonths:null,riskTolerance:'Aggressive',...overrides,
+ })).map(x=>[x.id,x]));
+ const base=screen({}),flagged=screen({investmentGoals:['Emergency Fund'],
+  investmentHorizonYears:2,emergencyFundMonths:0,riskTolerance:'Conservative'});
+ const rows=listExtensionResearch(),interpretations=new Set();
+ for(const [id,benchmark,wrapper,structure,horizon,zero,conservative] of specs){
+  const row=rows.find(x=>x.id===id);
+  const v=(row.thematicIndexReview||row.etfBenchmarkReview).nseNov2026RemainingPassiveReview;
+  assert.equal(v.benchmarkCode,benchmark);
+  assert.equal(v.wrapper,wrapper);
+  assert.equal(v.reviewedOn,'2026-11-01');
+  assert.equal(v.categoryMinimumIndexSecuritiesAllocationPct,95);
+  assert.equal(v.existingSchemeAlignmentWindowMonths,6);
+  assert.equal(v.datedFactsheetIsCurrentSchemeEvidence,false);
+  assert.equal(v.publishedIndexCapProvesActualSchemeHoldings,false);
+  assert.equal(v.nseIndexPageIssuerListProvesSpecificProductTerms,false);
+  assert.ok(isOfficialFrameworkReferenceUrl(v.officialNseIndexPageUrl));
+  assert.ok(v.riskConsiderations.length>=2&&v.investorAccessConstraints.length>=2);
+  if(benchmark==='NIFTY_INDIA_DEFENCE'){
+   assert.equal(v.datedFactsheetAsOf,'2026-03-30');
+   assert.equal(v.publishedSingleStockCapPct,20);
+  }else{
+   assert.equal(v.datedFactsheetAsOf,null);
+   assert.equal(v.publishedConstituentCount,500);
+  }
+  interpretations.add(v.categoryInterpretation);
+  for(const k of ['actualNamedSchemeAndSidKimVerified',
+   'actualSchemeHoldingsAnd95PctComplianceVerified','currentSchemeRiskometerVerified',
+   'currentNavOrExecutableQuoteVerified','individualKycAndRetailAccessVerified',
+   'commercialMarketDataRightsVerified',
+   'fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'])assert.equal(v[k],false);
+  for(const x of [base.get(id),flagged.get(id)]){
+   assert.equal(x.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(x.productQualified,false);
+   assert.equal(x.scoreAvailable,false);
+   assert.equal(x.productRiskLevel,null);
+   for(const c of [structure,'NSE_INDEX_METHODOLOGY_NOT_SCHEME_RISKOMETER_OR_CURRENT_PORTFOLIO',
+    'SEBI_FEB_2026_PASSIVE_95PCT_NOT_VERIFIED_SCHEME_COMPLIANCE'])
+    assert.ok(x.screeningReasonCodes.includes(c),id+':'+c);
+   if(wrapper==='ETF')assert.ok(x.screeningReasonCodes.includes(
+    'NSE_BENCHMARK_ISSUER_LIST_NOT_AUTHENTICATED_ETF_QUOTE_OR_ACCESS'));
+  }
+  for(const c of [horizon,zero,conservative]){
+   assert.ok(!base.get(id).screeningReasonCodes.includes(c),id+':'+c);
+   assert.ok(flagged.get(id).screeningReasonCodes.includes(c),id+':'+c);
+  }
+ }
+ assert.equal(interpretations.size,3);
+ const mutable=rows.find(x=>x.id===specs[0][0]).thematicIndexReview.nseNov2026RemainingPassiveReview;
+ mutable.riskConsiderations.push('FORGED FUND RISK APPROVAL');
+ assert.ok(!listExtensionResearch().find(x=>x.id===specs[0][0]).thematicIndexReview
+  .nseNov2026RemainingPassiveReview.riskConsiderations.includes('FORGED FUND RISK APPROVAL'));
+});
+
+test('Nifty India Consumption ETF dated benchmark facts cannot qualify a scheme or a client',()=>{
+ const id='catalog_2026_etf_india_consumption';
+ const row=listExtensionResearch().find(x=>x.id===id);
+ const v=row.etfBenchmarkReview.nseNov2026ConsumptionEtfReview;
+ assert.equal(v.factsheetAsOf,'2026-04-30');
+ assert.equal(v.publishedConstituentCount,30);
+ assert.equal(v.domesticRevenueShareMustExceedPct,50);
+ assert.equal(v.publishedConstituentCapAtRebalancePct,10);
+ assert.equal(v.indexRebalanceFrequency,'SEMIANNUAL');
+ assert.equal(v.categoryMinimumIndexSecuritiesAllocationPct,95);
+ assert.equal(v.datedFactsheetIsCurrentEtfOrSchemeEvidence,false);
+ assert.equal(v.publishedIndexCapProvesActualEtfHoldings,false);
+ assert.equal(v.domesticRevenueRuleGuaranteesDomesticOnlyExposure,false);
+ assert.ok(isOfficialFrameworkReferenceUrl(v.officialNseFactsheetUrl));
+ for(const key of ['actualNamedSchemeAndSidKimVerified',
+   'actualSchemeHoldingsAnd95PctComplianceVerified','currentSchemeRiskometerVerified',
+   'currentNavOrExecutableQuoteVerified','individualKycAndRetailAccessVerified',
+   'commercialMarketDataRightsVerified',
+   'fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'])
+   assert.equal(v[key],false);
+ const screen=overrides=>screenExtensionResearchForProfile(canonicalProfile({
+   investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+   emergencyFundMonths:null,riskTolerance:'Aggressive',...overrides,
+ })).find(x=>x.id===id);
+ const normal=screen({});
+ const flagged=screen({investmentGoals:['Emergency Fund'],investmentHorizonYears:2,
+   emergencyFundMonths:0,riskTolerance:'Conservative'});
+ for(const x of [normal,flagged]){
+   assert.equal(x.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(x.productQualified,false);
+   assert.equal(x.scoreAvailable,false);
+   assert.equal(x.productRiskLevel,null);
+   for(const code of ['NIFTY_CONSUMPTION_ETF_2026_INDEX_CAP_NOT_VERIFIED_SCHEME_HOLDINGS',
+     'NIFTY_CONSUMPTION_DOMESTIC_REVENUE_RULE_NOT_DOWNSIDE_PROTECTION',
+     'SEBI_FEB_2026_PASSIVE_95PCT_NOT_VERIFIED_SCHEME_COMPLIANCE',
+     'CONSUMPTION_ETF_REQUIRES_AUTHENTICATED_LISTING_RISKOMETER_NAV_AND_ACCESS'])
+     assert.ok(x.screeningReasonCodes.includes(code),code);
+ }
+ for(const code of ['SHORT_OR_EMERGENCY_GOAL_REQUIRES_CONSUMPTION_ETF_SPREAD_AND_EXIT_REVIEW',
+   'ZERO_EMERGENCY_BUFFER_REQUIRES_CONSUMPTION_ETF_ORDERBOOK_EXIT_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_CONSUMPTION_ETF_THEME_LOSS_REVIEW']){
+   assert.ok(!normal.screeningReasonCodes.includes(code),code);
+   assert.ok(flagged.screeningReasonCodes.includes(code),code);
+ }
+ const shortOnly=screen({investmentHorizonYears:2,emergencyFundMonths:null});
+ assert.ok(shortOnly.screeningReasonCodes.includes(
+   'SHORT_OR_EMERGENCY_GOAL_REQUIRES_CONSUMPTION_ETF_SPREAD_AND_EXIT_REVIEW'));
+ assert.ok(!shortOnly.screeningReasonCodes.includes(
+   'ZERO_EMERGENCY_BUFFER_REQUIRES_CONSUMPTION_ETF_ORDERBOOK_EXIT_REVIEW'));
+ v.riskConsiderations.push('FORGED ETF APPROVAL');
+ assert.ok(!listExtensionResearch().find(x=>x.id===id).etfBenchmarkReview
+   .nseNov2026ConsumptionEtfReview.riskConsiderations.includes('FORGED ETF APPROVAL'));
+});
+
+test('PFRDA August 2026 trustee-bank cut-off distinguishes nine NPS categories and profile notices',()=>{
+ const ids=["catalog_2026_nps_lc25","catalog_2026_nps_lc50","catalog_2026_nps_lc75","catalog_2026_nps_lc_aggressive","catalog_2026_nps_asset_e","catalog_2026_nps_asset_c","catalog_2026_nps_asset_g","catalog_2026_nps_asset_a","catalog_2026_nps_vatsalya"];
+ const rows=listExtensionResearch();
+ const screen=overrides=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],investmentHorizonYears:10,emergencyFundMonths:null,
+  riskTolerance:'Moderate',...overrides,
+ })).map(x=>[x.id,x]));
+ const base=screen({}),flagged=screen({investmentGoals:['Emergency Fund'],
+  investmentHorizonYears:2,emergencyFundMonths:0,riskTolerance:'Conservative'});
+ const distinct=new Set();
+ for(const id of ids){
+  const row=rows.find(x=>x.id===id);
+  const v=(row.npsCommonSchemeReview||row.npsVatsalyaAccessReview).pfrdaAug2026SameDayContributionReview;
+  assert.equal(v.officialPfrdaCircularPdfUrl,"https://pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf");
+  assert.ok(isOfficialFrameworkReferenceUrl(v.officialPfrdaCircularPdfUrl));
+  assert.equal(v.issuedOn,'2026-08-04');
+  assert.equal(v.newCutoffLocalTime,'13:30');
+  assert.equal(v.successfulMatchingAndBookingRequired,true);
+  assert.equal(v.applicableClosingNavNotKnownWhenPaymentInitiated,true);
+  for(const k of ['actualAccountAndTrusteeBankReceiptVerified','actualMatchingBookingAndNavVerified',
+   'actualSchemeAndAllocationVerified','guardianOrSubscriberKycAndEligibilityVerified',
+   'earlyWithdrawalOrLiquidityAuthorized','licensedNavRightsAndSignedProviderEntitlementsVerified',
+   'personalizedAdviceAuthorizationVerified'])assert.equal(v[k],false);
+  distinct.add(v.categoryInterpretation);
+  for(const x of [base.get(id),flagged.get(id)]){
+   assert.equal(x.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(x.productQualified,false);
+   assert.equal(x.scoreAvailable,false);
+   assert.equal(x.productRiskLevel,null);
+   for(const code of ['PFRDA_AUG_2026_NPS_TRUSTEE_BANK_RECEIPT_AND_MATCHING_REQUIRED',
+    'NPS_SAME_DAY_CONTRIBUTION_NOT_GUARANTEED_NAV_OR_WITHDRAWAL',
+    'NPS_CUTOFF_'+v.categoryCode+'_NOT_PERSONAL_ELIGIBILITY'])
+    assert.ok(x.screeningReasonCodes.includes(code),id+':'+code);
+  }
+  for(const code of ['EMERGENCY_GOAL_REQUIRES_NPS_CUTOFF_VS_WITHDRAWAL_REVIEW',
+   'SHORT_HORIZON_REQUIRES_NPS_ALLOTMENT_NAV_AND_EXIT_REVIEW',
+   'ZERO_RECORDED_EMERGENCY_BUFFER_REQUIRES_NPS_SETTLEMENT_VS_CASH_ACCESS_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_NPS_NAV_VARIATION_REVIEW']){
+   assert.ok(!base.get(id).screeningReasonCodes.includes(code),id+':'+code);
+   assert.ok(flagged.get(id).screeningReasonCodes.includes(code),id+':'+code);
+  }
+ }
+ assert.equal(distinct.size,9);
+ const v=rows.find(x=>x.id===ids[0]).npsCommonSchemeReview.pfrdaAug2026SameDayContributionReview;
+ v.riskConsiderations.push('FORGED NAV');
+ assert.ok(!listExtensionResearch().find(x=>x.id===ids[0]).npsCommonSchemeReview
+  .pfrdaAug2026SameDayContributionReview.riskConsiderations.includes('FORGED NAV'));
+});
+
+
+test('six March 2026 FoF SID benchmark reviews remain unqualified and use recorded profile facts',()=>{
+ const codes={"catalog_2026_equity_diversified_fof":"DIVERSIFIED_EQUITY","catalog_2026_equity_sector_fof":"SECTORAL_THEMATIC_EQUITY","catalog_2026_fof_aggressive_hybrid":"AGGRESSIVE_HYBRID","catalog_2026_fof_conservative_hybrid":"CONSERVATIVE_HYBRID","catalog_2026_fof_income_arbitrage":"INCOME_PLUS_ARBITRAGE","catalog_2026_fof_dynamic_allocation":"DYNAMIC_ASSET_ALLOCATION"};
+ const rows=listExtensionResearch();
+ const screen=changes=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],investmentHorizonYears:10,emergencyFundMonths:null,
+  riskTolerance:'Moderate',...changes})).map(x=>[x.id,x]));
+ const base=screen({}),flagged=screen({investmentGoals:['Emergency Fund'],
+  investmentHorizonYears:2,emergencyFundMonths:0,riskTolerance:'Conservative'});
+ for(const [id,code] of Object.entries(codes)){
+  const v=rows.find(x=>x.id===id).fundOfFundsCategoryReview.sebiMarch2026FoFSidBenchmarkReview;
+  assert.equal(v.categoryCode,code);
+  assert.equal(v.officialSebiMasterCircularUrl,'https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf');
+  assert.ok(isOfficialFrameworkReferenceUrl(v.officialSebiMasterCircularUrl));
+  assert.equal(v.multiFundSelectionCannotAutomaticallyBeCalledPassive,true);
+  assert.equal(v.sidUnderlyingBenchmarkStrategyTerAumPerformanceAndTopHoldingsDisclosureRequired,true);
+  for(const k of ['currentSchemeAndUnderlyingIdentitiesVerified','actualUnderlyingHoldingsVerified',
+   'currentSchemeBenchmarkAndSidVerified','currentFoFAndUnderlyingRiskometersVerified',
+   'currentNavFeesAndRedemptionVerified','individualKycRetailAccessAndTaxVerified',
+   'licensedDataAndSignedProviderEntitlementsVerified','personalizedAdviceAuthorizationVerified'])assert.equal(v[k],false);
+  for(const x of [base.get(id),flagged.get(id)]){
+   assert.equal(x.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(x.productQualified,false);assert.equal(x.scoreAvailable,false);
+   assert.equal(x.productRiskLevel,null);
+   assert.ok(x.screeningReasonCodes.includes('FOF_SID_'+code+'_BENCHMARK_AND_RISK_UNVERIFIED'));
+  }
+  for(const c of ['SHORT_OR_EMERGENCY_GOAL_REQUIRES_FOF_BENCHMARK_AND_EXIT_REVIEW',
+   'RECORDED_ZERO_BUFFER_REQUIRES_FOF_UNDERLYING_SETTLEMENT_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_FOF_BENCHMARK_AND_LOSS_REVIEW']){
+   assert.ok(!base.get(id).screeningReasonCodes.includes(c),id+':'+c);
+   assert.ok(flagged.get(id).screeningReasonCodes.includes(c),id+':'+c);
+  }
+ }
+ const missing=screen({investmentHorizonYears:2,emergencyFundMonths:null});
+ assert.ok(missing.get(Object.keys(codes)[0]).screeningReasonCodes.includes(
+  'SHORT_OR_EMERGENCY_GOAL_REQUIRES_FOF_BENCHMARK_AND_EXIT_REVIEW'));
+ assert.ok(!missing.get(Object.keys(codes)[0]).screeningReasonCodes.includes(
+  'RECORDED_ZERO_BUFFER_REQUIRES_FOF_UNDERLYING_SETTLEMENT_REVIEW'));
+ const first=Object.keys(codes)[0];
+ rows.find(x=>x.id===first).fundOfFundsCategoryReview.sebiMarch2026FoFSidBenchmarkReview
+  .riskConsiderations.push('FORGED APPROVAL');
+ assert.ok(!listExtensionResearch().find(x=>x.id===first).fundOfFundsCategoryReview
+  .sebiMarch2026FoFSidBenchmarkReview.riskConsiderations.includes('FORGED APPROVAL'));
+});
