@@ -212,6 +212,9 @@ export default function InvestmentUniverseExplorer({
   profileRankedCategories = EMPTY_LIST,
   profileAssessments = EMPTY_LIST,
   profileCoverage = null,
+  // Optional explicit dated-tax inputs from the verified tax workflow.
+  // In their absence the directory never substitutes a made-up percentage.
+  postTaxScenario = null,
 }) {
   const [open, setOpen] = useState(true);
   const [status, setStatus] = useState('NOT_REQUESTED');
@@ -345,7 +348,10 @@ export default function InvestmentUniverseExplorer({
       if (typeof profileId !== 'string' || !/^[a-fA-F0-9]{24}$/.test(profileId)) {
         throw new Error('CURRENT_FINANCIAL_PROFILE_REQUIRED');
       }
-      const result = await getQualifiedFamilyTopProducts(family.id, profileId, { signal: controller.signal });
+      const result = await getQualifiedFamilyTopProducts(family.id, profileId, {
+        signal: controller.signal,
+        ...(postTaxScenario ? { postTaxScenario } : {}),
+      });
       if (controller.signal.aborted) return;
       if (result?.status === 'AVAILABLE') {
         if (!validProductComparisonResponse(result, family.id, profileId)) throw new Error('TOP_THREE_RESPONSE_INVALID');
