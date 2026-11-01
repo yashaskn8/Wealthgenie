@@ -10659,6 +10659,42 @@
           "currentNavAndSchemeRiskometerVerified": false,
           "investorKycAndAccessVerified": false,
           "commercialDataRightsAndAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026FoFSidBenchmarkReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-11-01",
+          "paragraphsAndFormatsReviewed": [
+            "4.1.1",
+            "7.22.5",
+            "7.23.2",
+            "Format No. 5A - Investment Strategies",
+            "Format No. 5A - FoF Underlying Details"
+          ],
+          "sourceScope": "SEBI_MULTI_UNDERLYING_FOF_SID_BENCHMARK_RULES_NOT_SCHEME_APPROVAL",
+          "categoryCode": "DIVERSIFIED_EQUITY",
+          "categoryInterpretation": "For this DIVERSIFIED_EQUITY multi-underlying fund-of-funds category, SEBI's March 2026 benchmark and SID disclosure rules require a scheme-specific strategy and underlying-fund review; the category archetype is not an actual scheme or a passive-index replication claim.",
+          "multiFundSelectionCannotAutomaticallyBeCalledPassive": true,
+          "multipleUnderlyingFoFBenchmarkSubjectToFeb2026Framework": true,
+          "schemeBenchmarkMustMatchActualObjectiveAllocationAndStrategy": true,
+          "sidUnderlyingBenchmarkStrategyTerAumPerformanceAndTopHoldingsDisclosureRequired": true,
+          "fofAndUnderlyingExpensesMustBeDisclosed": true,
+          "riskConsiderations": [
+            "Underlying diversified equity schemes may overlap heavily across market caps; multi-fund selection is not automatically passive index tracking.",
+            "Benchmark disclosure and fund-of-funds expenses are not current scheme risk, a live NAV, or a return guarantee."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual underlying equity holdings and overlap, benchmark, SID, TER, riskometer and redemption access.",
+            "No named AMC scheme, verified SID, account-specific KYC, commercial market-data permission or investment-advice authorization is established."
+          ],
+          "currentSchemeAndUnderlyingIdentitiesVerified": false,
+          "actualUnderlyingHoldingsVerified": false,
+          "currentSchemeBenchmarkAndSidVerified": false,
+          "currentFoFAndUnderlyingRiskometersVerified": false,
+          "currentNavFeesAndRedemptionVerified": false,
+          "individualKycRetailAccessAndTaxVerified": false,
+          "licensedDataAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -10797,6 +10833,42 @@
           "currentNavAndSchemeRiskometerVerified": false,
           "investorKycAndAccessVerified": false,
           "commercialDataRightsAndAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026FoFSidBenchmarkReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-11-01",
+          "paragraphsAndFormatsReviewed": [
+            "4.1.1",
+            "7.22.5",
+            "7.23.2",
+            "Format No. 5A - Investment Strategies",
+            "Format No. 5A - FoF Underlying Details"
+          ],
+          "sourceScope": "SEBI_MULTI_UNDERLYING_FOF_SID_BENCHMARK_RULES_NOT_SCHEME_APPROVAL",
+          "categoryCode": "SECTORAL_THEMATIC_EQUITY",
+          "categoryInterpretation": "For this SECTORAL_THEMATIC_EQUITY multi-underlying fund-of-funds category, SEBI's March 2026 benchmark and SID disclosure rules require a scheme-specific strategy and underlying-fund review; the category archetype is not an actual scheme or a passive-index replication claim.",
+          "multiFundSelectionCannotAutomaticallyBeCalledPassive": true,
+          "multipleUnderlyingFoFBenchmarkSubjectToFeb2026Framework": true,
+          "schemeBenchmarkMustMatchActualObjectiveAllocationAndStrategy": true,
+          "sidUnderlyingBenchmarkStrategyTerAumPerformanceAndTopHoldingsDisclosureRequired": true,
+          "fofAndUnderlyingExpensesMustBeDisclosed": true,
+          "riskConsiderations": [
+            "Several sector/thematic funds may share correlated issuer and industry exposures; benchmark performance is not downside protection.",
+            "Benchmark disclosure and fund-of-funds expenses are not current scheme risk, a live NAV, or a return guarantee."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual sector/theme overlap, named funds, SID benchmark, TER, KYC and redemption access.",
+            "No named AMC scheme, verified SID, account-specific KYC, commercial market-data permission or investment-advice authorization is established."
+          ],
+          "currentSchemeAndUnderlyingIdentitiesVerified": false,
+          "actualUnderlyingHoldingsVerified": false,
+          "currentSchemeBenchmarkAndSidVerified": false,
+          "currentFoFAndUnderlyingRiskometersVerified": false,
+          "currentNavFeesAndRedemptionVerified": false,
+          "individualKycRetailAccessAndTaxVerified": false,
+          "licensedDataAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -10935,6 +11007,42 @@
           "currentNavAndSchemeRiskometerVerified": false,
           "investorKycAndAccessVerified": false,
           "commercialDataRightsAndAdviceAuthorizationVerified": false
+        },
+        "sebiMarch2026FoFSidBenchmarkReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-11-01",
+          "paragraphsAndFormatsReviewed": [
+            "4.1.1",
+            "7.22.5",
+            "7.23.2",
+            "Format No. 5A - Investment Strategies",
+            "Format No. 5A - FoF Underlying Details"
+          ],
+          "sourceScope": "SEBI_MULTI_UNDERLYING_FOF_SID_BENCHMARK_RULES_NOT_SCHEME_APPROVAL",
+          "categoryCode": "AGGRESSIVE_HYBRID",
+          "categoryInterpretation": "For this AGGRESSIVE_HYBRID multi-underlying fund-of-funds category, SEBI's March 2026 benchmark and SID disclosure rules require a scheme-specific strategy and underlying-fund review; the category archetype is not an actual scheme or a passive-index replication claim.",
+          "multiFundSelectionCannotAutomaticallyBeCalledPassive": true,
+          "multipleUnderlyingFoFBenchmarkSubjectToFeb2026Framework": true,
+          "schemeBenchmarkMustMatchActualObjectiveAllocationAndStrategy": true,
+          "sidUnderlyingBenchmarkStrategyTerAumPerformanceAndTopHoldingsDisclosureRequired": true,
+          "fofAndUnderlyingExpensesMustBeDisclosed": true,
+          "riskConsiderations": [
+            "Equity-heavy underlying schemes can suffer drawdowns alongside debt credit and duration losses; a category allocation band is not current holdings.",
+            "Benchmark disclosure and fund-of-funds expenses are not current scheme risk, a live NAV, or a return guarantee."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual equity/debt holdings, benchmark, riskometer, exit terms and eligible investor access.",
+            "No named AMC scheme, verified SID, account-specific KYC, commercial market-data permission or investment-advice authorization is established."
+          ],
+          "currentSchemeAndUnderlyingIdentitiesVerified": false,
+          "actualUnderlyingHoldingsVerified": false,
+          "currentSchemeBenchmarkAndSidVerified": false,
+          "currentFoFAndUnderlyingRiskometersVerified": false,
+          "currentNavFeesAndRedemptionVerified": false,
+          "individualKycRetailAccessAndTaxVerified": false,
+          "licensedDataAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -11073,6 +11181,42 @@
           "investorKycAndAccessVerified": false,
           "commercialDataRightsAndAdviceAuthorizationVerified": false,
           "categoryInterpretation": "A conservative-hybrid multi-underlying FoF may allocate 75%-90% to debt-oriented and 10%-25% to equity-oriented funds under Annexure C, but Chapter 4.1 expense disclosures and the category label do not establish capital protection, a current scheme risk-o-meter or actual two-layer charges."
+        },
+        "sebiMarch2026FoFSidBenchmarkReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-11-01",
+          "paragraphsAndFormatsReviewed": [
+            "4.1.1",
+            "7.22.5",
+            "7.23.2",
+            "Format No. 5A - Investment Strategies",
+            "Format No. 5A - FoF Underlying Details"
+          ],
+          "sourceScope": "SEBI_MULTI_UNDERLYING_FOF_SID_BENCHMARK_RULES_NOT_SCHEME_APPROVAL",
+          "categoryCode": "CONSERVATIVE_HYBRID",
+          "categoryInterpretation": "For this CONSERVATIVE_HYBRID multi-underlying fund-of-funds category, SEBI's March 2026 benchmark and SID disclosure rules require a scheme-specific strategy and underlying-fund review; the category archetype is not an actual scheme or a passive-index replication claim.",
+          "multiFundSelectionCannotAutomaticallyBeCalledPassive": true,
+          "multipleUnderlyingFoFBenchmarkSubjectToFeb2026Framework": true,
+          "schemeBenchmarkMustMatchActualObjectiveAllocationAndStrategy": true,
+          "sidUnderlyingBenchmarkStrategyTerAumPerformanceAndTopHoldingsDisclosureRequired": true,
+          "fofAndUnderlyingExpensesMustBeDisclosed": true,
+          "riskConsiderations": [
+            "Debt-oriented holdings can incur credit and interest-rate losses and equity exposure remains; a conservative label is not capital protection.",
+            "Benchmark disclosure and fund-of-funds expenses are not current scheme risk, a live NAV, or a return guarantee."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual debt duration/credit and equity exposure, benchmark, NAV, TER and KYC.",
+            "No named AMC scheme, verified SID, account-specific KYC, commercial market-data permission or investment-advice authorization is established."
+          ],
+          "currentSchemeAndUnderlyingIdentitiesVerified": false,
+          "actualUnderlyingHoldingsVerified": false,
+          "currentSchemeBenchmarkAndSidVerified": false,
+          "currentFoFAndUnderlyingRiskometersVerified": false,
+          "currentNavFeesAndRedemptionVerified": false,
+          "individualKycRetailAccessAndTaxVerified": false,
+          "licensedDataAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -11211,6 +11355,42 @@
           "investorKycAndAccessVerified": false,
           "commercialDataRightsAndAdviceAuthorizationVerified": false,
           "categoryInterpretation": "An income-plus-arbitrage multi-underlying FoF may hold debt and arbitrage-oriented underlying funds under Annexure C; Chapter 4.1 requires both expense layers to be disclosed, not a guaranteed arbitrage spread, deposit-like liquidity or a verified current cost."
+        },
+        "sebiMarch2026FoFSidBenchmarkReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-11-01",
+          "paragraphsAndFormatsReviewed": [
+            "4.1.1",
+            "7.22.5",
+            "7.23.2",
+            "Format No. 5A - Investment Strategies",
+            "Format No. 5A - FoF Underlying Details"
+          ],
+          "sourceScope": "SEBI_MULTI_UNDERLYING_FOF_SID_BENCHMARK_RULES_NOT_SCHEME_APPROVAL",
+          "categoryCode": "INCOME_PLUS_ARBITRAGE",
+          "categoryInterpretation": "For this INCOME_PLUS_ARBITRAGE multi-underlying fund-of-funds category, SEBI's March 2026 benchmark and SID disclosure rules require a scheme-specific strategy and underlying-fund review; the category archetype is not an actual scheme or a passive-index replication claim.",
+          "multiFundSelectionCannotAutomaticallyBeCalledPassive": true,
+          "multipleUnderlyingFoFBenchmarkSubjectToFeb2026Framework": true,
+          "schemeBenchmarkMustMatchActualObjectiveAllocationAndStrategy": true,
+          "sidUnderlyingBenchmarkStrategyTerAumPerformanceAndTopHoldingsDisclosureRequired": true,
+          "fofAndUnderlyingExpensesMustBeDisclosed": true,
+          "riskConsiderations": [
+            "Arbitrage spreads can compress while debt funds suffer credit or rate losses; benchmark comparisons do not promise deposit-like returns.",
+            "Benchmark disclosure and fund-of-funds expenses are not current scheme risk, a live NAV, or a return guarantee."
+          ],
+          "investorAccessConstraints": [
+            "Verify underlying arbitrage/debt funds, benchmark, fees, riskometer, redemption and KYC.",
+            "No named AMC scheme, verified SID, account-specific KYC, commercial market-data permission or investment-advice authorization is established."
+          ],
+          "currentSchemeAndUnderlyingIdentitiesVerified": false,
+          "actualUnderlyingHoldingsVerified": false,
+          "currentSchemeBenchmarkAndSidVerified": false,
+          "currentFoFAndUnderlyingRiskometersVerified": false,
+          "currentNavFeesAndRedemptionVerified": false,
+          "individualKycRetailAccessAndTaxVerified": false,
+          "licensedDataAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -11349,6 +11529,42 @@
           "investorKycAndAccessVerified": false,
           "commercialDataRightsAndAdviceAuthorizationVerified": false,
           "categoryInterpretation": "A dynamic-allocation multi-underlying FoF can change its underlying equity and debt mix; Chapter 4.1 expense disclosures do not verify current weights, the scheme risk-o-meter, redemption costs or the actual FoF and underlying expense ratios."
+        },
+        "sebiMarch2026FoFSidBenchmarkReview": {
+          "officialSebiMasterCircularUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "masterCircularAsOf": "2026-03-20",
+          "reviewedOn": "2026-11-01",
+          "paragraphsAndFormatsReviewed": [
+            "4.1.1",
+            "7.22.5",
+            "7.23.2",
+            "Format No. 5A - Investment Strategies",
+            "Format No. 5A - FoF Underlying Details"
+          ],
+          "sourceScope": "SEBI_MULTI_UNDERLYING_FOF_SID_BENCHMARK_RULES_NOT_SCHEME_APPROVAL",
+          "categoryCode": "DYNAMIC_ASSET_ALLOCATION",
+          "categoryInterpretation": "For this DYNAMIC_ASSET_ALLOCATION multi-underlying fund-of-funds category, SEBI's March 2026 benchmark and SID disclosure rules require a scheme-specific strategy and underlying-fund review; the category archetype is not an actual scheme or a passive-index replication claim.",
+          "multiFundSelectionCannotAutomaticallyBeCalledPassive": true,
+          "multipleUnderlyingFoFBenchmarkSubjectToFeb2026Framework": true,
+          "schemeBenchmarkMustMatchActualObjectiveAllocationAndStrategy": true,
+          "sidUnderlyingBenchmarkStrategyTerAumPerformanceAndTopHoldingsDisclosureRequired": true,
+          "fofAndUnderlyingExpensesMustBeDisclosed": true,
+          "riskConsiderations": [
+            "Changes in underlying equity/debt fund weights introduce allocation-timing, turnover and market-loss risks; no static benchmark proves a fixed exposure.",
+            "Benchmark disclosure and fund-of-funds expenses are not current scheme risk, a live NAV, or a return guarantee."
+          ],
+          "investorAccessConstraints": [
+            "Verify dynamic allocation policy, actual holdings, benchmark, turnover, TER and exit terms.",
+            "No named AMC scheme, verified SID, account-specific KYC, commercial market-data permission or investment-advice authorization is established."
+          ],
+          "currentSchemeAndUnderlyingIdentitiesVerified": false,
+          "actualUnderlyingHoldingsVerified": false,
+          "currentSchemeBenchmarkAndSidVerified": false,
+          "currentFoFAndUnderlyingRiskometersVerified": false,
+          "currentNavFeesAndRedemptionVerified": false,
+          "individualKycRetailAccessAndTaxVerified": false,
+          "licensedDataAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false
         }
       }
     }
