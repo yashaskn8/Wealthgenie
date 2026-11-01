@@ -61,7 +61,7 @@ export const REVIEWED_DISCOVERY_CORRECTIONS = Object.freeze({
     "previousName": "Nifty 500 Equal Weight Index-Tracking Fund Strategy",
     "previousSourceUrl": "https://www.niftyindices.com/resources/index-methodology",
     "currentName": "Nifty 500 Equal Weight Index-Tracking Fund Strategy",
-    "currentSourceUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty500--equal--weight"
+    "currentSourceUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty500-equal-weight"
   },
   "catalog_2026_index_india_defence": {
     "id": "catalog_2026_index_india_defence",
