@@ -15,18 +15,18 @@ describe('250-family actual-product research workflow keeps trust boundaries', (
     const result = buildFinancial250ResearchCoverage();
     assert.equal(result.familyCount, 250);
     assert.equal(result.researchSlotCapacity, 750);
-    assert.equal(result.researchedFamilyCount, 18);
-    assert.equal(result.issuerIdentitiesResearched, 53);
+    assert.equal(result.researchedFamilyCount, 19);
+    assert.equal(result.issuerIdentitiesResearched, 56);
     assert.equal(result.duplicateIssuerProductsWithinCategory, 0);
     assert.equal(result.productionQualifiedFamilies, 'NOT_MEASURED');
     assert.equal(result.personalizedTopThreeComputed, false);
     assert.equal(result.afterTaxProductReturnsComputed, false);
     assert.equal(result.families.length, 250);
-    assert.equal(result.families.reduce((sum, f) => sum + f.researchOnlyCandidates.length, 0), 53);
+    assert.equal(result.families.reduce((sum, f) => sum + f.researchOnlyCandidates.length, 0), 56);
     assert.ok(result.families.every(f => f.productionComparisonReady === false));
     assert.ok(result.families.every(f => f.qualifiedProductCount === null));
     const familiesWithThree = result.families.filter(f => f.researchOnlyCandidates.length === 3);
-    assert.equal(familiesWithThree.length, 17);
+    assert.equal(familiesWithThree.length, 18);
     assert.equal(result.families.filter(f => f.researchOnlyCandidates.length === 2).length, 1);
     const byId = new Map(result.families.map(f => [f.familyId, f]));
     assert.deepEqual(
