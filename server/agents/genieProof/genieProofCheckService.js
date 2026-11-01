@@ -1,6 +1,7 @@
 import { containsGenieProofSensitiveIdentifiers } from '../../../shared/genieProofPrivacyPolicy.js';
 import { extractGenieProofClaims, GENIEPROOF_EVIDENCE_VERIFIER_VERSION, verifyConfirmedGenieProofClaim } from './genieProofCore.js';
 import { resolveGenieProofEvidenceForClaims } from './genieProofEvidenceRegistryService.js';
+import { triageUnsupportedGenieProofClaim } from './genieProofClaimTriage.js';
 import { GenieProofPassportVerifier, parseGenieProofTrustedPublicKeysJson } from './genieProofPassportSignature.js';
 
 const SOURCE_URL = 'https://www.indiapost.gov.in/banking-services/savings';
@@ -88,8 +89,8 @@ export async function checkGenieProofClaims({
 
   const claims = extracted.claims.map(candidate => {
     if (candidate.claimType !== 'CURRENT_NOMINAL_RATE') {
-      return unverified(candidate, 'CLAIM_NOT_SUPPORTED',
-        'An official evidence check for this type of financial statement is not available.');
+      const outcome = triageUnsupportedGenieProofClaim(candidate);
+      return unverified(candidate, outcome.reasonCode, outcome.explanation);
     }
     if (!verifier?.verifySignedManifest) {
       return unverified(candidate, 'NO_TRUSTED_EVIDENCE_VERIFIER',
