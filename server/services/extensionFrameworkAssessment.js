@@ -1864,6 +1864,39 @@ if(research.entries.filter(x=>x.indexBenchmarkReview?.nseNov2026CategoryReview
     'fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'].some(k=>v[k]!==false);
  }))throw new Error('FINANCIAL_NSE_NOV_2026_INDEX_SOURCE_SCOPE_INVALID');
 
+
+const nseRemainingPassiveSpecs=Object.freeze({
+ catalog_2026_index_india_defence:['NIFTY_INDIA_DEFENCE','INDEX_FUND','2026-03-30',20,null],
+ catalog_2026_etf_india_defence:['NIFTY_INDIA_DEFENCE','ETF','2026-03-30',20,null],
+ catalog_2026_etf_nifty500:['NIFTY500','ETF',null,null,500],
+});
+if(research.entries.filter(row=>row.thematicIndexReview?.nseNov2026RemainingPassiveReview
+ ||row.etfBenchmarkReview?.nseNov2026RemainingPassiveReview).length!==3
+ ||research.entries.some(row=>{
+  const expected=nseRemainingPassiveSpecs[row.id];
+  const v=row.thematicIndexReview?.nseNov2026RemainingPassiveReview
+   ||row.etfBenchmarkReview?.nseNov2026RemainingPassiveReview;
+  if(!expected)return v!==undefined;
+  return !v||v.benchmarkCode!==expected[0]||v.wrapper!==expected[1]
+   ||v.datedFactsheetAsOf!==expected[2]
+   ||v.publishedSingleStockCapPct!==expected[3]
+   ||v.publishedConstituentCount!==expected[4]
+   ||!isOfficialFrameworkReferenceUrl(v.officialNseIndexPageUrl)
+   ||v.officialSebiCategorizationCircularUrl!==sebiDebtSchemeCircularUrl
+   ||v.reviewedOn!=='2026-11-01'
+   ||v.categoryMinimumIndexSecuritiesAllocationPct!==95
+   ||v.existingSchemeAlignmentWindowMonths!==6
+   ||v.datedFactsheetIsCurrentSchemeEvidence!==false
+   ||v.publishedIndexCapProvesActualSchemeHoldings!==false
+   ||v.nseIndexPageIssuerListProvesSpecificProductTerms!==false
+   ||v.categoryInterpretation?.length<100||v.riskConsiderations?.length<2
+   ||v.investorAccessConstraints?.length<2
+   ||['actualNamedSchemeAndSidKimVerified','actualSchemeHoldingsAnd95PctComplianceVerified',
+    'currentSchemeRiskometerVerified','currentNavOrExecutableQuoteVerified',
+    'individualKycAndRetailAccessVerified','commercialMarketDataRightsVerified',
+    'fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'].some(key=>v[key]!==false);
+ }))throw new Error('FINANCIAL_NSE_REMAINING_PASSIVE_NOV2026_SCOPE_INVALID');
+
 const frameworkPublisherCautions=Object.freeze({
   GOVERNMENT_SCHEME_OPERATOR:'OFFICIAL_SCHEME_LISTING_NOT_INDIVIDUAL_ACCOUNT_OR_CURRENT_TERMS',
   GOVERNMENT_POLICY_PUBLISHER:'GOVERNMENT_GREEN_BOND_FRAMEWORK_NOT_A_SPECIFIC_ISSUE_OR_IMPACT_APPROVAL',
@@ -2256,6 +2289,43 @@ export function screenExtensionResearchForProfile(profileInput) {
      if(profile.emergencyFundMonths===0)reasons.push(codes[2]);
      if(profile.riskTolerance==='Conservative')reasons.push(codes[3]);
     }
+   }
+
+
+   // A published index constituent cap or broad-market benchmark is not a
+   // verified fund holding, riskometer, tradable ETF or client permission.
+   const nseRemaining=row.thematicIndexReview?.nseNov2026RemainingPassiveReview
+    ||row.etfBenchmarkReview?.nseNov2026RemainingPassiveReview;
+   if(nseRemaining){
+     const codes={
+      catalog_2026_index_india_defence:[
+       'DEFENCE_INDEX_20PCT_CAP_NOT_CURRENT_FUND_DIVERSIFICATION',
+       'SHORT_OR_EMERGENCY_GOAL_REQUIRES_DEFENCE_INDEX_EXIT_AND_LOSS_REVIEW',
+       'ZERO_EMERGENCY_BUFFER_REQUIRES_DEFENCE_INDEX_REDEMPTION_REVIEW',
+       'CONSERVATIVE_PROFILE_REQUIRES_DEFENCE_INDEX_CONCENTRATION_REVIEW'],
+      catalog_2026_etf_india_defence:[
+       'DEFENCE_ETF_20PCT_INDEX_CAP_NOT_EXECUTABLE_DIVERSIFICATION',
+       'SHORT_OR_EMERGENCY_GOAL_REQUIRES_DEFENCE_ETF_SPREAD_AND_LOSS_REVIEW',
+       'ZERO_EMERGENCY_BUFFER_REQUIRES_DEFENCE_ETF_ORDERBOOK_EXIT_REVIEW',
+       'CONSERVATIVE_PROFILE_REQUIRES_DEFENCE_ETF_CONCENTRATION_REVIEW'],
+      catalog_2026_etf_nifty500:[
+       'NIFTY500_ETF_BENCHMARK_BREADTH_NOT_VERIFIED_HOLDINGS',
+       'SHORT_OR_EMERGENCY_GOAL_REQUIRES_NIFTY500_ETF_SPREAD_AND_EXIT_REVIEW',
+       'ZERO_EMERGENCY_BUFFER_REQUIRES_NIFTY500_ETF_ORDERBOOK_EXIT_REVIEW',
+       'CONSERVATIVE_PROFILE_REQUIRES_NIFTY500_ETF_EQUITY_LOSS_REVIEW'],
+     }[row.id];
+     if(codes){
+      reasons.push('NSE_INDEX_METHODOLOGY_NOT_SCHEME_RISKOMETER_OR_CURRENT_PORTFOLIO');
+      reasons.push('SEBI_FEB_2026_PASSIVE_95PCT_NOT_VERIFIED_SCHEME_COMPLIANCE');
+      reasons.push(codes[0]);
+      if(nseRemaining.wrapper==='ETF')
+       reasons.push('NSE_BENCHMARK_ISSUER_LIST_NOT_AUTHENTICATED_ETF_QUOTE_OR_ACCESS');
+      if((Number.isFinite(profile.investmentHorizonYears)
+        &&profile.investmentHorizonYears<=3)
+        ||profile.investmentGoals.includes('Emergency Fund'))reasons.push(codes[1]);
+      if(profile.emergencyFundMonths===0)reasons.push(codes[2]);
+      if(profile.riskTolerance==='Conservative')reasons.push(codes[3]);
+     }
    }
 
    if(row.indexBenchmarkReview?.sebiFeb2026PassiveReplicationReview) {

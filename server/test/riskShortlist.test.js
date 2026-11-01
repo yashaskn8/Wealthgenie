@@ -3998,3 +3998,78 @@ test('three NSE 2026 index profiles preserve distinct source and financial scree
  assert.ok(!listExtensionResearch().find(x=>x.id===specs[0][0]).indexBenchmarkReview
   .nseNov2026CategoryReview.riskConsiderations.includes('FORGED'));
 });
+
+
+test('three remaining NSE passive benchmarks distinguish dated index facts from verified scheme and ETF access',()=>{
+ const specs=[
+  ['catalog_2026_index_india_defence','NIFTY_INDIA_DEFENCE','INDEX_FUND',
+   'DEFENCE_INDEX_20PCT_CAP_NOT_CURRENT_FUND_DIVERSIFICATION',
+   'SHORT_OR_EMERGENCY_GOAL_REQUIRES_DEFENCE_INDEX_EXIT_AND_LOSS_REVIEW',
+   'ZERO_EMERGENCY_BUFFER_REQUIRES_DEFENCE_INDEX_REDEMPTION_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_DEFENCE_INDEX_CONCENTRATION_REVIEW'],
+  ['catalog_2026_etf_india_defence','NIFTY_INDIA_DEFENCE','ETF',
+   'DEFENCE_ETF_20PCT_INDEX_CAP_NOT_EXECUTABLE_DIVERSIFICATION',
+   'SHORT_OR_EMERGENCY_GOAL_REQUIRES_DEFENCE_ETF_SPREAD_AND_LOSS_REVIEW',
+   'ZERO_EMERGENCY_BUFFER_REQUIRES_DEFENCE_ETF_ORDERBOOK_EXIT_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_DEFENCE_ETF_CONCENTRATION_REVIEW'],
+  ['catalog_2026_etf_nifty500','NIFTY500','ETF',
+   'NIFTY500_ETF_BENCHMARK_BREADTH_NOT_VERIFIED_HOLDINGS',
+   'SHORT_OR_EMERGENCY_GOAL_REQUIRES_NIFTY500_ETF_SPREAD_AND_EXIT_REVIEW',
+   'ZERO_EMERGENCY_BUFFER_REQUIRES_NIFTY500_ETF_ORDERBOOK_EXIT_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_NIFTY500_ETF_EQUITY_LOSS_REVIEW'],
+ ];
+ const screen=overrides=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+  emergencyFundMonths:null,riskTolerance:'Aggressive',...overrides,
+ })).map(x=>[x.id,x]));
+ const base=screen({}),flagged=screen({investmentGoals:['Emergency Fund'],
+  investmentHorizonYears:2,emergencyFundMonths:0,riskTolerance:'Conservative'});
+ const rows=listExtensionResearch(),interpretations=new Set();
+ for(const [id,benchmark,wrapper,structure,horizon,zero,conservative] of specs){
+  const row=rows.find(x=>x.id===id);
+  const v=(row.thematicIndexReview||row.etfBenchmarkReview).nseNov2026RemainingPassiveReview;
+  assert.equal(v.benchmarkCode,benchmark);
+  assert.equal(v.wrapper,wrapper);
+  assert.equal(v.reviewedOn,'2026-11-01');
+  assert.equal(v.categoryMinimumIndexSecuritiesAllocationPct,95);
+  assert.equal(v.existingSchemeAlignmentWindowMonths,6);
+  assert.equal(v.datedFactsheetIsCurrentSchemeEvidence,false);
+  assert.equal(v.publishedIndexCapProvesActualSchemeHoldings,false);
+  assert.equal(v.nseIndexPageIssuerListProvesSpecificProductTerms,false);
+  assert.ok(isOfficialFrameworkReferenceUrl(v.officialNseIndexPageUrl));
+  assert.ok(v.riskConsiderations.length>=2&&v.investorAccessConstraints.length>=2);
+  if(benchmark==='NIFTY_INDIA_DEFENCE'){
+   assert.equal(v.datedFactsheetAsOf,'2026-03-30');
+   assert.equal(v.publishedSingleStockCapPct,20);
+  }else{
+   assert.equal(v.datedFactsheetAsOf,null);
+   assert.equal(v.publishedConstituentCount,500);
+  }
+  interpretations.add(v.categoryInterpretation);
+  for(const k of ['actualNamedSchemeAndSidKimVerified',
+   'actualSchemeHoldingsAnd95PctComplianceVerified','currentSchemeRiskometerVerified',
+   'currentNavOrExecutableQuoteVerified','individualKycAndRetailAccessVerified',
+   'commercialMarketDataRightsVerified',
+   'fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'])assert.equal(v[k],false);
+  for(const x of [base.get(id),flagged.get(id)]){
+   assert.equal(x.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(x.productQualified,false);
+   assert.equal(x.scoreAvailable,false);
+   assert.equal(x.productRiskLevel,null);
+   for(const c of [structure,'NSE_INDEX_METHODOLOGY_NOT_SCHEME_RISKOMETER_OR_CURRENT_PORTFOLIO',
+    'SEBI_FEB_2026_PASSIVE_95PCT_NOT_VERIFIED_SCHEME_COMPLIANCE'])
+    assert.ok(x.screeningReasonCodes.includes(c),id+':'+c);
+   if(wrapper==='ETF')assert.ok(x.screeningReasonCodes.includes(
+    'NSE_BENCHMARK_ISSUER_LIST_NOT_AUTHENTICATED_ETF_QUOTE_OR_ACCESS'));
+  }
+  for(const c of [horizon,zero,conservative]){
+   assert.ok(!base.get(id).screeningReasonCodes.includes(c),id+':'+c);
+   assert.ok(flagged.get(id).screeningReasonCodes.includes(c),id+':'+c);
+  }
+ }
+ assert.equal(interpretations.size,3);
+ const mutable=rows.find(x=>x.id===specs[0][0]).thematicIndexReview.nseNov2026RemainingPassiveReview;
+ mutable.riskConsiderations.push('FORGED FUND RISK APPROVAL');
+ assert.ok(!listExtensionResearch().find(x=>x.id===specs[0][0]).thematicIndexReview
+  .nseNov2026RemainingPassiveReview.riskConsiderations.includes('FORGED FUND RISK APPROVAL'));
+});

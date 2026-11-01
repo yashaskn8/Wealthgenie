@@ -1947,3 +1947,30 @@ test('three NSE index category reviews remain unqualified and defensively copied
    .investorAccessConstraints.includes('FORGED APPROVAL'));
  }
 });
+
+
+test('three NSE benchmark reviews remain discovery-only and defensively copied',()=>{
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ for(const [id,reviewKey,benchmark] of [
+  ['catalog_2026_index_india_defence','thematicIndexReview','NIFTY_INDIA_DEFENCE'],
+  ['catalog_2026_etf_india_defence','etfBenchmarkReview','NIFTY_INDIA_DEFENCE'],
+  ['catalog_2026_etf_nifty500','etfBenchmarkReview','NIFTY500'],
+ ]){
+  const item=get(id);
+  const v=item.frameworkResearch[reviewKey].nseNov2026RemainingPassiveReview;
+  assert.equal(v.benchmarkCode,benchmark);
+  assert.equal(v.reviewedOn,'2026-11-01');
+  assert.equal(v.categoryMinimumIndexSecuritiesAllocationPct,95);
+  assert.equal(v.currentSchemeRiskometerVerified,false);
+  assert.equal(v.actualNamedSchemeAndSidKimVerified,false);
+  assert.equal(v.currentNavOrExecutableQuoteVerified,false);
+  assert.equal(v.individualKycAndRetailAccessVerified,false);
+  assert.equal(v.commercialMarketDataRightsVerified,false);
+  assert.equal(v.fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified,false);
+  assert.equal(item.recommendationEligible,false);
+  assert.ok(Object.values(item.productData).every(value=>value===null));
+  v.investorAccessConstraints.push('FORGED ETF PERMISSION');
+  assert.ok(!get(id).frameworkResearch[reviewKey].nseNov2026RemainingPassiveReview
+   .investorAccessConstraints.includes('FORGED ETF PERMISSION'));
+ }
+});

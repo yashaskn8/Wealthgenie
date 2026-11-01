@@ -3822,7 +3822,42 @@
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
         "personalizedAdviceAuthorizationVerified": false,
-        "currentSchemeRiskometerVerified": false
+        "currentSchemeRiskometerVerified": false,
+        "nseNov2026RemainingPassiveReview": {
+          "benchmarkCode": "NIFTY_INDIA_DEFENCE",
+          "wrapper": "INDEX_FUND",
+          "officialNseIndexPageUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-defence",
+          "officialNseDatedFactsheetUrl": "https://www.niftyindices.com/Factsheet/Factsheet_NiftyIndiaDefence.pdf",
+          "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "reviewedOn": "2026-11-01",
+          "datedFactsheetAsOf": "2026-03-30",
+          "publishedConstituentCount": null,
+          "publishedSingleStockCapPct": 20,
+          "benchmarkSelectionBasis": "Nifty Total Market eligible defence basic industries or qualifying companies with at least 10% defence revenue; six-month average free-float market-cap selection.",
+          "benchmarkWeightingAndReconstitution": "Free-float capitalization weights with a published 20% constituent cap; the dated factsheet describes semiannual index reconstitution.",
+          "categoryMinimumIndexSecuritiesAllocationPct": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "datedFactsheetIsCurrentSchemeEvidence": false,
+          "publishedIndexCapProvesActualSchemeHoldings": false,
+          "nseIndexPageIssuerListProvesSpecificProductTerms": false,
+          "sourceScope": "OFFICIAL_INDEX_CONSTRUCTION_AND_GENERAL_PASSIVE_RULE_NOT_SCHEME_RISKOMETER_QUOTE_OR_ELIGIBILITY",
+          "categoryInterpretation": "Nifty India Defence is a concentrated thematic benchmark. A 20% published index constituent cap and March 2026 methodology do not establish a fund's current holdings, scheme riskometer, actual redemption liquidity or individual subscription eligibility.",
+          "riskConsiderations": [
+            "Defence procurement cycles, policy changes and a concentrated eligible-company universe can cause equity drawdowns despite the published index cap.",
+            "A tracking index fund can deviate from benchmark returns through cash drag, expenses, constituent liquidity and reconstitution trades."
+          ],
+          "investorAccessConstraints": [
+            "Verify the actual AMC, scheme documents, current holdings, current scheme-specific riskometer, redemption terms, NAV, KYC and investor eligibility before presenting any fund.",
+            "The NSE index page and dated factsheet are benchmark references only; their listed issuers do not verify an individual scheme, data license or personalized advice authority."
+          ],
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualSchemeHoldingsAnd95PctComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
@@ -4201,6 +4236,41 @@
             "Verify named AMC ETF, ticker, ISIN, SID/KIM and current riskometer. An underlying index is not a listed ETF.",
             "Verify licensed live bid/ask, spread, NAV/iNAV, settlement, demat/KYC, broker permissions and actual exchange implementation; a circular is not an executable offer."
           ]
+        },
+        "nseNov2026RemainingPassiveReview": {
+          "benchmarkCode": "NIFTY500",
+          "wrapper": "ETF",
+          "officialNseIndexPageUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-500",
+          "officialNseDatedFactsheetUrl": null,
+          "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "reviewedOn": "2026-11-01",
+          "datedFactsheetAsOf": null,
+          "publishedConstituentCount": 500,
+          "publishedSingleStockCapPct": null,
+          "benchmarkSelectionBasis": "NSE describes a 500-company broad-market benchmark selected from the eligible universe using full market capitalization and average daily turnover.",
+          "benchmarkWeightingAndReconstitution": "Broad-market index methodology does not establish an ETF's actual security weights, replication method or current trading liquidity.",
+          "categoryMinimumIndexSecuritiesAllocationPct": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "datedFactsheetIsCurrentSchemeEvidence": false,
+          "publishedIndexCapProvesActualSchemeHoldings": false,
+          "nseIndexPageIssuerListProvesSpecificProductTerms": false,
+          "sourceScope": "OFFICIAL_INDEX_CONSTRUCTION_AND_GENERAL_PASSIVE_RULE_NOT_SCHEME_RISKOMETER_QUOTE_OR_ELIGIBILITY",
+          "categoryInterpretation": "Nifty 500 benchmark breadth is not a verified diversified ETF portfolio or a liquid exchange market. The actual scheme's index replication, tracking differences, holdings, current riskometer, order book and investor permissions remain independently unverified.",
+          "riskConsiderations": [
+            "A broad 500-company equity benchmark remains exposed to market losses, capitalization concentration and smaller-constituent liquidity constraints.",
+            "ETF secondary-market spreads, NAV premiums or discounts and replication costs can produce a different realized outcome from benchmark index performance."
+          ],
+          "investorAccessConstraints": [
+            "Verify named listed ETF, AMC, ticker, ISIN, current SID/KIM, holdings, scheme-specific riskometer and actual price/NAV before product-level presentation.",
+            "Verify live licensed order-book quotes, demat/broker/KYC access, current exchange liquidity, applicable fees, tax and authorized advice; the NSE benchmark page is not an order."
+          ],
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualSchemeHoldingsAnd95PctComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -5058,6 +5128,41 @@
             "Independently verify actual AMC scheme, exchange ticker/ISIN, SID/KIM, current scheme riskometer, fees and tracking disclosures. An underlying index is not a listed ETF.",
             "Verify licensed live bid/ask, spread, NAV/iNAV, settlement, demat/KYC, broker permissions and actual exchange implementation; a circular is not an executable offer."
           ]
+        },
+        "nseNov2026RemainingPassiveReview": {
+          "benchmarkCode": "NIFTY_INDIA_DEFENCE",
+          "wrapper": "ETF",
+          "officialNseIndexPageUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-defence",
+          "officialNseDatedFactsheetUrl": "https://www.niftyindices.com/Factsheet/Factsheet_NiftyIndiaDefence.pdf",
+          "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "reviewedOn": "2026-11-01",
+          "datedFactsheetAsOf": "2026-03-30",
+          "publishedConstituentCount": null,
+          "publishedSingleStockCapPct": 20,
+          "benchmarkSelectionBasis": "Nifty Total Market eligible defence basic industries or qualifying companies with at least 10% defence revenue; six-month average free-float market-cap selection.",
+          "benchmarkWeightingAndReconstitution": "Free-float capitalization weights with a published 20% constituent cap; the dated factsheet describes semiannual index reconstitution.",
+          "categoryMinimumIndexSecuritiesAllocationPct": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "datedFactsheetIsCurrentSchemeEvidence": false,
+          "publishedIndexCapProvesActualSchemeHoldings": false,
+          "nseIndexPageIssuerListProvesSpecificProductTerms": false,
+          "sourceScope": "OFFICIAL_INDEX_CONSTRUCTION_AND_GENERAL_PASSIVE_RULE_NOT_SCHEME_RISKOMETER_QUOTE_OR_ELIGIBILITY",
+          "categoryInterpretation": "The defence-theme benchmark and its constituent cap are not evidence of an authenticated exchange-traded fund. ETF execution also requires a named listed ISIN, current order-book depth, bid-ask spread, NAV comparison, account permissions and scheme-specific risk disclosures.",
+          "riskConsiderations": [
+            "Defence-theme policy and procurement concentration can amplify underlying equity losses; an index cap does not protect ETF principal.",
+            "Exchange bid-ask spreads, discounts or premiums to NAV, tracking costs and settlement constraints can worsen an ETF exit beyond benchmark movements."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual listed AMC scheme, exchange ticker and ISIN, SID/KIM, riskometer, live authorized bid/ask and NAV before any ETF purchase presentation.",
+            "Verify demat/broker/KYC eligibility, trade settlement, fees, quote redistribution permissions and advice authorization; an NSE benchmark issuer list is not a verified order book."
+          ],
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualSchemeHoldingsAnd95PctComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
         }
       }
     },
