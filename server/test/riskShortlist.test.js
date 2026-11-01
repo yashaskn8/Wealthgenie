@@ -4271,3 +4271,56 @@ test('six NSE broad-index reviews distinguish benchmarks and screen only recorde
  assert.ok(!listExtensionResearch().find(x=>x.id===Object.keys(codes)[0])
   .indexBenchmarkReview.nseSep2026SegmentEvidenceReview.riskConsiderations.includes('FORGED APPROVAL'));
 });
+
+test('SIF March 2026 five-level Risk-band and interval terms remain strategy-specific and non-ranking',()=>{
+ const id='catalog_2026_sif_hybrid_longshort';
+ const row=listExtensionResearch().find(x=>x.id===id);
+ const v=row.individualCategoryReview.sifMarch2026RiskBandAndIntervalDisclosureReview;
+ assert.equal(v.officialSebiMasterCircularPdfUrl,'https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf');
+ assert.deepEqual(v.paragraphs,['21.3.1(c)(ii)','21.4.1-21.4.2','21.11.1','21.12.1-21.12.7','21.13.1-21.13.4']);
+ assert.equal(v.sifRiskBandLevelCount,5);
+ assert.equal(v.minimumEquityAllocationPercent,25);
+ assert.equal(v.minimumDebtAllocationPercent,25);
+ assert.equal(v.maximumUnhedgedDerivativeShortExposurePercent,25);
+ assert.equal(v.sourceRedemptionFrequencyWording,'TWO_TIMES_IN_A_WEEK_OR_ANY_LESSER_FREQUENCY_AS_DECIDED_BY_AMC');
+ assert.equal(v.twiceWeeklyRedemptionGuaranteedForActualStrategy,false);
+ assert.equal(v.riskBandEvaluatedMonthly,true);
+ assert.equal(v.riskBandPublicationWithinCalendarDaysOfMonthEnd,10);
+ assert.equal(v.portfolioDisclosureEveryAlternateMonth,true);
+ assert.equal(v.portfolioDisclosureIncludesDerivatives,true);
+ assert.equal(v.portfolioPublicationWithinCalendarDaysOfRelevantMonthEnd,10);
+ assert.equal(v.isidRequiresDerivativeScenarioAnalysis,true);
+ for(const k of ['actualStrategyIsidAndRedemptionWindowVerified','actualStrategyCurrentFiveLevelRiskBandVerified',
+   'individualPanThresholdKycAndExceptionsVerified','currentAuthorizedNavAndSettlementVerified',
+   'distributorCertificationAndSignedProviderRightsVerified','taxAndPersonalizedAdviceAuthorizationVerified']){
+  assert.equal(v[k],false,k);
+ }
+ const pick=p=>screenExtensionResearchForProfile(canonicalProfile(p)).find(x=>x.id===id);
+ const baseline=pick({investmentHorizonYears:10,investmentGoals:['Wealth Growth'],
+   riskTolerance:'Aggressive',emergencyFundMonths:null});
+ const short=pick({investmentHorizonYears:2,investmentGoals:['Wealth Growth'],
+   riskTolerance:'Aggressive',emergencyFundMonths:null});
+ const goal=pick({investmentHorizonYears:10,investmentGoals:['Emergency Fund'],
+   riskTolerance:'Aggressive',emergencyFundMonths:null});
+ const cautious=pick({investmentHorizonYears:10,investmentGoals:['Wealth Growth'],
+   riskTolerance:'Conservative',emergencyFundMonths:0});
+ const common=['SIF_FIVE_LEVEL_MONTHLY_RISK_BAND_NOT_VERIFIED_STRATEGY_RISK_OR_MF_RISKOMETER',
+   'SIF_TWICE_WEEKLY_OR_LESS_FREQUENT_REFERENCE_NOT_GUARANTEED_EXIT'];
+ for(const x of [baseline,short,goal,cautious]){
+  for(const c of common)assert.ok(x.screeningReasonCodes.includes(c),c);
+  assert.equal(x.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+  assert.equal(x.scoreAvailable,false);
+  assert.equal(x.productQualified,false);
+  assert.equal(x.productRiskLevel,null);
+ }
+ const exit='SIF_SHORT_HORIZON_OR_EMERGENCY_GOAL_REQUIRES_ISID_NOTICE_AND_DERIVATIVE_SCENARIO_REVIEW';
+ assert.ok(!baseline.screeningReasonCodes.includes(exit));
+ assert.ok(short.screeningReasonCodes.includes(exit));
+ assert.ok(goal.screeningReasonCodes.includes(exit));
+ assert.ok(!baseline.screeningReasonCodes.includes('RECORDED_ZERO_BUFFER_REQUIRES_SIF_ACTUAL_INTERVAL_REDEMPTION_WINDOW_REVIEW'));
+ assert.ok(cautious.screeningReasonCodes.includes('RECORDED_ZERO_BUFFER_REQUIRES_SIF_ACTUAL_INTERVAL_REDEMPTION_WINDOW_REVIEW'));
+ assert.ok(cautious.screeningReasonCodes.includes('CONSERVATIVE_PROFILE_REQUIRES_SIF_DERIVATIVE_AND_INTERVAL_LOSS_CAPACITY_REVIEW'));
+ v.riskConsiderations.push('FORGED RISK BAND');
+ assert.ok(!listExtensionResearch().find(x=>x.id===id).individualCategoryReview
+  .sifMarch2026RiskBandAndIntervalDisclosureReview.riskConsiderations.includes('FORGED RISK BAND'));
+});

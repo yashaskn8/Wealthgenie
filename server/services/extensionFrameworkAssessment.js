@@ -1150,6 +1150,32 @@ if(sifThreshold?.officialSebiCircularUrl!==sifMinimumThresholdMonitoringUrl
   ||['actualDistributorCertificationVerified','signedProviderDistributionEntitlementVerified',
     'personalizedAdviceAuthorizationVerified'].some(key=>sifDistribution[key]!==false))
  throw new Error('FINANCIAL_SIF_THRESHOLD_DISTRIBUTION_EVIDENCE_INVALID');
+// SEBI's SIF Risk-band is a five-level strategy-specific monthly disclosure,
+// not an MF scheme riskometer, a live category risk score, or a redemption promise.
+const sifDisclosure=sifReview?.sifMarch2026RiskBandAndIntervalDisclosureReview;
+if(sifDisclosure?.officialSebiMasterCircularPdfUrl!=='https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf'
+  ||sifDisclosure.circularIssuedOn!=='2026-03-20'
+  ||sifDisclosure.sifRiskBandLevelCount!==5
+  ||sifDisclosure.minimumEquityAllocationPercent!==25
+  ||sifDisclosure.minimumDebtAllocationPercent!==25
+  ||sifDisclosure.maximumUnhedgedDerivativeShortExposurePercent!==25
+  ||sifDisclosure.sourceRedemptionFrequencyWording!=='TWO_TIMES_IN_A_WEEK_OR_ANY_LESSER_FREQUENCY_AS_DECIDED_BY_AMC'
+  ||sifDisclosure.riskBandPublicationWithinCalendarDaysOfMonthEnd!==10
+  ||sifDisclosure.portfolioPublicationWithinCalendarDaysOfRelevantMonthEnd!==10
+  ||['riskBandEvaluatedMonthly','portfolioDisclosureEveryAlternateMonth',
+    'portfolioDisclosureIncludesDerivatives','isidRequiresDerivativeScenarioAnalysis',
+    'isidRequiresActualSubscriptionRedemptionAndNoticeTerms',
+    'sifRiskBandIsDistinctFromActualMutualFundSchemeRiskometer'].some(k=>sifDisclosure[k]!==true)
+  ||['twiceWeeklyRedemptionGuaranteedForActualStrategy',
+    'actualStrategyIsidAndRedemptionWindowVerified',
+    'actualStrategyCurrentFiveLevelRiskBandVerified',
+    'actualPortfolioDerivativePositionsAndLossScenariosVerified',
+    'individualPanThresholdKycAndExceptionsVerified',
+    'currentAuthorizedNavAndSettlementVerified',
+    'distributorCertificationAndSignedProviderRightsVerified',
+    'taxAndPersonalizedAdviceAuthorizationVerified',
+    'laterRegulatoryAmendmentsAndActualStrategyDisclosuresFullyReconciled'].some(k=>sifDisclosure[k]!==false))
+ throw new Error('FINANCIAL_SIF_RISK_BAND_INTERVAL_DISCLOSURE_SCOPE_INVALID');
 // All 95 rows must now have distinct, nonempty structured risk and investor
 // access cautions; this does NOT qualify 95 products or grant advice rights.
 if(research.entries.some(row=>!Object.values(row).some(v=>v&&typeof v==='object'
@@ -3074,6 +3100,15 @@ export function screenExtensionResearchForProfile(profileInput) {
      reasons.push('SIF_DERIVATIVE_SHORT_AND_INTERVAL_REDEMPTION_TERMS_UNVERIFIED');
      reasons.push('SIF_PAN_AGGREGATE_THRESHOLD_ACTIVE_BREACH_AND_REDEMPTION_REVIEW');
      reasons.push('SIF_DISTRIBUTOR_CERTIFICATION_AND_SIGNED_ENTITLEMENT_UNVERIFIED');
+     reasons.push('SIF_FIVE_LEVEL_MONTHLY_RISK_BAND_NOT_VERIFIED_STRATEGY_RISK_OR_MF_RISKOMETER');
+     reasons.push('SIF_TWICE_WEEKLY_OR_LESS_FREQUENT_REFERENCE_NOT_GUARANTEED_EXIT');
+     if((Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
+       ||profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('SIF_SHORT_HORIZON_OR_EMERGENCY_GOAL_REQUIRES_ISID_NOTICE_AND_DERIVATIVE_SCENARIO_REVIEW');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_SIF_DERIVATIVE_AND_INTERVAL_LOSS_CAPACITY_REVIEW');
+     if(profile.emergencyFundMonths===0)
+       reasons.push('RECORDED_ZERO_BUFFER_REQUIRES_SIF_ACTUAL_INTERVAL_REDEMPTION_WINDOW_REVIEW');
      // A reported lump sum is not the investor's verified aggregate PAN-level
      // holdings in this SIF. The notice must never become an eligibility denial.
      if(profile.hasLumpSum===true&&nonnegative(profile.lumpSumAmount)
