@@ -7,6 +7,7 @@ on:
       - 'server/routes/genieProofRoutes.js'
       - 'server/test/genieProof*.test.js'
       - 'reactapp/src/components/GenieProof*'
+      - 'reactapp/src/components/genieProofResultPresentation.js'
       - 'reactapp/src/components/__tests__/GenieProof*'
       - 'shared/genieProofPrivacyPolicy.js'
       - '.github/workflows/genieproof-quality.yml'
@@ -17,6 +18,7 @@ on:
       - 'server/routes/genieProofRoutes.js'
       - 'server/test/genieProof*.test.js'
       - 'reactapp/src/components/GenieProof*'
+      - 'reactapp/src/components/genieProofResultPresentation.js'
       - 'reactapp/src/components/__tests__/GenieProof*'
       - 'shared/genieProofPrivacyPolicy.js'
       - '.github/workflows/genieproof-quality.yml'
@@ -76,6 +78,8 @@ jobs:
         run: >-
           node --test
           test/genieProofCapabilityStatus.test.js
+          test/genieProofArchitectureTournament.test.js
+          test/genieProofClaimTriage.test.js
           test/genieProofCheckService.test.js
           test/genieProofNvidiaReviewService.test.js
           test/genieProofMathService.test.js
