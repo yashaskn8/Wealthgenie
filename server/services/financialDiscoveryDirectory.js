@@ -9,6 +9,7 @@ import { listExtensionResearch, getFrameworkSourcePublisherType } from './extens
 import { validateFirstFamilyResearchPilot } from '../scripts/validateFirstFamilyResearchPilot.js';
 import { validateIssuerResearchBatch } from '../scripts/generateFinancialProductResearchCoverage.js';
 import { listAdditionalIssuerExamples } from './additionalIssuerExamples.js';
+import { assertDistinctIssuerOptionsByCategory } from './issuerCandidateUniqueness.js';
 
 const extensions = JSON.parse(readFileSync(
   new URL('../data/investmentUniverseExtensions2026.json', import.meta.url), 'utf8',
@@ -250,6 +251,7 @@ function buildDirectory() {
     ids.add(item.id); names.add(normalize(item.name));
   }
   if (rows.length !== 250) throw new Error('FINANCIAL_EDUCATIONAL_DIRECTORY_MISSING_ENTRIES');
+  assertDistinctIssuerOptionsByCategory(rows);
   return rows;
 }
 const DIRECTORY = Object.freeze(buildDirectory().map(row => Object.freeze(row)));
