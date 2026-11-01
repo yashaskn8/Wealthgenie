@@ -1852,3 +1852,36 @@ test('four NSE equal-weight reviews remain unqualified and defensively copied in
    .investorAccessConstraints.includes('FORGED RETAIL ETF ELIGIBILITY'));
  }
 });
+
+// A public index methodology and issuer list never provide retail access or advice rights.
+test('Nifty200 Quality 30 research is educational, unqualified and defensively copied',()=>{
+ const ids=['catalog_2026_index_nifty200_quality','catalog_2026_etf_nifty200_quality'];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ for(const [i,id] of ids.entries()){
+  const etf=i===1,item=get(id);
+  const review=(etf?item.frameworkResearch.etfBenchmarkReview:
+   item.frameworkResearch.indexBenchmarkReview).nseQuality2026SourceReview;
+  assert.equal(review.wrapper,etf?'EXCHANGE_TRADED_FUND':'INDEX_MUTUAL_FUND');
+  assert.equal(review.targetConstituentCount,30);
+  assert.equal(review.categoryMinimumIndexSecuritiesAllocationPct,95);
+  assert.equal(review.currentMethodologyRevisionIndependentlyVerified,false);
+  assert.equal(review.actualNamedSchemeAndSidKimVerified,false);
+  assert.equal(review.currentSchemeRiskometerVerified,false);
+  assert.equal(review.currentNavOrExecutableQuoteVerified,false);
+  assert.equal(review.individualKycAndRetailAccessVerified,false);
+  assert.equal(review.commercialMarketDataRightsVerified,false);
+  assert.equal(review.fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified,false);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.equal(item.frameworkResearch.actualRiskScore,null);
+  assert.equal(item.frameworkResearch.issuerTermsVerified,false);
+  assert.equal(item.frameworkResearch.sourceRightsVerified,false);
+  assert.ok(Object.values(item.productData).every(x=>x===null));
+  review.investorAccessConstraints.push('FORGED RETAIL APPROVAL');
+  const fresh=get(id);
+  assert.ok(!(etf?fresh.frameworkResearch.etfBenchmarkReview:
+   fresh.frameworkResearch.indexBenchmarkReview).nseQuality2026SourceReview
+   .investorAccessConstraints.includes('FORGED RETAIL APPROVAL'));
+ }
+});
