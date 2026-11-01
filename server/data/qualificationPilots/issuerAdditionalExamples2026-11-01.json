@@ -314,6 +314,28 @@
           "issuerUrl": "https://www.kotakmf.com/mutual-funds/passive-funds/kotak-nifty-100-low-volatility-30-index-fund"
         }
       ]
+    },
+    {
+      "familyId": "catalog_2026_etf_nifty200_quality",
+      "benchmark": "Nifty200 Quality 30 TRI",
+      "instrument": "ETF",
+      "products": [
+        {
+          "name": "Kotak Nifty200 Quality 30 ETF",
+          "issuer": "Kotak Mutual Fund",
+          "issuerUrl": "https://www.kotakmf.com/mutual-funds/passive-funds/kotak-nifty200-quality-30-etf"
+        },
+        {
+          "name": "ICICI Prudential Nifty 200 Quality 30 ETF",
+          "issuer": "ICICI Prudential Mutual Fund",
+          "issuerUrl": "https://digitalfactsheet.icicipruamc.com/passive/icici-prudential-nifty-200-quality-30-etf.php"
+        },
+        {
+          "name": "SBI Nifty 200 Quality 30 ETF",
+          "issuer": "SBI Mutual Fund",
+          "issuerUrl": "https://www.sbimf.com/docs/default-source/sif-forms/sid---sbi-nifty-200-quality-30-etf.pdf?sfvrsn=9b3ac45a_0"
+        }
+      ]
     }
   ]
 }
