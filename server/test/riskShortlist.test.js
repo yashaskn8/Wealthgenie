@@ -3946,3 +3946,55 @@ test('four low-volatility and momentum factor archetypes retain distinct calenda
  assert.ok(!listExtensionResearch().find(x=>x.id===specs[0][0]).indexBenchmarkReview
   .nseFactorRebalance2026Review.riskConsiderations.includes('FORGED DOWNSIDE GUARANTEE'));
 });
+
+test('three NSE 2026 index profiles preserve distinct source and financial screens',()=>{
+ const specs=[
+  ['catalog_2026_index_nifty500_equal','NIFTY500_EQUAL_WEIGHT','NIFTY500_EQUAL_RESET_NOT_SCHEME_WEIGHTS',
+   'SHORT_OR_EMERGENCY_GOAL_REQUIRES_NIFTY500_EQUAL_EXIT_REVIEW','ZERO_EMERGENCY_BUFFER_REQUIRES_NIFTY500_EQUAL_LIQUIDITY_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_NIFTY500_EQUAL_LOSS_REVIEW'],
+  ['catalog_2026_index_india_digital','NIFTY_INDIA_DIGITAL','NIFTY_DIGITAL_2025_CAPS_NOT_CURRENT_SCHEME_LIMITS',
+   'SHORT_OR_EMERGENCY_GOAL_REQUIRES_DIGITAL_THEME_EXIT_REVIEW','ZERO_EMERGENCY_BUFFER_REQUIRES_DIGITAL_THEME_LIQUIDITY_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_DIGITAL_THEME_LOSS_REVIEW'],
+  ['catalog_2026_index_india_consumption','NIFTY_INDIA_CONSUMPTION','NIFTY_CONSUMPTION_DOMESTIC_REVENUE_NOT_RISK_PROTECTION',
+   'SHORT_OR_EMERGENCY_GOAL_REQUIRES_CONSUMPTION_THEME_EXIT_REVIEW','ZERO_EMERGENCY_BUFFER_REQUIRES_CONSUMPTION_THEME_LIQUIDITY_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_CONSUMPTION_THEME_LOSS_REVIEW'],
+ ];
+ const screen=overrides=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],investmentHorizonYears:10,emergencyFundMonths:null,
+  riskTolerance:'Aggressive',...overrides,
+ })).map(x=>[x.id,x]));
+ const base=screen({}),flagged=screen({investmentGoals:['Emergency Fund'],
+  investmentHorizonYears:2,emergencyFundMonths:0,riskTolerance:'Conservative'});
+ const rows=listExtensionResearch(),interpretations=new Set();
+ for(const [id,code,structure,horizon,zero,conservative] of specs){
+  const row=rows.find(x=>x.id===id);
+  const v=(row.indexBenchmarkReview||row.thematicIndexReview).nseNov2026CategoryReview;
+  assert.equal(v.benchmarkCode,code);
+  assert.equal(v.reviewedOn,'2026-11-01');
+  assert.equal(v.categoryMinimumIndexSecuritiesAllocationPct,95);
+  assert.equal(v.datedFactsheetIsCurrentFundEvidence,false);
+  assert.ok(isOfficialFrameworkReferenceUrl(v.officialNseIndexPageUrl));
+  interpretations.add(v.categoryInterpretation);
+  for(const k of ['actualNamedSchemeAndSidKimVerified','actualSchemeHoldingsAnd95PctComplianceVerified',
+   'currentSchemeRiskometerVerified','currentNavOrExecutableQuoteVerified',
+   'individualKycAndRetailAccessVerified','commercialMarketDataRightsVerified',
+   'fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'])assert.equal(v[k],false);
+  for(const x of [base.get(id),flagged.get(id)]){
+   assert.equal(x.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(x.productQualified,false);assert.equal(x.scoreAvailable,false);assert.equal(x.productRiskLevel,null);
+   for(const c of [structure,'NSE_INDEX_NOT_VERIFIED_AMC_SCHEME_OR_RISKOMETER',
+    'SEBI_2026_PASSIVE_95PCT_NOT_VERIFIED_SCHEME_COMPLIANCE'])
+    assert.ok(x.screeningReasonCodes.includes(c),id+':'+c);
+  }
+  for(const c of [horizon,zero,conservative]){
+   assert.ok(!base.get(id).screeningReasonCodes.includes(c),id+':'+c);
+   assert.ok(flagged.get(id).screeningReasonCodes.includes(c),id+':'+c);
+  }
+ }
+ assert.equal(interpretations.size,3);
+ assert.equal(rows.find(x=>x.id===specs[0][0]).referenceUrl,
+  'https://www.niftyindices.com/indices/equity/strategy-indices/nifty500-equal-weight');
+ rows.find(x=>x.id===specs[0][0]).indexBenchmarkReview.nseNov2026CategoryReview.riskConsiderations.push('FORGED');
+ assert.ok(!listExtensionResearch().find(x=>x.id===specs[0][0]).indexBenchmarkReview
+  .nseNov2026CategoryReview.riskConsiderations.includes('FORGED'));
+});

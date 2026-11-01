@@ -1837,6 +1837,33 @@ if(research.entries.filter(r=>r.sebiDebtSchemeStructureReview?.sebiMarch2026FoFE
   ?.sebiDebtSchemeStructureReview?.sebiMarch2026EtfDirectExitReview?.directAmcThresholdNotSecondaryExchangeMinimum!==true)
  throw new Error('FINANCIAL_SEBI_MAR_2026_DEBT_FOF_ETF_SOURCE_SCOPE_INVALID');
 
+
+const nseNov2026Specs=Object.freeze({
+ catalog_2026_index_nifty500_equal:['NIFTY500_EQUAL_WEIGHT',500,null,null,null],
+ catalog_2026_index_india_digital:['NIFTY_INDIA_DIGITAL',30,'2025-10-31',7.5,50],
+ catalog_2026_index_india_consumption:['NIFTY_INDIA_CONSUMPTION',30,'2026-04-30',10,null],
+});
+if(research.entries.filter(x=>x.indexBenchmarkReview?.nseNov2026CategoryReview
+ ||x.thematicIndexReview?.nseNov2026CategoryReview).length!==3
+ ||research.entries.some(x=>{
+  const e=nseNov2026Specs[x.id];
+  const v=x.indexBenchmarkReview?.nseNov2026CategoryReview||x.thematicIndexReview?.nseNov2026CategoryReview;
+  if(!e)return v!==undefined;
+  return !v||v.benchmarkCode!==e[0]||v.publishedConstituentCount!==e[1]
+   ||v.factsheetAsOf!==e[2]||v.datedFactsheetStockCapPct!==e[3]
+   ||v.datedFactsheetSectorCapPct!==e[4]
+   ||!isOfficialFrameworkReferenceUrl(v.officialNseIndexPageUrl)
+   ||v.officialSebiCategorizationCircularUrl!==sebiDebtSchemeCircularUrl
+   ||v.reviewedOn!=='2026-11-01'||v.categoryMinimumIndexSecuritiesAllocationPct!==95
+   ||v.existingSchemeAlignmentWindowMonths!==6||v.datedFactsheetIsCurrentFundEvidence!==false
+   ||v.categoryInterpretation?.length<130||v.riskConsiderations?.length<2
+   ||v.investorAccessConstraints?.length<2
+   ||['actualNamedSchemeAndSidKimVerified','actualSchemeHoldingsAnd95PctComplianceVerified',
+    'currentSchemeRiskometerVerified','currentNavOrExecutableQuoteVerified',
+    'individualKycAndRetailAccessVerified','commercialMarketDataRightsVerified',
+    'fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'].some(k=>v[k]!==false);
+ }))throw new Error('FINANCIAL_NSE_NOV_2026_INDEX_SOURCE_SCOPE_INVALID');
+
 const frameworkPublisherCautions=Object.freeze({
   GOVERNMENT_SCHEME_OPERATOR:'OFFICIAL_SCHEME_LISTING_NOT_INDIVIDUAL_ACCOUNT_OR_CURRENT_TERMS',
   GOVERNMENT_POLICY_PUBLISHER:'GOVERNMENT_GREEN_BOND_FRAMEWORK_NOT_A_SPECIFIC_ISSUE_OR_IMPACT_APPROVAL',
@@ -2201,6 +2228,36 @@ export function screenExtensionResearchForProfile(profileInput) {
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_EQUAL_WEIGHT_DRAWDOWN_AND_TURNOVER_REVIEW');
    }
+
+   // Published index rules and dated factsheets cannot establish fund suitability.
+   const nseNov=row.indexBenchmarkReview?.nseNov2026CategoryReview
+    ||row.thematicIndexReview?.nseNov2026CategoryReview;
+   if(nseNov){
+    const codes={
+     catalog_2026_index_nifty500_equal:['NIFTY500_EQUAL_RESET_NOT_SCHEME_WEIGHTS',
+      'SHORT_OR_EMERGENCY_GOAL_REQUIRES_NIFTY500_EQUAL_EXIT_REVIEW',
+      'ZERO_EMERGENCY_BUFFER_REQUIRES_NIFTY500_EQUAL_LIQUIDITY_REVIEW',
+      'CONSERVATIVE_PROFILE_REQUIRES_NIFTY500_EQUAL_LOSS_REVIEW'],
+     catalog_2026_index_india_digital:['NIFTY_DIGITAL_2025_CAPS_NOT_CURRENT_SCHEME_LIMITS',
+      'SHORT_OR_EMERGENCY_GOAL_REQUIRES_DIGITAL_THEME_EXIT_REVIEW',
+      'ZERO_EMERGENCY_BUFFER_REQUIRES_DIGITAL_THEME_LIQUIDITY_REVIEW',
+      'CONSERVATIVE_PROFILE_REQUIRES_DIGITAL_THEME_LOSS_REVIEW'],
+     catalog_2026_index_india_consumption:['NIFTY_CONSUMPTION_DOMESTIC_REVENUE_NOT_RISK_PROTECTION',
+      'SHORT_OR_EMERGENCY_GOAL_REQUIRES_CONSUMPTION_THEME_EXIT_REVIEW',
+      'ZERO_EMERGENCY_BUFFER_REQUIRES_CONSUMPTION_THEME_LIQUIDITY_REVIEW',
+      'CONSERVATIVE_PROFILE_REQUIRES_CONSUMPTION_THEME_LOSS_REVIEW'],
+    }[row.id];
+    if(codes){
+     reasons.push('NSE_INDEX_NOT_VERIFIED_AMC_SCHEME_OR_RISKOMETER');
+     reasons.push(codes[0]);
+     reasons.push('SEBI_2026_PASSIVE_95PCT_NOT_VERIFIED_SCHEME_COMPLIANCE');
+     if((Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
+      ||profile.investmentGoals.includes('Emergency Fund'))reasons.push(codes[1]);
+     if(profile.emergencyFundMonths===0)reasons.push(codes[2]);
+     if(profile.riskTolerance==='Conservative')reasons.push(codes[3]);
+    }
+   }
+
    if(row.indexBenchmarkReview?.sebiFeb2026PassiveReplicationReview) {
      reasons.push('SEBI_FEB_2026_PASSIVE_INDEX_95PCT_MANDATE_NOT_VERIFIED_SCHEME_HOLDINGS');
      const passiveBenchmarkCode={

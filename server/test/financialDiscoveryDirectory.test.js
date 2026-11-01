@@ -1921,3 +1921,29 @@ test('four factor calendar reviews remain educational and defensively copied in 
    .investorAccessConstraints.includes('FORGED FACTOR ETF APPROVAL'));
  }
 });
+
+test('three NSE index category reviews remain unqualified and defensively copied',()=>{
+ const ids=['catalog_2026_index_nifty500_equal','catalog_2026_index_india_digital',
+  'catalog_2026_index_india_consumption'];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ for(const id of ids){
+  const x=get(id),v=(x.frameworkResearch.indexBenchmarkReview
+   ||x.frameworkResearch.thematicIndexReview).nseNov2026CategoryReview;
+  assert.equal(x.recommendationEligible,false);
+  assert.equal(x.productAvailability,'NOT_VERIFIED');
+  assert.equal(x.dataRights,'NOT_VERIFIED');
+  assert.ok(Object.values(x.productData).every(y=>y===null));
+  assert.equal(x.frameworkResearch.actualRiskScore,null);
+  assert.equal(x.frameworkResearch.issuerTermsVerified,false);
+  assert.equal(x.frameworkResearch.sourceRightsVerified,false);
+  assert.equal(v.reviewedOn,'2026-11-01');
+  assert.equal(v.currentSchemeRiskometerVerified,false);
+  assert.equal(v.currentNavOrExecutableQuoteVerified,false);
+  assert.equal(v.individualKycAndRetailAccessVerified,false);
+  assert.equal(v.commercialMarketDataRightsVerified,false);
+  v.investorAccessConstraints.push('FORGED APPROVAL');
+  assert.ok(!(get(id).frameworkResearch.indexBenchmarkReview
+   ||get(id).frameworkResearch.thematicIndexReview).nseNov2026CategoryReview
+   .investorAccessConstraints.includes('FORGED APPROVAL'));
+ }
+});

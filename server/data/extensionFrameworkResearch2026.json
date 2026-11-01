@@ -3689,7 +3689,7 @@
       "id": "catalog_2026_index_nifty500_equal",
       "exposureClass": "FACTOR_TRACKING_AND_EQUITY_MARKET_LOSS",
       "scenarioDescription": "Nifty 500 Equal Weight Index-Tracking Fund Strategy: Equal Weight Index Funds category. Examine actual issuer or scheme terms before assigning an investment risk rating. Official NSE benchmark construction: Nifty 500 constituents weighted equally, with periodic reconstitution and quarterly rebalancing. This is not an authenticated fund or ETF; scheme-specific riskometer, NAV, KYC, access, permissions, tax and suitability remain unverified.",
-      "referenceUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty500--equal--weight",
+      "referenceUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty500-equal-weight",
       "sourceLevel": "EXISTING_REGULATORY_OR_INDEX_REFERENCE_NOT_INDIVIDUAL_ISSUER_RISKOMETER",
       "referenceReviewedAt": "2026-10-29",
       "nominalMaturityMonths": null,
@@ -3738,7 +3738,38 @@
         "investorKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "nseNov2026CategoryReview": {
+          "benchmarkCode": "NIFTY500_EQUAL_WEIGHT",
+          "officialNseIndexPageUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty500-equal-weight",
+          "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "officialDatedFactsheetUrl": null,
+          "factsheetAsOf": null,
+          "datedFactsheetStockCapPct": null,
+          "datedFactsheetSectorCapPct": null,
+          "publishedConstituentCount": 500,
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "NSE_INDEX_STRUCTURE_AND_GENERAL_SEBI_PASSIVE_RULE_NOT_VERIFIED_SCHEME",
+          "categoryInterpretation": "Nifty500 Equal Weight uses the Nifty 500 parent constituents and equal stock weights at quarterly resets, with semiannual constituent reconstitution. Weights drift between resets; an equal-weight benchmark is not a current AMC portfolio or NAV.",
+          "categoryMinimumIndexSecuritiesAllocationPct": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "datedFactsheetIsCurrentFundEvidence": false,
+          "riskConsiderations": [
+            "Smaller-company liquidity, turnover and market drawdowns can affect index replication and investor losses.",
+            "Index rules do not verify fund tracking costs, current scheme riskometer, actual NAV or redemption liquidity."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual AMC scheme, SID/KIM, holdings, scheme riskometer, NAV, expenses, KYC, redemption and settlement.",
+            "Verify individual retail eligibility, licensed market-data rights, fiscal-year tax treatment and advice authorization before purchase-level display."
+          ],
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualSchemeHoldingsAnd95PctComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
@@ -3844,7 +3875,38 @@
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
         "personalizedAdviceAuthorizationVerified": false,
-        "currentSchemeRiskometerVerified": false
+        "currentSchemeRiskometerVerified": false,
+        "nseNov2026CategoryReview": {
+          "benchmarkCode": "NIFTY_INDIA_DIGITAL",
+          "officialNseIndexPageUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-digital",
+          "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "officialDatedFactsheetUrl": "https://www.niftyindices.com/Factsheet/Factsheet_NiftyIndiaDigital.pdf",
+          "factsheetAsOf": "2025-10-31",
+          "datedFactsheetStockCapPct": 7.5,
+          "datedFactsheetSectorCapPct": 50,
+          "publishedConstituentCount": 30,
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "NSE_INDEX_STRUCTURE_AND_GENERAL_SEBI_PASSIVE_RULE_NOT_VERIFIED_SCHEME",
+          "categoryInterpretation": "Nifty India Digital selects up to 30 Nifty 500 companies from eligible AMFI digital-related basic industries using six-month average free-float capitalization and free-float weighting. The 31 October 2025 factsheet's 7.5% stock and 50% sector caps are historical, not verified unchanged rules in November 2026.",
+          "categoryMinimumIndexSecuritiesAllocationPct": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "datedFactsheetIsCurrentFundEvidence": false,
+          "riskConsiderations": [
+            "Digital-sector valuations, technology disruption and industry concentration can create large equity losses despite historical caps.",
+            "Index rules do not verify fund tracking costs, current scheme riskometer, actual NAV or redemption liquidity."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual AMC scheme, SID/KIM, holdings, scheme riskometer, NAV, expenses, KYC, redemption and settlement.",
+            "Verify individual retail eligibility, licensed market-data rights, fiscal-year tax treatment and advice authorization before purchase-level display."
+          ],
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualSchemeHoldingsAnd95PctComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
@@ -3897,7 +3959,38 @@
         "individualInvestorAccessVerified": false,
         "commercialDataRightsVerified": false,
         "personalizedAdviceAuthorizationVerified": false,
-        "currentSchemeRiskometerVerified": false
+        "currentSchemeRiskometerVerified": false,
+        "nseNov2026CategoryReview": {
+          "benchmarkCode": "NIFTY_INDIA_CONSUMPTION",
+          "officialNseIndexPageUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-consumption",
+          "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "officialDatedFactsheetUrl": "https://niftyindices.com/Factsheet/ind_Nifty_India_Consumption.pdf",
+          "factsheetAsOf": "2026-04-30",
+          "datedFactsheetStockCapPct": 10,
+          "datedFactsheetSectorCapPct": null,
+          "publishedConstituentCount": 30,
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "NSE_INDEX_STRUCTURE_AND_GENERAL_SEBI_PASSIVE_RULE_NOT_VERIFIED_SCHEME",
+          "categoryInterpretation": "Nifty India Consumption covers consumer-facing sectors with an NSE index screen of more than 50% domestic company revenue excluding exports. The 30 April 2026 factsheet describes 30 companies and a 10% stock cap at rebalancing or index changes, not a continuous fund-level guarantee.",
+          "categoryMinimumIndexSecuritiesAllocationPct": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "datedFactsheetIsCurrentFundEvidence": false,
+          "riskConsiderations": [
+            "Domestic demand, household income, consumer-credit and valuation shocks can affect several sectors together.",
+            "Index rules do not verify fund tracking costs, current scheme riskometer, actual NAV or redemption liquidity."
+          ],
+          "investorAccessConstraints": [
+            "Verify actual AMC scheme, SID/KIM, holdings, scheme riskometer, NAV, expenses, KYC, redemption and settlement.",
+            "Verify individual retail eligibility, licensed market-data rights, fiscal-year tax treatment and advice authorization before purchase-level display."
+          ],
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualSchemeHoldingsAnd95PctComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
