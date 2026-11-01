@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import mongoose from 'mongoose';
 import { Router } from 'express';
 import { verifyJWT, isValidObjectId } from '../middleware/authMiddleware.js';
@@ -180,6 +181,29 @@ function makeRevision({ scenario, revision, payload }) {
     ...signDecisionReceipt('scenario_revision',
       revisionReceiptContext(scenario, revision, inputHash), payload),
   };
+}
+async function verifyCreateReplay(req, scenario, body, payload, payloadHash) {
+  let original = null;
+  if (scenario.createPayloadHash !== payloadHash) {
+    // Older receipts hash the caller's raw JSON, whose property order can
+    // change on an otherwise identical retry. Compare only authenticated,
+    // normalized creation inputs; later edits must not redefine that intent.
+    original = await DecisionScenarioRevision.findOne({
+      userId: req.user.userId, scenarioId: scenario._id, revision: 1,
+    }).lean();
+    verifyDecisionRevision(original, scenario);
+    if (identity(scenario.profileId) !== body.profileId
+      || scenario.profileStateRevision !== body.expectedProfileStateRevision
+      || !isDeepStrictEqual(original.payload, payload)) {
+      fail(409, 'IDEMPOTENCY_PAYLOAD_CONFLICT', 'Idempotency key already belongs to another scenario.');
+    }
+  }
+  const current = original && scenario.revision === 1 ? original
+    : await DecisionScenarioRevision.findOne({
+      userId: req.user.userId, scenarioId: scenario._id, revision: scenario.revision,
+    }).lean();
+  verifyDecisionRevision(current, scenario);
+  await checkCurrentRunPointers(req.user.userId, [scenario]);
 }
 export function verifyDecisionRun(run) {
   if (!run || !run.result || typeof run.result !== 'object'
@@ -375,14 +399,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
     const createPayloadHash = hash(req.body);
     const prior = await DecisionScenario.findOne({ userId: req.user.userId, createKeyHash }).lean();
     if (prior) {
-      if (prior.createPayloadHash !== createPayloadHash) {
-        fail(409, 'IDEMPOTENCY_PAYLOAD_CONFLICT', 'Idempotency key already belongs to another scenario.');
-      }
-      const signed = await DecisionScenarioRevision.findOne({
-        userId: req.user.userId, scenarioId: prior._id, revision: prior.revision,
-      }).lean();
-      verifyDecisionRevision(signed, prior);
-      await checkCurrentRunPointers(req.user.userId, [prior]);
+      await verifyCreateReplay(req, prior, req.body, payload, createPayloadHash);
       return res.status(200).json({ scenario: scenarioDto(prior), replayed: true });
     }
     const current = await resolveProfile({ userId: req.user.userId, requireRecommendation: false });
@@ -425,14 +442,7 @@ export function createDecisionsRouter({ resolveProfile = resolveCurrentFinancial
       // failed create. A quota-slot collision with a DIFFERENT key stays a 409.
       const saved = await DecisionScenario.findOne({ userId: req.user.userId, createKeyHash }).lean();
       if (!saved) throw error;
-      if (saved.createPayloadHash !== createPayloadHash) {
-        fail(409, 'IDEMPOTENCY_PAYLOAD_CONFLICT', 'Idempotency key already belongs to another scenario.');
-      }
-      const signed = await DecisionScenarioRevision.findOne({
-        userId: req.user.userId, scenarioId: saved._id, revision: saved.revision,
-      }).lean();
-      verifyDecisionRevision(signed, saved);
-      await checkCurrentRunPointers(req.user.userId, [saved]);
+      await verifyCreateReplay(req, saved, req.body, payload, createPayloadHash);
       return { ...saved, replayedAfterRace: true };
     });
     res.status(doc.replayedAfterRace ? 200 : 201).json({

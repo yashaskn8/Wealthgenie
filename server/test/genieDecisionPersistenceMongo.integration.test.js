@@ -160,6 +160,22 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
     assert.equal(await DecisionEvent.countDocuments({ userId: userOne }), 1,
       'idempotency replay must not write another notification');
 
+    const reorderedPayload = Object.fromEntries(Object.entries(payload).reverse().map(([key, value]) => [
+      key, key === 'baseline' || key === 'details'
+        ? Object.fromEntries(Object.entries(value).reverse()) : value,
+    ]));
+    const reorderedReplay = await call(base, userOne, '/scenarios', 'POST',
+      reorderedPayload, 'decision-create-0001');
+    assert.equal(reorderedReplay.response.status, 200, JSON.stringify(reorderedReplay.body));
+    assert.equal(reorderedReplay.body.scenario.id, id);
+    assert.equal(reorderedReplay.body.replayed, true);
+    assert.equal(await DecisionScenario.countDocuments({ userId: userOne }), 1);
+    assert.equal(await DecisionEvent.countDocuments({ userId: userOne }), 1);
+    const changedBinding = await call(base, userOne, '/scenarios', 'POST',
+      { ...reorderedPayload, expectedProfileStateRevision: 2 }, 'decision-create-0001');
+    assert.equal(changedBinding.response.status, 409);
+    assert.equal(changedBinding.body.code, 'IDEMPOTENCY_PAYLOAD_CONFLICT');
+
     const collision = await call(base, userOne, '/scenarios', 'POST',
       { ...payload, title: 'Different decision input' }, 'decision-create-0001');
     assert.equal(collision.response.status, 409);
@@ -253,6 +269,11 @@ test('scenario persists atomically, replays idempotently, revisions are append-o
     });
     assert.equal(third.response.status, 200);
     assert.equal(third.body.scenario.revision, 3);
+    const replayAfterEdit = await call(base, userOne, '/scenarios', 'POST',
+      reorderedPayload, 'decision-create-0001');
+    assert.equal(replayAfterEdit.response.status, 200, JSON.stringify(replayAfterEdit.body));
+    assert.equal(replayAfterEdit.body.replayed, true);
+    assert.equal(replayAfterEdit.body.scenario.revision, 3);
     const eventsAfterFirst = await call(base, userOne, '/events?after=1');
     assert.equal(eventsAfterFirst.response.status, 200);
     assert.deepEqual(eventsAfterFirst.body.events.map(item => item.type),

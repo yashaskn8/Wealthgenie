@@ -103,6 +103,7 @@ paths:
     post:
       tags: [GenieDecision]
       operationId: createDecisionScenario
+      description: A repeated Idempotency-Key replays the authenticated creation when the normalized scenario inputs and financial-profile binding are identical, regardless of JSON object key order. Changed inputs return 409.
       security: [{ CookieAuth: [] }, { BearerAuth: [] }]
       x-csrf-protection: cookie-session
       requestBody: { required: true, content: { application/json: { schema: { type: object } } } }
