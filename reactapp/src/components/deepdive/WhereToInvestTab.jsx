@@ -762,7 +762,11 @@ const WhereToInvestContent = ({ inv, userProfile, recommendationMeta = null }) =
             <div>
               <h3 id="wti-parent-recommendation-title">{currentRecommendation.name || inv?.name || 'Selected investment category'}</h3>
               <p>
-                This category passed the backend Financial Profile suitability check. The verified options below are a deeper product view inside it.
+                {rankingStatus === 'loading'
+                  ? 'This category passed your Financial Profile suitability check. Checking current product evidence now.'
+                  : products.length > 0
+                    ? 'This category passed your Financial Profile suitability check. The products below passed separate source and suitability checks.'
+                    : 'This category passed your Financial Profile suitability check, but no individual product is currently verified for display here.'}
               </p>
             </div>
             {isPresentFiniteNumber(currentRecommendation.allocation_pct) && (

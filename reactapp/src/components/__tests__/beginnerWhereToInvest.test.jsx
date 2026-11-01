@@ -246,6 +246,21 @@ describe('Beginner-First Where-To-Invest UX', () => {
     expect(screen.getByText('YOUR PLAN RECOMMENDS')).toBeVisible();
   });
 
+  it('does not promise verified products when a suitable category has none', async () => {
+    api.rankInvestmentCandidates.mockResolvedValueOnce({
+      financialStateBinding: CURRENT_STATE_BINDING,
+      ranking: { status: 'UNAVAILABLE', reasonCodes: ['SOURCE_RIGHTS_UNQUALIFIED'] },
+      products: [],
+    });
+    render(<WhereToInvestTab
+      inv={{ id: 'index_mf', name: 'Index Fund' }}
+      userProfile={{ profileId: CURRENT_STATE_BINDING.profileId, version: CURRENT_STATE_BINDING.profileVersion }}
+    />);
+
+    expect(await screen.findByText(/no individual product is currently verified for display here/i)).toBeVisible();
+    expect(screen.queryByText(/the verified options below are a deeper product view/i)).toBeNull();
+  });
+
   it('excludes an obsolete product response after profile-version replacement even if abort is ignored', async () => {
     let resolveOld;
     api.rankInvestmentCandidates.mockReturnValueOnce(new Promise(done => { resolveOld = done; }));
