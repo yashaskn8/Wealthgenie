@@ -979,6 +979,35 @@ if(!smReitAmendment
    &&row.individualCategoryReview?.october2026ReitAmendmentApplicabilityReview!==undefined))
  throw new Error('FINANCIAL_SM_REIT_2026_GENERAL_REIT_AMENDMENT_SCOPE_INVALID');
 
+// PFRDA 04-Aug-2026: Trustee Bank receipt by 13:30 on a business
+// settlement day AND successful matching/booking, not payment initiation.
+const npsAug2026CutoffCodes=Object.freeze({"catalog_2026_nps_lc25":"LC25","catalog_2026_nps_lc50":"LC50","catalog_2026_nps_lc75":"LC75","catalog_2026_nps_lc_aggressive":"LC_AGGRESSIVE","catalog_2026_nps_asset_e":"CLASS_E","catalog_2026_nps_asset_c":"CLASS_C","catalog_2026_nps_asset_g":"CLASS_G","catalog_2026_nps_asset_a":"CLASS_A","catalog_2026_nps_vatsalya":"VATSALYA"});
+if(research.entries.filter(r=>r.npsCommonSchemeReview?.pfrdaAug2026SameDayContributionReview
+ ||r.npsVatsalyaAccessReview?.pfrdaAug2026SameDayContributionReview).length!==9
+ ||research.entries.some(row=>{
+  const v=row.npsCommonSchemeReview?.pfrdaAug2026SameDayContributionReview
+   ||row.npsVatsalyaAccessReview?.pfrdaAug2026SameDayContributionReview;
+  const code=npsAug2026CutoffCodes[row.id];
+  if(!code)return v!==undefined;
+  return !v||v.categoryCode!==code||v.officialPfrdaCircularPdfUrl!=="https://www.pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf"
+   ||!isOfficialFrameworkReferenceUrl(v.officialPfrdaCircularPdfUrl)
+   ||v.circularNumber!=='PFRDA/2026/42/REG-PF/08'||v.issuedOn!=='2026-08-04'
+   ||v.reviewedOn!=='2026-11-01'||v.newCutoffLocalTime!=='13:30'
+   ||v.formerCutoffLocalTime!=='11:00'
+   ||v.sourceScope!=='PFRDA_NPS_TRUSTEE_BANK_CONTRIBUTION_RECEIPT_AND_MATCHING_NOT_ACCOUNT_ELIGIBILITY_OR_EXIT'
+   ||v.categoryInterpretation?.length<75
+   ||['businessSettlementDayRequired','trusteeBankReceiptByCutoffRequired',
+     'successfulMatchingAndBookingRequired','applicableClosingNavNotKnownWhenPaymentInitiated',
+     'allContributionChannelsSubjectToReceiptRule'].some(k=>v[k]!==true)
+   ||['actualAccountAndTrusteeBankReceiptVerified','actualMatchingBookingAndNavVerified',
+     'actualSchemeAndAllocationVerified','guardianOrSubscriberKycAndEligibilityVerified',
+     'earlyWithdrawalOrLiquidityAuthorized','licensedNavRightsAndSignedProviderEntitlementsVerified',
+     'personalizedAdviceAuthorizationVerified'].some(k=>v[k]!==false)
+   ||v.riskConsiderations?.length<2||v.investorAccessConstraints?.length<2
+   ||row.actualRetailProductEligible!==false||row.productRiskScore!==null
+   ||row.suitabilityRankingPermitted!==false||row.sourcePermissionVerified!==false;
+ }))throw new Error('FINANCIAL_NPS_AUG_2026_CONTRIBUTION_CUTOFF_NOT_PRODUCT_APPROVAL');
+
 const trustee2026Source='https://www.sebi.gov.in/sebi_data/attachdocs/sep-2026/1790593347737.pdf';
 const trustee2026Specs=Object.freeze({
  'catalog_2026_ncd_secured':['SECURED_LISTED_NCD','CHAPTER_II_2_1_AND_CHAPTER_V_1_1_2_1',true,false],
@@ -1941,6 +1970,21 @@ export function screenExtensionResearchForProfile(profileInput) {
    const reasons=['INDIVIDUAL_PRODUCT_RISK_ELIGIBILITY_NOT_ESTABLISHED'];
    const frameworkPublisherType=getFrameworkSourcePublisherType(
      row.verifiedPublicFrameworkFact.officialSourceUrl);
+   const npsCutoff=row.npsCommonSchemeReview?.pfrdaAug2026SameDayContributionReview
+    ||row.npsVatsalyaAccessReview?.pfrdaAug2026SameDayContributionReview;
+   if(npsCutoff){
+    reasons.push('PFRDA_AUG_2026_NPS_TRUSTEE_BANK_RECEIPT_AND_MATCHING_REQUIRED');
+    reasons.push('NPS_SAME_DAY_CONTRIBUTION_NOT_GUARANTEED_NAV_OR_WITHDRAWAL');
+    reasons.push('NPS_CUTOFF_'+npsCutoff.categoryCode+'_NOT_PERSONAL_ELIGIBILITY');
+    if(profile.investmentGoals.includes('Emergency Fund'))
+      reasons.push('EMERGENCY_GOAL_REQUIRES_NPS_CUTOFF_VS_WITHDRAWAL_REVIEW');
+    if(Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
+      reasons.push('SHORT_HORIZON_REQUIRES_NPS_ALLOTMENT_NAV_AND_EXIT_REVIEW');
+    if(profile.emergencyFundMonths===0)
+      reasons.push('ZERO_RECORDED_EMERGENCY_BUFFER_REQUIRES_NPS_SETTLEMENT_VS_CASH_ACCESS_REVIEW');
+    if(profile.riskTolerance==='Conservative')
+      reasons.push('CONSERVATIVE_PROFILE_REQUIRES_NPS_NAV_VARIATION_REVIEW');
+   }
    if(row.npsCommonSchemeReview?.schemePresentation2026Review
      ||row.npsVatsalyaAccessReview?.schemePresentation2026Review){
      reasons.push('PFRDA_AUG_2026_SCHEME_PRESENTATION_NOT_ACTUAL_RISKOMETER_NAV_OR_ELIGIBILITY');

@@ -2000,3 +2000,27 @@ test('Nifty India Consumption ETF benchmark research remains discovery-only and 
  assert.ok(!get().frameworkResearch.etfBenchmarkReview.nseNov2026ConsumptionEtfReview
    .investorAccessConstraints.includes('FORGED PURCHASE APPROVAL'));
 });
+
+test('nine NPS August 2026 contribution cut-off reviews remain discovery-only and deeply copied',()=>{
+ const ids=["catalog_2026_nps_lc25","catalog_2026_nps_lc50","catalog_2026_nps_lc75","catalog_2026_nps_lc_aggressive","catalog_2026_nps_asset_e","catalog_2026_nps_asset_c","catalog_2026_nps_asset_g","catalog_2026_nps_asset_a","catalog_2026_nps_vatsalya"];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ for(const id of ids){
+  const item=get(id);
+  const v=(item.frameworkResearch.npsCommonSchemeReview
+   ||item.frameworkResearch.npsVatsalyaAccessReview).pfrdaAug2026SameDayContributionReview;
+  assert.equal(v.circularNumber,'PFRDA/2026/42/REG-PF/08');
+  assert.equal(v.newCutoffLocalTime,'13:30');
+  assert.equal(v.actualMatchingBookingAndNavVerified,false);
+  assert.equal(v.guardianOrSubscriberKycAndEligibilityVerified,false);
+  assert.equal(v.licensedNavRightsAndSignedProviderEntitlementsVerified,false);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.equal(item.frameworkResearch.actualRiskScore,null);
+  assert.ok(Object.values(item.productData).every(x=>x===null));
+  v.investorAccessConstraints.push('FORGED ACCOUNT APPROVAL');
+  assert.ok(!(get(id).frameworkResearch.npsCommonSchemeReview
+   ||get(id).frameworkResearch.npsVatsalyaAccessReview)
+   .pfrdaAug2026SameDayContributionReview.investorAccessConstraints.includes('FORGED ACCOUNT APPROVAL'));
+ }
+});

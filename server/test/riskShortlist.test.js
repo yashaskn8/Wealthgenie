@@ -4127,3 +4127,52 @@ test('Nifty India Consumption ETF dated benchmark facts cannot qualify a scheme 
  assert.ok(!listExtensionResearch().find(x=>x.id===id).etfBenchmarkReview
    .nseNov2026ConsumptionEtfReview.riskConsiderations.includes('FORGED ETF APPROVAL'));
 });
+
+test('PFRDA August 2026 trustee-bank cut-off distinguishes nine NPS categories and profile notices',()=>{
+ const ids=["catalog_2026_nps_lc25","catalog_2026_nps_lc50","catalog_2026_nps_lc75","catalog_2026_nps_lc_aggressive","catalog_2026_nps_asset_e","catalog_2026_nps_asset_c","catalog_2026_nps_asset_g","catalog_2026_nps_asset_a","catalog_2026_nps_vatsalya"];
+ const rows=listExtensionResearch();
+ const screen=overrides=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],investmentHorizonYears:10,emergencyFundMonths:null,
+  riskTolerance:'Moderate',...overrides,
+ })).map(x=>[x.id,x]));
+ const base=screen({}),flagged=screen({investmentGoals:['Emergency Fund'],
+  investmentHorizonYears:2,emergencyFundMonths:0,riskTolerance:'Conservative'});
+ const distinct=new Set();
+ for(const id of ids){
+  const row=rows.find(x=>x.id===id);
+  const v=(row.npsCommonSchemeReview||row.npsVatsalyaAccessReview).pfrdaAug2026SameDayContributionReview;
+  assert.equal(v.officialPfrdaCircularPdfUrl,"https://www.pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf");
+  assert.ok(isOfficialFrameworkReferenceUrl(v.officialPfrdaCircularPdfUrl));
+  assert.equal(v.issuedOn,'2026-08-04');
+  assert.equal(v.newCutoffLocalTime,'13:30');
+  assert.equal(v.successfulMatchingAndBookingRequired,true);
+  assert.equal(v.applicableClosingNavNotKnownWhenPaymentInitiated,true);
+  for(const k of ['actualAccountAndTrusteeBankReceiptVerified','actualMatchingBookingAndNavVerified',
+   'actualSchemeAndAllocationVerified','guardianOrSubscriberKycAndEligibilityVerified',
+   'earlyWithdrawalOrLiquidityAuthorized','licensedNavRightsAndSignedProviderEntitlementsVerified',
+   'personalizedAdviceAuthorizationVerified'])assert.equal(v[k],false);
+  distinct.add(v.categoryInterpretation);
+  for(const x of [base.get(id),flagged.get(id)]){
+   assert.equal(x.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(x.productQualified,false);
+   assert.equal(x.scoreAvailable,false);
+   assert.equal(x.productRiskLevel,null);
+   for(const code of ['PFRDA_AUG_2026_NPS_TRUSTEE_BANK_RECEIPT_AND_MATCHING_REQUIRED',
+    'NPS_SAME_DAY_CONTRIBUTION_NOT_GUARANTEED_NAV_OR_WITHDRAWAL',
+    'NPS_CUTOFF_'+v.categoryCode+'_NOT_PERSONAL_ELIGIBILITY'])
+    assert.ok(x.screeningReasonCodes.includes(code),id+':'+code);
+  }
+  for(const code of ['EMERGENCY_GOAL_REQUIRES_NPS_CUTOFF_VS_WITHDRAWAL_REVIEW',
+   'SHORT_HORIZON_REQUIRES_NPS_ALLOTMENT_NAV_AND_EXIT_REVIEW',
+   'ZERO_RECORDED_EMERGENCY_BUFFER_REQUIRES_NPS_SETTLEMENT_VS_CASH_ACCESS_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_NPS_NAV_VARIATION_REVIEW']){
+   assert.ok(!base.get(id).screeningReasonCodes.includes(code),id+':'+code);
+   assert.ok(flagged.get(id).screeningReasonCodes.includes(code),id+':'+code);
+  }
+ }
+ assert.equal(distinct.size,9);
+ const v=rows.find(x=>x.id===ids[0]).npsCommonSchemeReview.pfrdaAug2026SameDayContributionReview;
+ v.riskConsiderations.push('FORGED NAV');
+ assert.ok(!listExtensionResearch().find(x=>x.id===ids[0]).npsCommonSchemeReview
+  .pfrdaAug2026SameDayContributionReview.riskConsiderations.includes('FORGED NAV'));
+});

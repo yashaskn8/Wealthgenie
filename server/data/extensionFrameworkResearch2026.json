@@ -5416,6 +5416,37 @@
             "The circular excludes Government-sector-tagged accounts; subscriber sector, PRAN, account type and actual choice eligibility are not verified.",
             "The subscriber-facing comparison requirement does not authenticate any selected pension fund, scheme riskometer, NAV, fees, permissions or advice entitlement."
           ]
+        },
+        "pfrdaAug2026SameDayContributionReview": {
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf",
+          "circularNumber": "PFRDA/2026/42/REG-PF/08",
+          "issuedOn": "2026-08-04",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "PFRDA_NPS_TRUSTEE_BANK_CONTRIBUTION_RECEIPT_AND_MATCHING_NOT_ACCOUNT_ELIGIBILITY_OR_EXIT",
+          "categoryCode": "LC25",
+          "categoryInterpretation": "LC25's age-tapered allocation remains exposed to fund NAV changes; timely contribution processing cannot guarantee a unit price or withdrawal.",
+          "formerCutoffLocalTime": "11:00",
+          "newCutoffLocalTime": "13:30",
+          "businessSettlementDayRequired": true,
+          "trusteeBankReceiptByCutoffRequired": true,
+          "successfulMatchingAndBookingRequired": true,
+          "applicableClosingNavNotKnownWhenPaymentInitiated": true,
+          "allContributionChannelsSubjectToReceiptRule": true,
+          "actualAccountAndTrusteeBankReceiptVerified": false,
+          "actualMatchingBookingAndNavVerified": false,
+          "actualSchemeAndAllocationVerified": false,
+          "guardianOrSubscriberKycAndEligibilityVerified": false,
+          "earlyWithdrawalOrLiquidityAuthorized": false,
+          "licensedNavRightsAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "LC25's age-tapered allocation remains exposed to fund NAV changes; timely contribution processing cannot guarantee a unit price or withdrawal.",
+            "Bank receipt, matching or booking delays can change the investment date and NAV; the cut-off does not limit pension-fund losses."
+          ],
+          "investorAccessConstraints": [
+            "Verify business settlement day, actual Trustee Bank receipt by 1:30 PM, successful matching and booking; initiating payment before 1:30 PM alone is insufficient.",
+            "Verify actual pension fund, account and guardian where relevant, NAV, fees, contribution channel, withdrawal restrictions and licensed provider permissions; no individual suitability is established."
+          ]
         }
       }
     },
@@ -5543,6 +5574,37 @@
           "investorAccessConstraints": [
             "The circular excludes Government-sector-tagged accounts; subscriber sector, PRAN, account type and actual choice eligibility are not verified.",
             "The subscriber-facing comparison requirement does not authenticate any selected pension fund, scheme riskometer, NAV, fees, permissions or advice entitlement."
+          ]
+        },
+        "pfrdaAug2026SameDayContributionReview": {
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf",
+          "circularNumber": "PFRDA/2026/42/REG-PF/08",
+          "issuedOn": "2026-08-04",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "PFRDA_NPS_TRUSTEE_BANK_CONTRIBUTION_RECEIPT_AND_MATCHING_NOT_ACCOUNT_ELIGIBILITY_OR_EXIT",
+          "categoryCode": "LC50",
+          "categoryInterpretation": "LC50's age-dependent allocation is distinct from trustee-bank contribution settlement and does not verify current scheme holdings.",
+          "formerCutoffLocalTime": "11:00",
+          "newCutoffLocalTime": "13:30",
+          "businessSettlementDayRequired": true,
+          "trusteeBankReceiptByCutoffRequired": true,
+          "successfulMatchingAndBookingRequired": true,
+          "applicableClosingNavNotKnownWhenPaymentInitiated": true,
+          "allContributionChannelsSubjectToReceiptRule": true,
+          "actualAccountAndTrusteeBankReceiptVerified": false,
+          "actualMatchingBookingAndNavVerified": false,
+          "actualSchemeAndAllocationVerified": false,
+          "guardianOrSubscriberKycAndEligibilityVerified": false,
+          "earlyWithdrawalOrLiquidityAuthorized": false,
+          "licensedNavRightsAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "LC50's age-dependent allocation is distinct from trustee-bank contribution settlement and does not verify current scheme holdings.",
+            "Bank receipt, matching or booking delays can change the investment date and NAV; the cut-off does not limit pension-fund losses."
+          ],
+          "investorAccessConstraints": [
+            "Verify business settlement day, actual Trustee Bank receipt by 1:30 PM, successful matching and booking; initiating payment before 1:30 PM alone is insufficient.",
+            "Verify actual pension fund, account and guardian where relevant, NAV, fees, contribution channel, withdrawal restrictions and licensed provider permissions; no individual suitability is established."
           ]
         }
       }
@@ -5672,6 +5734,37 @@
             "The circular excludes Government-sector-tagged accounts; subscriber sector, PRAN, account type and actual choice eligibility are not verified.",
             "The subscriber-facing comparison requirement does not authenticate any selected pension fund, scheme riskometer, NAV, fees, permissions or advice entitlement."
           ]
+        },
+        "pfrdaAug2026SameDayContributionReview": {
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf",
+          "circularNumber": "PFRDA/2026/42/REG-PF/08",
+          "issuedOn": "2026-08-04",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "PFRDA_NPS_TRUSTEE_BANK_CONTRIBUTION_RECEIPT_AND_MATCHING_NOT_ACCOUNT_ELIGIBILITY_OR_EXIT",
+          "categoryCode": "LC75",
+          "categoryInterpretation": "LC75's higher equity exposure can produce losses; a contribution cut-off is not a scheme-specific risk assessment or NAV guarantee.",
+          "formerCutoffLocalTime": "11:00",
+          "newCutoffLocalTime": "13:30",
+          "businessSettlementDayRequired": true,
+          "trusteeBankReceiptByCutoffRequired": true,
+          "successfulMatchingAndBookingRequired": true,
+          "applicableClosingNavNotKnownWhenPaymentInitiated": true,
+          "allContributionChannelsSubjectToReceiptRule": true,
+          "actualAccountAndTrusteeBankReceiptVerified": false,
+          "actualMatchingBookingAndNavVerified": false,
+          "actualSchemeAndAllocationVerified": false,
+          "guardianOrSubscriberKycAndEligibilityVerified": false,
+          "earlyWithdrawalOrLiquidityAuthorized": false,
+          "licensedNavRightsAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "LC75's higher equity exposure can produce losses; a contribution cut-off is not a scheme-specific risk assessment or NAV guarantee.",
+            "Bank receipt, matching or booking delays can change the investment date and NAV; the cut-off does not limit pension-fund losses."
+          ],
+          "investorAccessConstraints": [
+            "Verify business settlement day, actual Trustee Bank receipt by 1:30 PM, successful matching and booking; initiating payment before 1:30 PM alone is insufficient.",
+            "Verify actual pension fund, account and guardian where relevant, NAV, fees, contribution channel, withdrawal restrictions and licensed provider permissions; no individual suitability is established."
+          ]
         }
       }
     },
@@ -5800,6 +5893,37 @@
             "The circular excludes Government-sector-tagged accounts; subscriber sector, PRAN, account type and actual choice eligibility are not verified.",
             "The subscriber-facing comparison requirement does not authenticate any selected pension fund, scheme riskometer, NAV, fees, permissions or advice entitlement."
           ]
+        },
+        "pfrdaAug2026SameDayContributionReview": {
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf",
+          "circularNumber": "PFRDA/2026/42/REG-PF/08",
+          "issuedOn": "2026-08-04",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "PFRDA_NPS_TRUSTEE_BANK_CONTRIBUTION_RECEIPT_AND_MATCHING_NOT_ACCOUNT_ELIGIBILITY_OR_EXIT",
+          "categoryCode": "LC_AGGRESSIVE",
+          "categoryInterpretation": "The renamed Aggressive lifecycle is not LC75; contribution matching does not establish the pension fund's actual allocation.",
+          "formerCutoffLocalTime": "11:00",
+          "newCutoffLocalTime": "13:30",
+          "businessSettlementDayRequired": true,
+          "trusteeBankReceiptByCutoffRequired": true,
+          "successfulMatchingAndBookingRequired": true,
+          "applicableClosingNavNotKnownWhenPaymentInitiated": true,
+          "allContributionChannelsSubjectToReceiptRule": true,
+          "actualAccountAndTrusteeBankReceiptVerified": false,
+          "actualMatchingBookingAndNavVerified": false,
+          "actualSchemeAndAllocationVerified": false,
+          "guardianOrSubscriberKycAndEligibilityVerified": false,
+          "earlyWithdrawalOrLiquidityAuthorized": false,
+          "licensedNavRightsAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "The renamed Aggressive lifecycle is not LC75; contribution matching does not establish the pension fund's actual allocation.",
+            "Bank receipt, matching or booking delays can change the investment date and NAV; the cut-off does not limit pension-fund losses."
+          ],
+          "investorAccessConstraints": [
+            "Verify business settlement day, actual Trustee Bank receipt by 1:30 PM, successful matching and booking; initiating payment before 1:30 PM alone is insufficient.",
+            "Verify actual pension fund, account and guardian where relevant, NAV, fees, contribution channel, withdrawal restrictions and licensed provider permissions; no individual suitability is established."
+          ]
         }
       }
     },
@@ -5927,6 +6051,37 @@
           "investorAccessConstraints": [
             "The circular excludes Government-sector-tagged accounts; subscriber sector, PRAN, account type and actual choice eligibility are not verified.",
             "The subscriber-facing comparison requirement does not authenticate any selected pension fund, scheme riskometer, NAV, fees, permissions or advice entitlement."
+          ]
+        },
+        "pfrdaAug2026SameDayContributionReview": {
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf",
+          "circularNumber": "PFRDA/2026/42/REG-PF/08",
+          "issuedOn": "2026-08-04",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "PFRDA_NPS_TRUSTEE_BANK_CONTRIBUTION_RECEIPT_AND_MATCHING_NOT_ACCOUNT_ELIGIBILITY_OR_EXIT",
+          "categoryCode": "CLASS_E",
+          "categoryInterpretation": "Class E equity exposure can fluctuate before units are allotted; trustee-bank timing is not an equity-loss limit.",
+          "formerCutoffLocalTime": "11:00",
+          "newCutoffLocalTime": "13:30",
+          "businessSettlementDayRequired": true,
+          "trusteeBankReceiptByCutoffRequired": true,
+          "successfulMatchingAndBookingRequired": true,
+          "applicableClosingNavNotKnownWhenPaymentInitiated": true,
+          "allContributionChannelsSubjectToReceiptRule": true,
+          "actualAccountAndTrusteeBankReceiptVerified": false,
+          "actualMatchingBookingAndNavVerified": false,
+          "actualSchemeAndAllocationVerified": false,
+          "guardianOrSubscriberKycAndEligibilityVerified": false,
+          "earlyWithdrawalOrLiquidityAuthorized": false,
+          "licensedNavRightsAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Class E equity exposure can fluctuate before units are allotted; trustee-bank timing is not an equity-loss limit.",
+            "Bank receipt, matching or booking delays can change the investment date and NAV; the cut-off does not limit pension-fund losses."
+          ],
+          "investorAccessConstraints": [
+            "Verify business settlement day, actual Trustee Bank receipt by 1:30 PM, successful matching and booking; initiating payment before 1:30 PM alone is insufficient.",
+            "Verify actual pension fund, account and guardian where relevant, NAV, fees, contribution channel, withdrawal restrictions and licensed provider permissions; no individual suitability is established."
           ]
         }
       }
@@ -6086,6 +6241,37 @@
           "individualSubscriberSectorKycAndAccessVerified": false,
           "commercialNavAndMarketDataRightsVerified": false,
           "personalizedAdviceAuthorizationVerified": false
+        },
+        "pfrdaAug2026SameDayContributionReview": {
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf",
+          "circularNumber": "PFRDA/2026/42/REG-PF/08",
+          "issuedOn": "2026-08-04",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "PFRDA_NPS_TRUSTEE_BANK_CONTRIBUTION_RECEIPT_AND_MATCHING_NOT_ACCOUNT_ELIGIBILITY_OR_EXIT",
+          "categoryCode": "CLASS_C",
+          "categoryInterpretation": "Class C corporate debt NAV has credit and duration risks; same-day processing does not establish issuer quality.",
+          "formerCutoffLocalTime": "11:00",
+          "newCutoffLocalTime": "13:30",
+          "businessSettlementDayRequired": true,
+          "trusteeBankReceiptByCutoffRequired": true,
+          "successfulMatchingAndBookingRequired": true,
+          "applicableClosingNavNotKnownWhenPaymentInitiated": true,
+          "allContributionChannelsSubjectToReceiptRule": true,
+          "actualAccountAndTrusteeBankReceiptVerified": false,
+          "actualMatchingBookingAndNavVerified": false,
+          "actualSchemeAndAllocationVerified": false,
+          "guardianOrSubscriberKycAndEligibilityVerified": false,
+          "earlyWithdrawalOrLiquidityAuthorized": false,
+          "licensedNavRightsAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Class C corporate debt NAV has credit and duration risks; same-day processing does not establish issuer quality.",
+            "Bank receipt, matching or booking delays can change the investment date and NAV; the cut-off does not limit pension-fund losses."
+          ],
+          "investorAccessConstraints": [
+            "Verify business settlement day, actual Trustee Bank receipt by 1:30 PM, successful matching and booking; initiating payment before 1:30 PM alone is insufficient.",
+            "Verify actual pension fund, account and guardian where relevant, NAV, fees, contribution channel, withdrawal restrictions and licensed provider permissions; no individual suitability is established."
+          ]
         }
       }
     },
@@ -6214,6 +6400,37 @@
             "The circular excludes Government-sector-tagged accounts; subscriber sector, PRAN, account type and actual choice eligibility are not verified.",
             "The subscriber-facing comparison requirement does not authenticate any selected pension fund, scheme riskometer, NAV, fees, permissions or advice entitlement."
           ]
+        },
+        "pfrdaAug2026SameDayContributionReview": {
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf",
+          "circularNumber": "PFRDA/2026/42/REG-PF/08",
+          "issuedOn": "2026-08-04",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "PFRDA_NPS_TRUSTEE_BANK_CONTRIBUTION_RECEIPT_AND_MATCHING_NOT_ACCOUNT_ELIGIBILITY_OR_EXIT",
+          "categoryCode": "CLASS_G",
+          "categoryInterpretation": "Class G government bond NAV can fluctuate with rates; same-day processing is not a capital guarantee.",
+          "formerCutoffLocalTime": "11:00",
+          "newCutoffLocalTime": "13:30",
+          "businessSettlementDayRequired": true,
+          "trusteeBankReceiptByCutoffRequired": true,
+          "successfulMatchingAndBookingRequired": true,
+          "applicableClosingNavNotKnownWhenPaymentInitiated": true,
+          "allContributionChannelsSubjectToReceiptRule": true,
+          "actualAccountAndTrusteeBankReceiptVerified": false,
+          "actualMatchingBookingAndNavVerified": false,
+          "actualSchemeAndAllocationVerified": false,
+          "guardianOrSubscriberKycAndEligibilityVerified": false,
+          "earlyWithdrawalOrLiquidityAuthorized": false,
+          "licensedNavRightsAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Class G government bond NAV can fluctuate with rates; same-day processing is not a capital guarantee.",
+            "Bank receipt, matching or booking delays can change the investment date and NAV; the cut-off does not limit pension-fund losses."
+          ],
+          "investorAccessConstraints": [
+            "Verify business settlement day, actual Trustee Bank receipt by 1:30 PM, successful matching and booking; initiating payment before 1:30 PM alone is insufficient.",
+            "Verify actual pension fund, account and guardian where relevant, NAV, fees, contribution channel, withdrawal restrictions and licensed provider permissions; no individual suitability is established."
+          ]
         }
       }
     },
@@ -6341,6 +6558,37 @@
           "investorAccessConstraints": [
             "The circular excludes Government-sector-tagged accounts; subscriber sector, PRAN, account type and actual choice eligibility are not verified.",
             "The circular's Active Choice E/C/G table does not list A; do not presume an A option is available or forbidden without current PFRDA and subscriber-channel confirmation."
+          ]
+        },
+        "pfrdaAug2026SameDayContributionReview": {
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf",
+          "circularNumber": "PFRDA/2026/42/REG-PF/08",
+          "issuedOn": "2026-08-04",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "PFRDA_NPS_TRUSTEE_BANK_CONTRIBUTION_RECEIPT_AND_MATCHING_NOT_ACCOUNT_ELIGIBILITY_OR_EXIT",
+          "categoryCode": "CLASS_A",
+          "categoryInterpretation": "Class A availability and alternative-asset permissions require independent verification; a cut-off does not authorize allocation.",
+          "formerCutoffLocalTime": "11:00",
+          "newCutoffLocalTime": "13:30",
+          "businessSettlementDayRequired": true,
+          "trusteeBankReceiptByCutoffRequired": true,
+          "successfulMatchingAndBookingRequired": true,
+          "applicableClosingNavNotKnownWhenPaymentInitiated": true,
+          "allContributionChannelsSubjectToReceiptRule": true,
+          "actualAccountAndTrusteeBankReceiptVerified": false,
+          "actualMatchingBookingAndNavVerified": false,
+          "actualSchemeAndAllocationVerified": false,
+          "guardianOrSubscriberKycAndEligibilityVerified": false,
+          "earlyWithdrawalOrLiquidityAuthorized": false,
+          "licensedNavRightsAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Class A availability and alternative-asset permissions require independent verification; a cut-off does not authorize allocation.",
+            "Bank receipt, matching or booking delays can change the investment date and NAV; the cut-off does not limit pension-fund losses."
+          ],
+          "investorAccessConstraints": [
+            "Verify business settlement day, actual Trustee Bank receipt by 1:30 PM, successful matching and booking; initiating payment before 1:30 PM alone is insufficient.",
+            "Verify actual pension fund, account and guardian where relevant, NAV, fees, contribution channel, withdrawal restrictions and licensed provider permissions; no individual suitability is established."
           ]
         }
       }
@@ -6508,6 +6756,37 @@
           "investorAccessConstraints": [
             "NPS Vatsalya is a 4A category; guardian, minor-beneficiary, fund and account permissions require current scheme-specific verification.",
             "The subscriber-facing comparison requirement does not authenticate any selected pension fund, scheme riskometer, NAV, fees, permissions or advice entitlement."
+          ]
+        },
+        "pfrdaAug2026SameDayContributionReview": {
+          "officialPfrdaCircularPdfUrl": "https://www.pfrda.org.in/documents/33652/154008/Same-Day%2BInvestment%2Bof%2BNPS%2BContributions%2BReceived%2Bby%2BTrustee%2BBank%2Bup%2Bto%2B130%2BPM.pdf",
+          "circularNumber": "PFRDA/2026/42/REG-PF/08",
+          "issuedOn": "2026-08-04",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "PFRDA_NPS_TRUSTEE_BANK_CONTRIBUTION_RECEIPT_AND_MATCHING_NOT_ACCOUNT_ELIGIBILITY_OR_EXIT",
+          "categoryCode": "VATSALYA",
+          "categoryInterpretation": "Vatsalya contributions require minor and guardian checks; same-day processing does not verify guardian KYC or withdrawal eligibility.",
+          "formerCutoffLocalTime": "11:00",
+          "newCutoffLocalTime": "13:30",
+          "businessSettlementDayRequired": true,
+          "trusteeBankReceiptByCutoffRequired": true,
+          "successfulMatchingAndBookingRequired": true,
+          "applicableClosingNavNotKnownWhenPaymentInitiated": true,
+          "allContributionChannelsSubjectToReceiptRule": true,
+          "actualAccountAndTrusteeBankReceiptVerified": false,
+          "actualMatchingBookingAndNavVerified": false,
+          "actualSchemeAndAllocationVerified": false,
+          "guardianOrSubscriberKycAndEligibilityVerified": false,
+          "earlyWithdrawalOrLiquidityAuthorized": false,
+          "licensedNavRightsAndSignedProviderEntitlementsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "Vatsalya contributions require minor and guardian checks; same-day processing does not verify guardian KYC or withdrawal eligibility.",
+            "Bank receipt, matching or booking delays can change the investment date and NAV; the cut-off does not limit pension-fund losses."
+          ],
+          "investorAccessConstraints": [
+            "Verify business settlement day, actual Trustee Bank receipt by 1:30 PM, successful matching and booking; initiating payment before 1:30 PM alone is insufficient.",
+            "Verify actual pension fund, account and guardian where relevant, NAV, fees, contribution channel, withdrawal restrictions and licensed provider permissions; no individual suitability is established."
           ]
         }
       }
