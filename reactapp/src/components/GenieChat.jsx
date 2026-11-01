@@ -1104,7 +1104,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
                           <span className="sandbox-label"><Coins size={14} /> Base Monthly <JargonTooltip term="SIP">SIP</JargonTooltip></span>
                           <span className="sandbox-val text-purple">₹{sipMonthlyAmount.toLocaleString('en-IN')}</span>
                         </div>
-                        <input type="range" min="1000" max="100000" step="1000" value={sipMonthlyAmount} onChange={e => setSipMonthlyAmount(Number(e.target.value))} className="sandbox-slider" />
+                        <input type="range" min="1000" max="100000" step="1000" value={sipMonthlyAmount} onChange={e => setSipMonthlyAmount(Number(e.target.value))} className="sandbox-slider" aria-label="Base monthly SIP amount" />
                         <div className="slider-limits"><span>₹1K</span><span>₹100K</span></div>
                       </div>
 
@@ -1122,7 +1122,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
                           <span className="sandbox-label"><Percent size={14} /> Yearly <JargonTooltip term="SIP">SIP</JargonTooltip> Increase %</span>
                           <span className="sandbox-val text-purple">{sipStepUpPercent}%</span>
                         </div>
-                        <input type="range" min="0" max="25" step="1" value={sipStepUpPercent} onChange={e => setSipStepUpPercent(Number(e.target.value))} className="sandbox-slider" />
+                        <input type="range" min="0" max="25" step="1" value={sipStepUpPercent} onChange={e => setSipStepUpPercent(Number(e.target.value))} className="sandbox-slider" aria-label="Annual SIP increase percentage" />
                         <div className="slider-limits"><span>0% (Flat)</span><span>25% (Booster)</span></div>
                       </div>
 
@@ -1131,7 +1131,7 @@ const GenieChat = ({ profile, recommendationMeta = null, recommendationContextRe
                           <span className="sandbox-label"><Target size={14} /> Years to Invest</span>
                           <span className="sandbox-val text-purple">{sipHorizon} Years</span>
                         </div>
-                        <input type="range" min="5" max="35" step="1" value={sipHorizon} onChange={e => setSipHorizon(Number(e.target.value))} className="sandbox-slider" />
+                        <input type="range" min="5" max="35" step="1" value={sipHorizon} onChange={e => setSipHorizon(Number(e.target.value))} className="sandbox-slider" aria-label="Investment horizon in years" />
                         <div className="slider-limits"><span>5 Yrs</span><span>35 Yrs</span></div>
                       </div>
 

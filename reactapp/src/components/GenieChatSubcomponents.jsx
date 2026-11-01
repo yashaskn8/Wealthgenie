@@ -171,9 +171,9 @@ export function ConfidenceMeter() {
 export function MessageFeedback() {
   const [feedback, setFeedback] = useState(null);
   return (
-    <div className="msg-feedback">
-      <button className={`fb-btn ${feedback === 'up' ? 'fb-active-up' : ''}`} onClick={() => setFeedback('up')} title="Helpful"><ThumbsUp size={11} /></button>
-      <button className={`fb-btn ${feedback === 'down' ? 'fb-active-down' : ''}`} onClick={() => setFeedback('down')} title="Not helpful"><ThumbsDown size={11} /></button>
+    <div className="msg-feedback" role="group" aria-label="Response feedback">
+      <button type="button" className={`fb-btn ${feedback === 'up' ? 'fb-active-up' : ''}`} onClick={() => setFeedback('up')} title="Helpful" aria-label="Helpful" aria-pressed={feedback === 'up'}><ThumbsUp size={11} /></button>
+      <button type="button" className={`fb-btn ${feedback === 'down' ? 'fb-active-down' : ''}`} onClick={() => setFeedback('down')} title="Not helpful" aria-label="Not helpful" aria-pressed={feedback === 'down'}><ThumbsDown size={11} /></button>
     </div>
   );
 }
@@ -230,6 +230,7 @@ export function MessageContent({ content, citations, hideDisclosure = false }) {
 // ── Message Bubble ────────────────────────────────────────────────
 export const MessageBubble = ({ msg, isLatest, onFeatureOpen }) => {
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
   const isAssistant = msg.role === 'assistant';
   const feature = isAssistant && Array.isArray(msg.action_cards)
     ? msg.action_cards.map(normalizeFeatureCard).find(Boolean)
@@ -247,11 +248,18 @@ export const MessageBubble = ({ msg, isLatest, onFeatureOpen }) => {
     }
   }, [done, shouldStream, msg]);
 
-  const handleCopy = () => {
-    const cleanText = stripUntrustedActionMarkup(msg.content);
-    navigator.clipboard.writeText(formatEvidenceMarkers(cleanText, displayCitations, isAssistant));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+  const handleCopy = async () => {
+    try {
+      if (typeof navigator.clipboard?.writeText !== 'function') throw new Error('Clipboard unavailable');
+      const cleanText = stripUntrustedActionMarkup(msg.content);
+      await navigator.clipboard.writeText(formatEvidenceMarkers(cleanText, displayCitations, isAssistant));
+      setCopyError(false);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+      setCopyError(true);
+    }
   };
 
   return (
@@ -296,7 +304,8 @@ export const MessageBubble = ({ msg, isLatest, onFeatureOpen }) => {
           <span className="bubble-time">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           {isAssistant && msg.latency_ms && <span className="bubble-latency">{(msg.latency_ms / 1000).toFixed(1)}s</span>}
           {isAssistant && <MessageFeedback />}
-          {isAssistant && <button className="bubble-copy" onClick={handleCopy} title="Copy">{copied ? '✓' : <Copy size={12} />}</button>}
+          {isAssistant && <button type="button" className="bubble-copy" onClick={handleCopy} title={copyError ? 'Copy unavailable' : copied ? 'Copied' : 'Copy'} aria-label={copyError ? 'Copy unavailable' : copied ? 'Message copied' : 'Copy message'}>{copied ? '✓' : <Copy size={12} />}</button>}
+          {isAssistant && <span role="status" aria-live="polite" style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }}>{copyError ? 'Copy failed. Clipboard access is unavailable.' : copied ? 'Message copied.' : ''}</span>}
         </div>
       </div>
     </div>

@@ -2,13 +2,40 @@
  * @vitest-environment jsdom
  */
 import React from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MessageBubble } from '../GenieChatSubcomponents';
 
 afterEach(cleanup);
 
 describe('GenieChat grounded explanation metadata', () => {
+  it('exposes response feedback state to assistive technology', () => {
+    render(<MessageBubble
+      msg={{ role: 'assistant', content: 'Answer.', timestamp: '2026-10-23T00:00:00.000Z', _streamed: true }}
+      isLatest={false}
+    />);
+    const helpful = screen.getByRole('button', { name: 'Helpful' });
+    const notHelpful = screen.getByRole('button', { name: 'Not helpful' });
+    expect(helpful).toHaveAttribute('aria-pressed', 'false');
+    expect(notHelpful).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(helpful);
+    expect(helpful).toHaveAttribute('aria-pressed', 'true');
+    expect(notHelpful).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('reports clipboard failures without an unhandled promise rejection', async () => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: vi.fn().mockRejectedValue(new Error('permission denied')) },
+    });
+    render(<MessageBubble
+      msg={{ role: 'assistant', content: 'Answer.', timestamp: '2026-10-23T00:00:00.000Z', _streamed: true }}
+      isLatest={false}
+    />);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy message' }));
+    expect(await screen.findByRole('status')).toHaveTextContent(/copy failed.*unavailable/i);
+  });
+
   it('keeps provenance in optional details and renders cited IDs as source numbers', () => {
     render(<MessageBubble
       msg={{

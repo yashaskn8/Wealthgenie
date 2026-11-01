@@ -86,6 +86,12 @@ export function sanitizeExternalQuestion(question) {
     .slice(0, 1000)
     .replace(/https?:\/\/\S+/gi, '[external URL omitted]')
     .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[email omitted]')
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\b/gi, '[UPI ID omitted]')
+    .replace(/\b[A-Z]{5}\d{4}[A-Z]\b/gi, '[PAN omitted]')
+    .replace(/\b(?:\d{4}[ -]?){2}\d{4}\b/g, '[Aadhaar or account number omitted]')
+    .replace(/\b(?:bank\s+)?(?:account|a\/c)\s*(?:number|no\.?|#)?\s*[:#-]?\s*[A-Z0-9][A-Z0-9\/-]{5,23}\b/gi, '[account number omitted]')
+    .replace(/\b(?:upi|atm|debit|credit)\s*pin\s*(?:is|:)?\s*\d{4,6}\b/gi, '[PIN omitted]')
+    .replace(/(?<!\d)(?:\+?91[ .-]?)?[6-9](?:[ .-]?\d){9}(?!\d)/g, '[phone number omitted]')
     .replace(/\b(?:nvapi-|Bearer\s+)[A-Za-z0-9._-]{12,}/gi, '[credential omitted]');
 }
 
