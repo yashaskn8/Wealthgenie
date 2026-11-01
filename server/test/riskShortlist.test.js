@@ -3552,3 +3552,57 @@ test('2026 SEBI Chapter 14.1 limits Category II PE and debt AIF borrowing withou
  assert.equal(listExtensionResearch().find(x=>x.id===ids[0])
   .aifCategoryAccessReview.sebiJune2026BorrowingReview.actualSchemePpmBorrowingAndCapitalCallsVerified,false);
 });
+
+test('PFRDA 2026 NDB eligibility is limited to NPS Class C and never approves a bond or subscriber',()=>{
+ const rows=listExtensionResearch();
+ const classC=rows.find(x=>x.id==='catalog_2026_nps_asset_c');
+ const r=classC.npsCommonSchemeReview.ndbRupeeBond2026InvestmentGuidelineReview;
+ assert.equal(r.circularNumber,'PFRDA/2026/29/REG-PF/06');
+ assert.equal(r.issuedOn,'2026-05-13');
+ assert.equal(r.eligibleIssuer,'New Development Bank');
+ assert.equal(r.assetClass,'C');
+ assert.equal(r.existingCreditRatingRequirement,'AA_OR_ABOVE');
+ assert.equal(r.applicableMaturityRequirementsRemain,true);
+ assert.equal(r.otherAssetClassesAutomaticallyAuthorized,false);
+ for(const key of ['specificNdbBondIsinAndRatingVerified','actualPensionFundHoldingAndNavVerified',
+  'individualSubscriberSectorKycAndAccessVerified','commercialNavAndMarketDataRightsVerified',
+  'personalizedAdviceAuthorizationVerified'])assert.equal(r[key],false,key);
+ assert.equal(rows.filter(x=>x.npsCommonSchemeReview?.ndbRupeeBond2026InvestmentGuidelineReview).length,1);
+ const ordinary=screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+  emergencyFundMonths:null,riskTolerance:'Aggressive'
+ }));
+ const needsReview=screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Emergency Fund'],investmentHorizonYears:2,
+  emergencyFundMonths:0,riskTolerance:'Conservative'
+ }));
+ const c=ordinary.find(x=>x.id===classC.id);
+ const stressed=needsReview.find(x=>x.id===classC.id);
+ const g=ordinary.find(x=>x.id==='catalog_2026_nps_asset_g');
+ const always=['PFRDA_2026_NDB_RUPEE_BOND_CLASS_C_PERMISSION_NOT_VERIFIED_FUND_HOLDING',
+  'NPS_CLASS_C_NDB_AA_RATING_AND_MATURITY_CONDITIONS_NOT_ISSUE_APPROVAL'];
+ const conditional=['EMERGENCY_FUND_GOAL_REQUIRES_NPS_CLASS_C_CREDIT_AND_TIER_I_WITHDRAWAL_REVIEW',
+  'CONSERVATIVE_PROFILE_REQUIRES_NPS_CLASS_C_ISSUER_AND_RATE_LOSS_REVIEW',
+  'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_NPS_CLASS_C_LIQUIDITY_AND_NAV_REVIEW'];
+ for(const code of always){
+  assert.ok(c.screeningReasonCodes.includes(code));
+  assert.ok(stressed.screeningReasonCodes.includes(code));
+  assert.ok(!g.screeningReasonCodes.includes(code));
+ }
+ for(const code of conditional){
+  assert.ok(!c.screeningReasonCodes.includes(code));
+  assert.ok(stressed.screeningReasonCodes.includes(code));
+ }
+ for(const x of [c,stressed,g]){
+  assert.equal(x.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+  assert.equal(x.productQualified,false);
+  assert.equal(x.scoreAvailable,false);
+  assert.equal(x.productRiskLevel,null);
+ }
+ r.actualPensionFundHoldingAndNavVerified=true;
+ r.riskConsiderations.push('FORGED NPS FUND APPROVAL');
+ const clean=listExtensionResearch().find(x=>x.id===classC.id)
+  .npsCommonSchemeReview.ndbRupeeBond2026InvestmentGuidelineReview;
+ assert.equal(clean.actualPensionFundHoldingAndNavVerified,false);
+ assert.ok(!clean.riskConsiderations.includes('FORGED NPS FUND APPROVAL'));
+});
