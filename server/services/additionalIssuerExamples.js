@@ -19,6 +19,8 @@ const HOSTS = Object.freeze({
   'Axis Bank': ['www.axis.bank.in'],
   'Kotak Mahindra Bank': ['www.kotak.bank.in'],
   'HDFC Bank': ['www.hdfc.bank.in'],
+  'Invesco India Mutual Fund': ['www.invescomutualfund.com'],
+  'Mirae Asset Mutual Fund': ['www.miraeassetmf.co.in'],
 });
 const EXPECTED = Object.freeze({
   catalog_2026_index_nifty500: {
@@ -48,6 +50,30 @@ const EXPECTED = Object.freeze({
   catalog_2026_bank_tax_saver_fd: {
     benchmark: 'FIVE_YEAR_BANK_TAX_SAVER_FD', instrument: 'BANK_DEPOSIT',
     pattern: /(?:tax.?saver|tax.?saving).?fixed.?deposit/i,
+  },
+  catalog_2026_index_nifty200_quality: {
+    benchmark: 'Nifty200 Quality 30 TRI', instrument: 'INDEX_FUND',
+    pattern: /nifty.?200.?quality.?30.?index.?fund/i,
+  },
+  catalog_2026_index_india_defence: {
+    benchmark: 'Nifty India Defence TRI', instrument: 'INDEX_FUND',
+    pattern: /nifty.?india.?defence.?index.?fund/i,
+  },
+  catalog_2026_etf_smallcap250: {
+    benchmark: 'Nifty Smallcap 250 TRI', instrument: 'ETF',
+    pattern: /nifty.?smallcap.?250.?etf/i,
+  },
+  catalog_2026_gilt_10y_constant: {
+    benchmark: '10_YEAR_CONSTANT_MATURITY_GILT', instrument: 'DEBT_MUTUAL_FUND',
+    pattern: /(?:constant.?maturity.?10.?year|10.?year.?constant.?maturity).*gilt.?fund/i,
+  },
+  catalog_2026_medium_long_duration_mf: {
+    benchmark: 'MEDIUM_TO_LONG_DURATION_4_TO_7_YEARS', instrument: 'DEBT_MUTUAL_FUND',
+    pattern: /medium.?to.?long.?(?:duration|term).?fund/i,
+  },
+  catalog_2026_long_duration_mf: {
+    benchmark: 'LONG_DURATION_ABOVE_7_YEARS', instrument: 'DEBT_MUTUAL_FUND',
+    pattern: /(?:long.?duration.?fund|nivesh.?lakshya.?long.?term.?fund|long.?term.?fund)/i,
   },
 });
 const invalid = code => { throw new Error('FINANCIAL_ISSUER_EXAMPLES_' + code); };
