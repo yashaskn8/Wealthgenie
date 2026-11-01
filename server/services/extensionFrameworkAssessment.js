@@ -374,6 +374,29 @@ if(research.entries.filter(row=>row.sebiDebtSchemeStructureReview?.sebiMarch2026
       'licensedMarketDataAndAdviceAuthorizationVerified'].some(key=>v[key]!==false);
  }))throw new Error('FINANCIAL_SEBI_2026_PASSIVE_DEBT_REPLICATION_SOURCE_BOUNDARY_INVALID');
 
+// SEBI's 2026 passive-category rule is not a verified scheme's risk or holdings.
+const broadPassiveIndexSpecs=Object.freeze({
+ 'catalog_2026_index_nifty500':'Nifty 500',
+ 'catalog_2026_index_midcap150':'Nifty Midcap 150',
+ 'catalog_2026_index_smallcap250':'Nifty Smallcap 250',
+});
+if(Object.entries(broadPassiveIndexSpecs).some(([id,name])=>{
+ const row=research.entries.find(item=>item.id===id);
+ const v=row?.indexBenchmarkReview?.sebiFeb2026PassiveReplicationReview;
+ return !v||v.officialSebiCircularPdfUrl!=='https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf'
+  ||v.circularIssuedOn!=='2026-02-26'||v.reviewedOn!=='2026-11-01'
+  ||v.categoryMinimumIndexSecuritiesAllocationPct!==95
+  ||v.existingSchemeAlignmentWindowMonths!==6||v.actualSchemeAlignmentNotInferred!==true
+  ||v.benchmarkName!==name||v.wrapper!=='INDEX_MUTUAL_FUND'
+  ||v.officialIndexProviderMethodologyUrl!==row.indexBenchmarkReview.officialNseIndexUrl
+  ||v.sourceScope!=='SEBI_PASSIVE_CATEGORY_ALLOCATION_AND_NSE_BENCHMARK_NOT_SCHEME_HOLDINGS_OR_APPROVAL'
+  ||v.riskConsiderations?.length<2||v.investorAccessConstraints?.length<2
+  ||['actualNamedSchemeAndSidKimVerified','actualPortfolioAndNinetyFivePctComplianceVerified',
+    'currentSchemeRiskometerVerified','currentNavOrExecutableQuoteVerified',
+    'individualKycAndRetailAccessVerified','commercialMarketDataRightsVerified',
+    'fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'].some(key=>v[key]!==false);
+}))throw new Error('FINANCIAL_SEBI_2026_BROAD_PASSIVE_INDEX_SOURCE_BOUNDARY_INVALID');
+
 const categoryRiskAccessReviewKeys=Object.freeze([
  'postalSavingsAccessReview','rbiRetailDirectAccessReview','sgsStripsAccessReview',
  'governmentBondStructureReview','bankDepositAccessReview','nbfcPublicDepositAccessReview',
@@ -2024,9 +2047,17 @@ export function screenExtensionResearchForProfile(profileInput) {
    }
    if(row.indexBenchmarkReview?.sebiFeb2026PassiveReplicationReview) {
      reasons.push('SEBI_FEB_2026_PASSIVE_INDEX_95PCT_MANDATE_NOT_VERIFIED_SCHEME_HOLDINGS');
-     reasons.push(row.id==='catalog_2026_index_nifty_next50'
-       ? 'NIFTY_NEXT50_EXCLUDES_NIFTY50_NOT_A_VERIFIED_FUND_PORTFOLIO'
-       : 'NIFTY100_COMBINES_NIFTY50_NEXT50_NOT_A_VERIFIED_FUND_PORTFOLIO');
+     const passiveBenchmarkCode={
+       catalog_2026_index_nifty_next50:'NIFTY_NEXT50_EXCLUDES_NIFTY50_NOT_A_VERIFIED_FUND_PORTFOLIO',
+       catalog_2026_index_nifty100:'NIFTY100_COMBINES_NIFTY50_NEXT50_NOT_A_VERIFIED_FUND_PORTFOLIO',
+       catalog_2026_index_nifty500:'NIFTY500_BROAD_MARKET_WEIGHTING_NOT_VERIFIED_FUND_DIVERSIFICATION',
+       catalog_2026_index_midcap150:'MIDCAP150_RANKS_101_250_NOT_VERIFIED_SCHEME_LIQUIDITY',
+       catalog_2026_index_smallcap250:'SMALLCAP250_RANKS_251_500_NOT_VERIFIED_SCHEME_EXIT',
+     }[row.id];
+     if(passiveBenchmarkCode)reasons.push(passiveBenchmarkCode);
+     if(profile.emergencyFundMonths===0 && (
+       row.id==='catalog_2026_index_midcap150'||row.id==='catalog_2026_index_smallcap250'
+     ))reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_MID_SMALL_INDEX_REDEMPTION_AND_LIQUIDITY_REVIEW');
      if(profile.investmentHorizonYears<=3 || profile.investmentGoals.includes('Emergency Fund'))
        reasons.push('SHORT_OR_EMERGENCY_GOAL_REQUIRES_PASSIVE_INDEX_NAV_REDEMPTION_AND_EQUITY_LOSS_REVIEW');
      if(profile.riskTolerance==='Conservative')
