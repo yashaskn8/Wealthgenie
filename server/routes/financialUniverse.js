@@ -9,6 +9,7 @@ import { calculateSourceBoundContractCashflow } from '../services/qualifiedPostg
 import { getFinancialPostgresPool } from '../postgres/connection.js';
 import { createFinancialStore } from '../postgres/financialStore.js';
 import { compareQualifiedFamilyProducts } from '../services/familyTopThree.js';
+import { attachSourceBoundAfterTaxReturns } from '../services/familyTopThreePostTax.js';
 import { listFamiliesWithThreeSourceQualifiedProducts } from '../services/threeProductFamilyCatalog.js';
 import { requireFreshRecommendationState } from '../services/recommendationState.js';
 const router = Router();
@@ -112,7 +113,11 @@ router.get('/:productId/observation', validateQuery(Joi.object({
 
 const topProductsSchema = Joi.object({
   profileId: Joi.string().pattern(/^[a-fA-F0-9]{24}$/).required(),
-}).unknown(false);
+  // Optional fully explicit investor tax scenario. Never infer dates, slab
+  // status or acquisition lots from the category or from a headline yield.
+  principal: Joi.number().greater(0).max(1e10).optional(),
+  taxEventContext: contractSchema.extract('taxEventContext').invalid(null).optional(),
+}).and('principal', 'taxEventContext').unknown(false);
 // Identity is bound twice to the immutable MongoDB recommendation state.
 router.post('/:familyId/top-products', verifyJWT, validate(topProductsSchema),
   asyncHandler(async (req, res) => {
@@ -127,10 +132,17 @@ router.post('/:familyId/top-products', verifyJWT, validate(topProductsSchema),
     if (!pool) return sendError(req, res, 503, 'Financial PostgreSQL unavailable.', 'FINANCIAL_POSTGRES_NOT_ENABLED');
     const identity = { userId: req.user.userId, profileId: req.body.profileId };
     const current = await requireFreshRecommendationState(identity);
+    const comparisonTime = new Date();
     const comparison = await compareQualifiedFamilyProducts({
-      pool, familyId, profileInput: current.profile, now: new Date(),
+      pool, familyId, profileInput: current.profile, now: comparisonTime,
       adviceAuthorized: process.env.FINANCIAL_PERSONALIZED_ADVICE_ENABLED === 'true',
     });
+    const enriched = req.body.taxEventContext
+      ? await attachSourceBoundAfterTaxReturns({
+        pool, comparison, principal: req.body.principal,
+        taxEventContext: req.body.taxEventContext, now: comparisonTime,
+      })
+      : comparison;
     const latest = await requireFreshRecommendationState(identity);
     if (String(current.recommendation?._id) !== String(latest.recommendation?._id)
       || String(current.allocationRevision?._id) !== String(latest.allocationRevision?._id)
@@ -140,7 +152,7 @@ router.post('/:familyId/top-products', verifyJWT, validate(topProductsSchema),
     }
     res.set('Cache-Control', 'private, no-store');
     return res.json({
-      ...comparison,
+      ...enriched,
       source: {
         profileId: String(current.profile._id),
         recommendationId: String(current.recommendation._id),
