@@ -3264,7 +3264,40 @@
         "investorKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "nseEqualWeight2026Review": {
+          "officialNseEquityMethodologyPdfUrl": "https://www.niftyindices.com/Methodology/Method_NIFTY_Equity_Indices.pdf",
+          "officialNseBenchmarkUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty50-equal-weight",
+          "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "sebiCircularIssuedOn": "2026-02-26",
+          "reviewedOn": "2026-11-01",
+          "benchmarkName": "Nifty50 Equal Weight",
+          "parentIndexName": "Nifty 50",
+          "wrapper": "INDEX_MUTUAL_FUND",
+          "parentConstituentReviewFrequency": "SEMI_ANNUAL",
+          "equalWeightCompanyResetFrequency": "QUARTERLY",
+          "targetEqualCompanyWeightPercentAtReset": 2,
+          "categoryMinimumIndexSecuritiesAllocationPercent": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "categoryInterpretation": "Nifty50 Equal Weight index-fund archetype: the same 50 parent companies are reset to equal company weights quarterly, while parent membership is reviewed semi-annually; index weights can drift between resets. No AMC holdings, SID/KIM, riskometer or redemption NAV has been authenticated.",
+          "sourceScope": "NSE_INDEX_CONSTITUENT_AND_WEIGHT_METHODOLOGY_PLUS_SEBI_PASSIVE_CATEGORY_RULE_NOT_SCHEME_APPROVAL",
+          "riskConsiderations": [
+            "Equal company weights can drift between quarterly resets; reconstitution and rebalancing can generate turnover, tracking differences and equity losses.",
+            "A scheme may differ from its benchmark through costs, cash holdings and execution; redemption NAV and settlement are not inferred from the index."
+          ],
+          "investorAccessConstraints": [
+            "Verify the named AMC scheme, SID/KIM, current riskometer, actual holdings and compliance with the SEBI passive category rule; NSE benchmark pages do not authenticate a scheme.",
+            "Verify subscription eligibility, KYC, minimum investment, actual NAV, redemption cut-off, settlement, provider data rights and advice authorization."
+          ],
+          "indexProviderIssuerListIsNotSchemeVerification": true,
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualPortfolioAndNinetyFivePercentComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
@@ -3320,7 +3353,40 @@
         "investorKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "nseEqualWeight2026Review": {
+          "officialNseEquityMethodologyPdfUrl": "https://www.niftyindices.com/Methodology/Method_NIFTY_Equity_Indices.pdf",
+          "officialNseBenchmarkUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-equal-weight",
+          "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "sebiCircularIssuedOn": "2026-02-26",
+          "reviewedOn": "2026-11-01",
+          "benchmarkName": "Nifty100 Equal Weight",
+          "parentIndexName": "Nifty 100",
+          "wrapper": "INDEX_MUTUAL_FUND",
+          "parentConstituentReviewFrequency": "SEMI_ANNUAL",
+          "equalWeightCompanyResetFrequency": "QUARTERLY",
+          "targetEqualCompanyWeightPercentAtReset": 1,
+          "categoryMinimumIndexSecuritiesAllocationPercent": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "categoryInterpretation": "Nifty100 Equal Weight index-fund archetype: the Nifty 50 and Nifty Next 50 parent constituents are reset to equal company weights quarterly, not continuously; semi-annual parent reconstitution is a different event. No fund tracking, holdings, riskometer or NAV has been authenticated.",
+          "sourceScope": "NSE_INDEX_CONSTITUENT_AND_WEIGHT_METHODOLOGY_PLUS_SEBI_PASSIVE_CATEGORY_RULE_NOT_SCHEME_APPROVAL",
+          "riskConsiderations": [
+            "Equal company weights can drift between quarterly resets; reconstitution and rebalancing can generate turnover, tracking differences and equity losses.",
+            "A scheme may differ from its benchmark through costs, cash holdings and execution; redemption NAV and settlement are not inferred from the index."
+          ],
+          "investorAccessConstraints": [
+            "Verify the named AMC scheme, SID/KIM, current riskometer, actual holdings and compliance with the SEBI passive category rule; NSE benchmark pages do not authenticate a scheme.",
+            "Verify subscription eligibility, KYC, minimum investment, actual NAV, redemption cut-off, settlement, provider data rights and advice authorization."
+          ],
+          "indexProviderIssuerListIsNotSchemeVerification": true,
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualPortfolioAndNinetyFivePercentComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
@@ -4125,6 +4191,39 @@
             "Verify named listed ETF, AMC, ticker, ISIN, SID/KIM and riskometer. An underlying index is not a listed ETF.",
             "Verify licensed live bid/ask, spread, NAV/iNAV, settlement, demat/KYC, broker permissions and actual exchange implementation; a circular is not an executable offer."
           ]
+        },
+        "nseEqualWeight2026Review": {
+          "officialNseEquityMethodologyPdfUrl": "https://www.niftyindices.com/Methodology/Method_NIFTY_Equity_Indices.pdf",
+          "officialNseBenchmarkUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty50-equal-weight",
+          "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "sebiCircularIssuedOn": "2026-02-26",
+          "reviewedOn": "2026-11-01",
+          "benchmarkName": "Nifty50 Equal Weight",
+          "parentIndexName": "Nifty 50",
+          "wrapper": "EXCHANGE_TRADED_FUND",
+          "parentConstituentReviewFrequency": "SEMI_ANNUAL",
+          "equalWeightCompanyResetFrequency": "QUARTERLY",
+          "targetEqualCompanyWeightPercentAtReset": 2,
+          "categoryMinimumIndexSecuritiesAllocationPercent": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "categoryInterpretation": "Nifty50 Equal Weight ETF archetype: quarterly equal-weight resets and semi-annual parent membership reviews are index rules, not proof of a named listed ETF, executable bid/ask, iNAV or exit liquidity.",
+          "sourceScope": "NSE_INDEX_CONSTITUENT_AND_WEIGHT_METHODOLOGY_PLUS_SEBI_PASSIVE_CATEGORY_RULE_NOT_SCHEME_APPROVAL",
+          "riskConsiderations": [
+            "Equal company weights can drift between quarterly resets; reconstitution and rebalancing can generate turnover, tracking differences and equity losses.",
+            "A listed ETF, if independently verified, can trade at a premium or discount to NAV with uncertain spreads, market depth and settlement."
+          ],
+          "investorAccessConstraints": [
+            "Verify the named AMC scheme, SID/KIM, current riskometer, actual holdings and compliance with the SEBI passive category rule; NSE benchmark pages do not authenticate a scheme.",
+            "Verify listing, ticker, ISIN, demat/KYC, executable bid/ask, NAV/iNAV, exchange access, provider data rights and advice authorization."
+          ],
+          "indexProviderIssuerListIsNotSchemeVerification": true,
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualPortfolioAndNinetyFivePercentComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -4215,6 +4314,39 @@
             "First independently establish whether an Indian-listed ETF exists; index methodology alone is not a listed product. An underlying index is not a listed ETF.",
             "Verify licensed live bid/ask, spread, NAV/iNAV, settlement, demat/KYC, broker permissions and actual exchange implementation; a circular is not an executable offer."
           ]
+        },
+        "nseEqualWeight2026Review": {
+          "officialNseEquityMethodologyPdfUrl": "https://www.niftyindices.com/Methodology/Method_NIFTY_Equity_Indices.pdf",
+          "officialNseBenchmarkUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty-100-equal-weight",
+          "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "sebiCircularIssuedOn": "2026-02-26",
+          "reviewedOn": "2026-11-01",
+          "benchmarkName": "Nifty100 Equal Weight",
+          "parentIndexName": "Nifty 100",
+          "wrapper": "EXCHANGE_TRADED_FUND",
+          "parentConstituentReviewFrequency": "SEMI_ANNUAL",
+          "equalWeightCompanyResetFrequency": "QUARTERLY",
+          "targetEqualCompanyWeightPercentAtReset": 1,
+          "categoryMinimumIndexSecuritiesAllocationPercent": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "categoryInterpretation": "Nifty100 Equal Weight ETF archetype: quarterly reset to approximately one percent per company is an index target, not an ETF's current holdings or tradable order-book depth; semi-annual parent membership review is distinct.",
+          "sourceScope": "NSE_INDEX_CONSTITUENT_AND_WEIGHT_METHODOLOGY_PLUS_SEBI_PASSIVE_CATEGORY_RULE_NOT_SCHEME_APPROVAL",
+          "riskConsiderations": [
+            "Equal company weights can drift between quarterly resets; reconstitution and rebalancing can generate turnover, tracking differences and equity losses.",
+            "A listed ETF, if independently verified, can trade at a premium or discount to NAV with uncertain spreads, market depth and settlement."
+          ],
+          "investorAccessConstraints": [
+            "Verify the named AMC scheme, SID/KIM, current riskometer, actual holdings and compliance with the SEBI passive category rule; NSE benchmark pages do not authenticate a scheme.",
+            "Verify listing, ticker, ISIN, demat/KYC, executable bid/ask, NAV/iNAV, exchange access, provider data rights and advice authorization."
+          ],
+          "indexProviderIssuerListIsNotSchemeVerification": true,
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualPortfolioAndNinetyFivePercentComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
         }
       }
     },
