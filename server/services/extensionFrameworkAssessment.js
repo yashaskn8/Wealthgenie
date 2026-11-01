@@ -1956,6 +1956,29 @@ if(consumptionEtfReviews.length!==1||consumptionEtfReviews[0].id!=='catalog_2026
       'fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'].some(key=>v[key]!==false);
  }))throw new Error('FINANCIAL_NSE_CONSUMPTION_ETF_SOURCE_SCOPE_INVALID');
 
+// SEBI March 2026: multi-fund FoF benchmark and SID rules are not product approval.
+const fofSidBenchmarkSource='https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf';
+const fofSidBenchmarkCodes=Object.freeze({"catalog_2026_equity_diversified_fof":"DIVERSIFIED_EQUITY","catalog_2026_equity_sector_fof":"SECTORAL_THEMATIC_EQUITY","catalog_2026_fof_aggressive_hybrid":"AGGRESSIVE_HYBRID","catalog_2026_fof_conservative_hybrid":"CONSERVATIVE_HYBRID","catalog_2026_fof_income_arbitrage":"INCOME_PLUS_ARBITRAGE","catalog_2026_fof_dynamic_allocation":"DYNAMIC_ASSET_ALLOCATION"});
+if(research.entries.filter(row=>row.fundOfFundsCategoryReview?.sebiMarch2026FoFSidBenchmarkReview).length!==6
+ ||research.entries.some(row=>{
+  const code=fofSidBenchmarkCodes[row.id],v=row.fundOfFundsCategoryReview?.sebiMarch2026FoFSidBenchmarkReview;
+  if(!code)return v!==undefined;
+  return !v||v.officialSebiMasterCircularUrl!==fofSidBenchmarkSource
+   ||!isOfficialFrameworkReferenceUrl(v.officialSebiMasterCircularUrl)
+   ||v.masterCircularAsOf!=='2026-03-20'||v.reviewedOn!=='2026-11-01'
+   ||v.categoryCode!==code||v.categoryInterpretation?.length<120
+   ||v.sourceScope!=='SEBI_MULTI_UNDERLYING_FOF_SID_BENCHMARK_RULES_NOT_SCHEME_APPROVAL'
+   ||JSON.stringify(v.paragraphsAndFormatsReviewed)!==JSON.stringify(['4.1.1','7.22.5','7.23.2','Format No. 5A - Investment Strategies','Format No. 5A - FoF Underlying Details'])
+   ||['multiFundSelectionCannotAutomaticallyBeCalledPassive','multipleUnderlyingFoFBenchmarkSubjectToFeb2026Framework',
+    'schemeBenchmarkMustMatchActualObjectiveAllocationAndStrategy','sidUnderlyingBenchmarkStrategyTerAumPerformanceAndTopHoldingsDisclosureRequired',
+    'fofAndUnderlyingExpensesMustBeDisclosed'].some(k=>v[k]!==true)
+   ||['currentSchemeAndUnderlyingIdentitiesVerified','actualUnderlyingHoldingsVerified','currentSchemeBenchmarkAndSidVerified',
+    'currentFoFAndUnderlyingRiskometersVerified','currentNavFeesAndRedemptionVerified',
+    'individualKycRetailAccessAndTaxVerified','licensedDataAndSignedProviderEntitlementsVerified',
+    'personalizedAdviceAuthorizationVerified'].some(k=>v[k]!==false)
+   ||v.riskConsiderations?.length<2||v.investorAccessConstraints?.length<2;
+ }))throw new Error('FINANCIAL_FOF_MARCH_2026_SID_BENCHMARK_INVALID');
+
 const frameworkPublisherCautions=Object.freeze({
   GOVERNMENT_SCHEME_OPERATOR:'OFFICIAL_SCHEME_LISTING_NOT_INDIVIDUAL_ACCOUNT_OR_CURRENT_TERMS',
   GOVERNMENT_POLICY_PUBLISHER:'GOVERNMENT_GREEN_BOND_FRAMEWORK_NOT_A_SPECIFIC_ISSUE_OR_IMPACT_APPROVAL',
@@ -2711,6 +2734,18 @@ export function screenExtensionResearchForProfile(profileInput) {
      if(profile.riskTolerance==='Conservative'
        &&['catalog_2026_equity_sector_fof','catalog_2026_fof_aggressive_hybrid'].includes(row.id))
        reasons.push('RECORDED_CONSERVATIVE_PREFERENCE_REQUIRES_EQUITY_FOF_CONCENTRATION_AND_LOSS_REVIEW');
+   }
+   const fofSid=row.fundOfFundsCategoryReview?.sebiMarch2026FoFSidBenchmarkReview;
+   if(fofSid){
+     reasons.push('SEBI_MAR_2026_MULTI_FOF_SELECTION_NOT_AUTOMATICALLY_PASSIVE');
+     reasons.push('FOF_SID_'+fofSid.categoryCode+'_BENCHMARK_AND_RISK_UNVERIFIED');
+     if(profile.investmentGoals.includes('Emergency Fund')
+       ||(Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3))
+       reasons.push('SHORT_OR_EMERGENCY_GOAL_REQUIRES_FOF_BENCHMARK_AND_EXIT_REVIEW');
+     if(profile.emergencyFundMonths===0)
+       reasons.push('RECORDED_ZERO_BUFFER_REQUIRES_FOF_UNDERLYING_SETTLEMENT_REVIEW');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_FOF_BENCHMARK_AND_LOSS_REVIEW');
    }
    if(row.fundOfFundsCategoryReview?.sebiMarch2026FoFExpenseReview){
      reasons.push('SEBI_MARCH_2026_FOF_TWO_LAYER_EXPENSE_DISCLOSURE_NOT_ACTUAL_SCHEME_COST');
