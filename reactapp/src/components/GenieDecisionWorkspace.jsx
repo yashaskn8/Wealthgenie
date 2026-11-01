@@ -378,14 +378,17 @@ export default function GenieDecisionWorkspace() {
     const generation = ++loadGeneration.current;
     setPending(true); setError(''); setSuccess(''); setReport(null); setRuns([]);
     setMonitor(null); setAssessments([]); setSelectedAssessment(null);
+    // Monitoring is optional. Its outage must not prevent an owner from
+    // reading the signed scenario and report history.
+    const monitoring = getDecisionMonitor(scenario.id).then(
+      value => ({ value }), error => ({ error }),
+    );
     try {
-      const [saved, reportHistory, watching] = await Promise.all([
-        getDecisionScenario(scenario.id), listDecisionRuns(scenario.id), getDecisionMonitor(scenario.id),
+      const [saved, reportHistory] = await Promise.all([
+        getDecisionScenario(scenario.id), listDecisionRuns(scenario.id),
       ]);
       if (generation !== loadGeneration.current) return;
       setRuns(reportHistory.runs || []);
-      setMonitor(watching.monitor);
-      setAssessments(watching.assessments || []);
       setActive(saved.scenario);
       setRemoteRevisionStale(false);
       setType(saved.scenario.scenarioType);
@@ -402,6 +405,15 @@ export default function GenieDecisionWorkspace() {
         baseline: saved.payload.baseline, details: saved.payload.details,
         goalReservations: saved.payload.goalReservations,
       }));
+      void monitoring.then(({ value, error }) => {
+        if (generation !== loadGeneration.current) return;
+        if (error) {
+          setLiveNotice('Monitoring status is unavailable. Saved decisions and reports remain available.');
+          return;
+        }
+        setMonitor(value.monitor);
+        setAssessments(value.assessments || []);
+      });
       if (saved.scenario.lastRunId) {
         const loaded = await getDecisionRun(saved.scenario.lastRunId);
         if (generation === loadGeneration.current) setReport(loaded);

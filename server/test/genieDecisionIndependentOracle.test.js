@@ -23,6 +23,7 @@ const base = Object.freeze({
 const run = (scenarioType, details, horizonMonths = 12) => calculateDecision({
   scenarioType, details, horizonMonths, baseline: base, goalReservations: [],
 });
+const python = process.platform === 'win32' ? 'python' : 'python3';
 function independentCash(upfront, months, row) {
   let cash = cents(base.openingLiquidCash) - BigInt(upfront);
   const amounts = [];
@@ -93,7 +94,7 @@ test('independent oracle: all four decisions conserve month-by-month cash at 0% 
 test('independent Python Decimal oracle verifies cent-level loan schedule and APR interest', () => {
   const executable = fileURLToPath(new URL('./oracles/decision_loan.py', import.meta.url));
   for (const aprBps of [0, 375, 900, 1375]) {
-    const reference = spawnSync('python3', [executable], {
+    const reference = spawnSync(python, [executable], {
       input: JSON.stringify({
         principalPaise: 600000, aprBps, termMonths: 12, horizonMonths: 12,
       }),
@@ -121,7 +122,7 @@ test('independent Python Decimal oracle verifies cent-level loan schedule and AP
 
 test('independent Decimal oracle validates contractual EMI and partial-term balances at six months', () => {
   const executable = fileURLToPath(new URL('./oracles/decision_loan.py', import.meta.url));
-  const reference = spawnSync('python3', [executable], {
+  const reference = spawnSync(python, [executable], {
     input: JSON.stringify({
       principalPaise: 600000, aprBps: 900, termMonths: 12, horizonMonths: 6,
     }),

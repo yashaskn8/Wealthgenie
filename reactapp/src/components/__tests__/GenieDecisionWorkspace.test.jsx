@@ -120,6 +120,16 @@ describe('GenieDecision workspace red-team integration', () => {
     expect(screen.getByRole('button', { name: 'Save draft' }).disabled).toBe(true);
   });
 
+  it('opens saved reports when optional monitoring is unavailable', async () => {
+    getDecisionMonitor.mockRejectedValueOnce(new Error('monitor service unavailable'));
+    render(<GenieDecisionWorkspace />);
+    fireEvent.click(await screen.findByRole('button', { name: /My saved decision/ }));
+    expect(await screen.findByDisplayValue('My saved decision')).toBeTruthy();
+    expect(await screen.findByText('Decision comparison')).toBeTruthy();
+    expect(await screen.findByText(/Monitoring status is unavailable/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Evaluate saved revision' }).disabled).toBe(false);
+  });
+
   it('creates from user-declared money facts, binds the canonical profile and does not invent rates', async () => {
     listDecisionScenarios.mockResolvedValue({ scenarios: [] });
     render(<GenieDecisionWorkspace />);
