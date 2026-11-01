@@ -86,6 +86,7 @@ async function loadFinancialDirectory(signal) {
   }
   const ids = new Set();
   const names = new Set();
+  const categoryProductIdentity = new Set();
   for (const item of directory.items) {
     const researchCandidates = item?.researchCandidates ?? [];
     const researchKeys = [
@@ -101,6 +102,15 @@ async function loadFinancialDirectory(signal) {
         || !/^\d{4}-\d{2}-\d{2}$/.test(candidate.researchedOn)
         || candidate.displayScope !== 'PUBLIC_ISSUER_RESEARCH_ONLY')) {
       throw new Error('FINANCIAL_PUBLIC_RESEARCH_RESPONSE_INVALID');
+    }
+    for (const candidate of researchCandidates) {
+      const category = String(item.category || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+      const productName = candidate.name.toLowerCase().replace(/[^a-z0-9]+/g, '');
+      const key = category + ':' + productName;
+      if (categoryProductIdentity.has(key)) {
+        throw new Error('FINANCIAL_DUPLICATE_RESEARCH_PRODUCT_IN_CATEGORY');
+      }
+      categoryProductIdentity.add(key);
     }
     const name = typeof item?.name === 'string' ? item.name.trim() : '';
     const normalizedName = name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -506,7 +516,9 @@ export default function InvestmentUniverseExplorer({
                     {item.researchCandidates?.length > 0 && (
                       <section className="wti-universe-public-candidates"
                         aria-label={'Issuer-listed product examples for ' + item.name}>
-                        <strong>Issuer-listed product examples</strong>
+                        <strong>{item.researchCandidates.length === 3
+                          ? '3 distinct issuer-listed options for this investment family'
+                          : 'Issuer-listed product examples'}</strong>
                         <ul>
                           {item.researchCandidates.map(candidate => (
                             <li key={candidate.issuer + ':' + candidate.name}>
