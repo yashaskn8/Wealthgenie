@@ -545,8 +545,18 @@ export async function getQualifiedFamilyTopProducts(familyId, profileId, options
   if (!/^[a-zA-Z0-9:_-]{1,160}$/.test(familyId) || !/^[a-fA-F0-9]{24}$/.test(profileId)) {
     throw new TypeError('A current profile and a valid financial family ID are required.');
   }
+  const { postTaxScenario, ...requestOptions } = options;
+  // The optional scenario is provided explicitly by the investor's tax
+  // workflow. Never auto-fill missing dates, income or tax details from NAV.
+  const body = postTaxScenario === undefined
+    ? { profileId }
+    : {
+      profileId,
+      principal: postTaxScenario?.principal,
+      taxEventContext: postTaxScenario?.taxEventContext,
+    };
   return request('POST', '/financial-universe/' + encodeURIComponent(familyId) + '/top-products',
-    { profileId }, { retries: 0, ...options });
+    body, { retries: 0, ...requestOptions });
 }
 
 export async function getThreeProductReadyFamilies(options = {}) {
