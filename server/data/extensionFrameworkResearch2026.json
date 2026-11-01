@@ -3442,7 +3442,47 @@
         "investorKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "nseQuality2026SourceReview": {
+          "officialNseBenchmarkUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty200-quality-30",
+          "officialNseMethodologyPdfUrl": "https://www.niftyindices.com/Methodology/Method_NIFTY200_Quality30.pdf",
+          "methodologyDocumentPublished": "2019-09",
+          "currentMethodologyRevisionIndependentlyVerified": false,
+          "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "sebiCircularIssuedOn": "2026-02-26",
+          "reviewedOn": "2026-11-01",
+          "benchmarkName": "Nifty200 Quality 30",
+          "wrapper": "INDEX_MUTUAL_FUND",
+          "selectionUniverse": "NIFTY_200",
+          "targetConstituentCount": 30,
+          "publishedSelectionSignals": [
+            "RETURN_ON_EQUITY",
+            "DEBT_EQUITY_WITH_FINANCIAL_SECTOR_EXCEPTION",
+            "FIVE_YEAR_EPS_GROWTH_VARIABILITY"
+          ],
+          "publishedRebalanceFrequency": "SEMI_ANNUAL",
+          "publishedWeightingBasis": "QUALITY_SCORE_AND_FREE_FLOAT_MARKET_CAP",
+          "categoryMinimumIndexSecuritiesAllocationPct": 95,
+          "qualityFactorIsNotCapitalOrDownsideProtection": true,
+          "indexProviderIssuerListIsNotSchemeVerification": true,
+          "sourceScope": "NSE_PUBLISHED_INDEX_RULES_AND_SEBI_2026_PASSIVE_CATEGORY_NOT_CURRENT_SCHEME_OR_ETF",
+          "categoryInterpretation": "Nifty200 Quality 30 index-fund archetype: accounting-based quality selection and semiannual benchmark rebalancing do not prove a named fund's portfolio, current riskometer, NAV, redemption terms or individual eligibility.",
+          "riskConsiderations": [
+            "Thirty quality-scored equities remain exposed to market and factor drawdowns; historical ROE and EPS variability cannot forecast loss capacity.",
+            "Semiannual benchmark rebalancing and actual fund cash, expenses or tracking differences can affect returns; no scheme data is verified."
+          ],
+          "investorAccessConstraints": [
+            "Verify named AMC scheme and current SID/KIM, scheme riskometer, NAV, actual tracking/holdings, minimum subscription, settlement and redemption terms.",
+            "Verify individual KYC, account eligibility, licensed data use, fiscal-year tax and financial-advice authorization; NSE issuer listings alone cannot grant eligibility."
+          ],
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualPortfolioAndNinetyFivePctComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
@@ -4438,6 +4478,46 @@
             "Independently verify actual AMC scheme, exchange ticker/ISIN, SID/KIM, current scheme riskometer, fees and tracking disclosures. An underlying index is not a listed ETF.",
             "Verify licensed live bid/ask, spread, NAV/iNAV, settlement, demat/KYC, broker permissions and actual exchange implementation; a circular is not an executable offer."
           ]
+        },
+        "nseQuality2026SourceReview": {
+          "officialNseBenchmarkUrl": "https://www.niftyindices.com/indices/equity/strategy-indices/nifty200-quality-30",
+          "officialNseMethodologyPdfUrl": "https://www.niftyindices.com/Methodology/Method_NIFTY200_Quality30.pdf",
+          "methodologyDocumentPublished": "2019-09",
+          "currentMethodologyRevisionIndependentlyVerified": false,
+          "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "sebiCircularIssuedOn": "2026-02-26",
+          "reviewedOn": "2026-11-01",
+          "benchmarkName": "Nifty200 Quality 30",
+          "wrapper": "EXCHANGE_TRADED_FUND",
+          "selectionUniverse": "NIFTY_200",
+          "targetConstituentCount": 30,
+          "publishedSelectionSignals": [
+            "RETURN_ON_EQUITY",
+            "DEBT_EQUITY_WITH_FINANCIAL_SECTOR_EXCEPTION",
+            "FIVE_YEAR_EPS_GROWTH_VARIABILITY"
+          ],
+          "publishedRebalanceFrequency": "SEMI_ANNUAL",
+          "publishedWeightingBasis": "QUALITY_SCORE_AND_FREE_FLOAT_MARKET_CAP",
+          "categoryMinimumIndexSecuritiesAllocationPct": 95,
+          "qualityFactorIsNotCapitalOrDownsideProtection": true,
+          "indexProviderIssuerListIsNotSchemeVerification": true,
+          "sourceScope": "NSE_PUBLISHED_INDEX_RULES_AND_SEBI_2026_PASSIVE_CATEGORY_NOT_CURRENT_SCHEME_OR_ETF",
+          "categoryInterpretation": "Nifty200 Quality 30 ETF archetype: 30-stock accounting-quality selection and semiannual benchmark rebalancing do not prove an actual exchange-listed scheme, its riskometer, executable price, orderbook liquidity or retail access.",
+          "riskConsiderations": [
+            "Accounting-based quality scores and 30-stock concentration can underperform broad equities and do not protect principal.",
+            "Semiannual benchmark turnover, ETF bid-ask spreads, market-price/NAV differences and tracking costs can affect an actual investment; none is quantified here."
+          ],
+          "investorAccessConstraints": [
+            "Verify a named AMC's current SID/KIM, listing ticker and ISIN, riskometer, holdings, charges and settlement before asserting any product exists or is accessible.",
+            "Verify individual demat/KYC/broker access, authorized current bid/ask and NAV/iNAV, market-data redistribution rights, tax treatment and advice permissions."
+          ],
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualPortfolioAndNinetyFivePctComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
         }
       }
     },
