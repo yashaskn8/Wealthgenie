@@ -304,6 +304,28 @@ describe('GenieDecision workspace red-team integration', () => {
     expect(screen.getByText(/The financial profile, saved scenario, or calculation rules have changed/)).toBeTruthy();
   });
 
+  it('ignores an older refresh that resolves after a newer revision check', async () => {
+    let sendStatus;
+    subscribeDecisionEvents.mockImplementation(async ({ onStatus }) => { sendStatus = onStatus; });
+    render(<GenieDecisionWorkspace />);
+    fireEvent.click(await screen.findByRole('button', { name: /My saved decision/ }));
+    await screen.findByText('Decision comparison');
+    const oldAvailability = Promise.withResolvers();
+    const oldHistory = Promise.withResolvers();
+    getDecisionAvailability.mockReturnValueOnce(oldAvailability.promise);
+    listDecisionScenarios.mockReturnValueOnce(oldHistory.promise);
+    await act(async () => sendStatus('connected'));
+    listDecisionScenarios.mockResolvedValueOnce({ scenarios: [{ ...saved, revision: 2 }] });
+    await act(async () => sendStatus('connected'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Evaluate saved revision' }).disabled).toBe(true));
+    await act(async () => {
+      oldAvailability.resolve({ available: true, profileId, profileStateRevision: 3 });
+      oldHistory.resolve({ scenarios: [saved] });
+    });
+    expect(screen.getByRole('button', { name: 'Evaluate saved revision' }).disabled).toBe(true);
+    expect(screen.getByText(/This saved scenario is not the latest known revision/)).toBeTruthy();
+  });
+
   it('blocks financial actions immediately when the profile changes and its refresh fails', async () => {
     let emitEvent;
     subscribeDecisionEvents.mockImplementation(async ({ onEvent }) => { emitEvent = onEvent; });

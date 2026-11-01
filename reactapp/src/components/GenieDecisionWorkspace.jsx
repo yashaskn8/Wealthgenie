@@ -139,6 +139,7 @@ export default function GenieDecisionWorkspace() {
   const [previewState, setPreviewState] = useState('waiting');
   const [runs, setRuns] = useState([]);
   const loadGeneration = useRef(0);
+  const refreshGeneration = useRef(0);
   const createRequestRef = useRef(null);
   const evaluationRequestRef = useRef(null);
   const [savedFingerprint, setSavedFingerprint] = useState(null);
@@ -166,12 +167,14 @@ export default function GenieDecisionWorkspace() {
 
   const refresh = useCallback(async ({ signal } = {}) => {
     const startedAtAuthRevision = getAuthSnapshot();
+    const generation = ++refreshGeneration.current;
     // Historical reports remain browsable even if the canonical profile
     // pointer is unavailable. Never infer a usable profile from that failure.
     const [availabilityResult, historyResult] = await Promise.allSettled([
       getDecisionAvailability({ signal }), listDecisionScenarios({ signal }),
     ]);
-    if (signal?.aborted || startedAtAuthRevision !== getAuthSnapshot()) return;
+    if (signal?.aborted || startedAtAuthRevision !== getAuthSnapshot()
+      || generation !== refreshGeneration.current) return;
     if (historyResult.status === 'fulfilled') {
       const scenarios = historyResult.value.scenarios || [];
       setHistory(scenarios);
