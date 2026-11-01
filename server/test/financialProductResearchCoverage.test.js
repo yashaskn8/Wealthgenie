@@ -15,15 +15,27 @@ describe('250-family actual-product research workflow keeps trust boundaries', (
     const result = buildFinancial250ResearchCoverage();
     assert.equal(result.familyCount, 250);
     assert.equal(result.researchSlotCapacity, 750);
-    assert.equal(result.researchedFamilyCount, 4);
-    assert.equal(result.issuerIdentitiesResearched, 12);
+    assert.equal(result.researchedFamilyCount, 11);
+    assert.equal(result.issuerIdentitiesResearched, 32);
+    assert.equal(result.duplicateIssuerProductsWithinCategory, 0);
     assert.equal(result.productionQualifiedFamilies, 'NOT_MEASURED');
     assert.equal(result.personalizedTopThreeComputed, false);
     assert.equal(result.afterTaxProductReturnsComputed, false);
     assert.equal(result.families.length, 250);
-    assert.equal(result.families.reduce((sum, f) => sum + f.researchOnlyCandidates.length, 0), 12);
+    assert.equal(result.families.reduce((sum, f) => sum + f.researchOnlyCandidates.length, 0), 32);
     assert.ok(result.families.every(f => f.productionComparisonReady === false));
     assert.ok(result.families.every(f => f.qualifiedProductCount === null));
+    const familiesWithThree = result.families.filter(f => f.researchOnlyCandidates.length === 3);
+    assert.equal(familiesWithThree.length, 10);
+    assert.equal(result.families.filter(f => f.researchOnlyCandidates.length === 2).length, 1);
+    const byId = new Map(result.families.map(f => [f.familyId, f]));
+    assert.deepEqual(
+      byId.get('catalog_2026_index_nifty100_equal').researchOnlyCandidates.map(x => x.issuer),
+      ['HDFC Mutual Fund', 'Kotak Mutual Fund', 'Sundaram Mutual Fund'],
+    );
+    assert.ok(byId.get('catalog_2026_etf_nifty50_equal').researchOnlyCandidates.every(
+      x => x.schemeName.toLowerCase().includes('etf'),
+    ));
     for (const f of result.families) for (const candidate of f.researchOnlyCandidates) {
       assert.equal(candidate.eligibleForRecommendation, false);
       assert.equal(candidate.hasCommercialDisplayPermission, false);
