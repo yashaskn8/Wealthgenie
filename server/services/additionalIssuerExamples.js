@@ -73,7 +73,7 @@ const EXPECTED = Object.freeze({
   },
   catalog_2026_long_duration_mf: {
     benchmark: 'LONG_DURATION_ABOVE_7_YEARS', instrument: 'DEBT_MUTUAL_FUND',
-    pattern: /(?:long.?duration.?fund|nivesh.?lakshya.?long.?term.?fund|long.?term.?fund)/i,
+    pattern: /^(?!.*medium.?to.?long)(?:.*long.?duration.?fund|.*nivesh.?lakshya.?long.?term.?fund|.*long.?term.?fund)/i,
   },
   catalog_2026_index_nifty_lowvol: {
     benchmark: 'Nifty100 Low Volatility 30 TRI', instrument: 'INDEX_FUND',
