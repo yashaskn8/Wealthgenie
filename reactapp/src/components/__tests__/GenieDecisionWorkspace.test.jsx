@@ -130,6 +130,24 @@ describe('GenieDecision workspace red-team integration', () => {
     expect(screen.getByRole('button', { name: 'Evaluate saved revision' }).disabled).toBe(false);
   });
 
+  it('opens the signed current report when report history is unavailable', async () => {
+    listDecisionRuns.mockRejectedValueOnce(new Error('history service unavailable'));
+    render(<GenieDecisionWorkspace />);
+    fireEvent.click(await screen.findByRole('button', { name: /My saved decision/ }));
+    expect(await screen.findByDisplayValue('My saved decision')).toBeTruthy();
+    expect(await screen.findByText('Decision comparison')).toBeTruthy();
+    expect(await screen.findByText(/Report history could not be verified/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Evaluate saved revision' }).disabled).toBe(false);
+  });
+
+  it('does not wait for a stalled monitoring request before opening the report', async () => {
+    getDecisionMonitor.mockReturnValueOnce(new Promise(() => {}));
+    render(<GenieDecisionWorkspace />);
+    fireEvent.click(await screen.findByRole('button', { name: /My saved decision/ }));
+    expect(await screen.findByText('Decision comparison')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Evaluate saved revision' }).disabled).toBe(false);
+  });
+
   it('creates from user-declared money facts, binds the canonical profile and does not invent rates', async () => {
     listDecisionScenarios.mockResolvedValue({ scenarios: [] });
     render(<GenieDecisionWorkspace />);

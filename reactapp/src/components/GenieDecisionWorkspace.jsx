@@ -378,17 +378,17 @@ export default function GenieDecisionWorkspace() {
     const generation = ++loadGeneration.current;
     setPending(true); setError(''); setSuccess(''); setReport(null); setRuns([]);
     setMonitor(null); setAssessments([]); setSelectedAssessment(null);
-    // Monitoring is optional. Its outage must not prevent an owner from
-    // reading the signed scenario and report history.
+    // History and monitoring are secondary reads. Their outages must not
+    // prevent an owner from opening the signed current scenario and report.
+    const history = listDecisionRuns(scenario.id).then(
+      value => ({ value }), error => ({ error }),
+    );
     const monitoring = getDecisionMonitor(scenario.id).then(
       value => ({ value }), error => ({ error }),
     );
     try {
-      const [saved, reportHistory] = await Promise.all([
-        getDecisionScenario(scenario.id), listDecisionRuns(scenario.id),
-      ]);
+      const saved = await getDecisionScenario(scenario.id);
       if (generation !== loadGeneration.current) return;
-      setRuns(reportHistory.runs || []);
       setActive(saved.scenario);
       setRemoteRevisionStale(false);
       setType(saved.scenario.scenarioType);
@@ -405,6 +405,14 @@ export default function GenieDecisionWorkspace() {
         baseline: saved.payload.baseline, details: saved.payload.details,
         goalReservations: saved.payload.goalReservations,
       }));
+      void history.then(({ value, error }) => {
+        if (generation !== loadGeneration.current) return;
+        if (error) {
+          setLiveNotice('Report history could not be verified. The saved scenario and current signed report remain available.');
+          return;
+        }
+        setRuns(value.runs || []);
+      });
       void monitoring.then(({ value, error }) => {
         if (generation !== loadGeneration.current) return;
         if (error) {
