@@ -4073,3 +4073,55 @@ test('three remaining NSE passive benchmarks distinguish dated index facts from 
  assert.ok(!listExtensionResearch().find(x=>x.id===specs[0][0]).thematicIndexReview
   .nseNov2026RemainingPassiveReview.riskConsiderations.includes('FORGED FUND RISK APPROVAL'));
 });
+
+test('Nifty India Consumption ETF dated benchmark facts cannot qualify a scheme or a client',()=>{
+ const id='catalog_2026_etf_india_consumption';
+ const row=listExtensionResearch().find(x=>x.id===id);
+ const v=row.etfBenchmarkReview.nseNov2026ConsumptionEtfReview;
+ assert.equal(v.factsheetAsOf,'2026-04-30');
+ assert.equal(v.publishedConstituentCount,30);
+ assert.equal(v.domesticRevenueShareMustExceedPct,50);
+ assert.equal(v.publishedConstituentCapAtRebalancePct,10);
+ assert.equal(v.indexRebalanceFrequency,'SEMIANNUAL');
+ assert.equal(v.categoryMinimumIndexSecuritiesAllocationPct,95);
+ assert.equal(v.datedFactsheetIsCurrentEtfOrSchemeEvidence,false);
+ assert.equal(v.publishedIndexCapProvesActualEtfHoldings,false);
+ assert.equal(v.domesticRevenueRuleGuaranteesDomesticOnlyExposure,false);
+ assert.ok(isOfficialFrameworkReferenceUrl(v.officialNseFactsheetUrl));
+ for(const key of ['actualNamedSchemeAndSidKimVerified',
+   'actualSchemeHoldingsAnd95PctComplianceVerified','currentSchemeRiskometerVerified',
+   'currentNavOrExecutableQuoteVerified','individualKycAndRetailAccessVerified',
+   'commercialMarketDataRightsVerified',
+   'fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'])
+   assert.equal(v[key],false);
+ const screen=overrides=>screenExtensionResearchForProfile(canonicalProfile({
+   investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+   emergencyFundMonths:null,riskTolerance:'Aggressive',...overrides,
+ })).find(x=>x.id===id);
+ const normal=screen({});
+ const flagged=screen({investmentGoals:['Emergency Fund'],investmentHorizonYears:2,
+   emergencyFundMonths:0,riskTolerance:'Conservative'});
+ for(const x of [normal,flagged]){
+   assert.equal(x.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(x.productQualified,false);
+   assert.equal(x.scoreAvailable,false);
+   assert.equal(x.productRiskLevel,null);
+   for(const code of ['NIFTY_CONSUMPTION_ETF_2026_INDEX_CAP_NOT_VERIFIED_SCHEME_HOLDINGS',
+     'NIFTY_CONSUMPTION_DOMESTIC_REVENUE_RULE_NOT_DOWNSIDE_PROTECTION',
+     'SEBI_FEB_2026_PASSIVE_95PCT_NOT_VERIFIED_SCHEME_COMPLIANCE',
+     'CONSUMPTION_ETF_REQUIRES_AUTHENTICATED_LISTING_RISKOMETER_NAV_AND_ACCESS'])
+     assert.ok(x.screeningReasonCodes.includes(code),code);
+ }
+ for(const code of ['SHORT_OR_EMERGENCY_GOAL_REQUIRES_CONSUMPTION_ETF_SPREAD_AND_EXIT_REVIEW',
+   'ZERO_EMERGENCY_BUFFER_REQUIRES_CONSUMPTION_ETF_ORDERBOOK_EXIT_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_CONSUMPTION_ETF_THEME_LOSS_REVIEW']){
+   assert.ok(!normal.screeningReasonCodes.includes(code),code);
+   assert.ok(flagged.screeningReasonCodes.includes(code),code);
+ }
+ assert.ok(!screen({investmentHorizonYears:null,emergencyFundMonths:null})
+   .screeningReasonCodes.includes(
+     'SHORT_OR_EMERGENCY_GOAL_REQUIRES_CONSUMPTION_ETF_SPREAD_AND_EXIT_REVIEW'));
+ v.riskConsiderations.push('FORGED ETF APPROVAL');
+ assert.ok(!listExtensionResearch().find(x=>x.id===id).etfBenchmarkReview
+   .nseNov2026ConsumptionEtfReview.riskConsiderations.includes('FORGED ETF APPROVAL'));
+});

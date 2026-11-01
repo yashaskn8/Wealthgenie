@@ -1897,6 +1897,36 @@ if(research.entries.filter(row=>row.thematicIndexReview?.nseNov2026RemainingPass
     'fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'].some(key=>v[key]!==false);
  }))throw new Error('FINANCIAL_NSE_REMAINING_PASSIVE_NOV2026_SCOPE_INVALID');
 
+
+const consumptionEtfReviews=research.entries.filter(
+ row=>row.etfBenchmarkReview?.nseNov2026ConsumptionEtfReview);
+if(consumptionEtfReviews.length!==1||consumptionEtfReviews[0].id!=='catalog_2026_etf_india_consumption'
+ ||research.entries.some(row=>{
+  const v=row.etfBenchmarkReview?.nseNov2026ConsumptionEtfReview;
+  if(!v)return false;
+  return v.benchmarkCode!=='NIFTY_INDIA_CONSUMPTION'||v.wrapper!=='ETF'
+   ||v.officialNseFactsheetUrl!=='https://niftyindices.com/Factsheet/ind_Nifty_India_Consumption.pdf'
+   ||!isOfficialFrameworkReferenceUrl(v.officialNseFactsheetUrl)
+   ||!isOfficialFrameworkReferenceUrl(v.officialNseIndexPageUrl)
+   ||v.officialSebiCategorizationCircularUrl!==sebiDebtSchemeCircularUrl
+   ||v.factsheetAsOf!=='2026-04-30'||v.reviewedOn!=='2026-11-01'
+   ||v.publishedConstituentCount!==30||v.domesticRevenueShareMustExceedPct!==50
+   ||v.publishedConstituentCapAtRebalancePct!==10
+   ||v.indexRebalanceFrequency!=='SEMIANNUAL'
+   ||v.categoryMinimumIndexSecuritiesAllocationPct!==95
+   ||v.existingSchemeAlignmentWindowMonths!==6
+   ||v.categoryInterpretation?.length<160
+   ||v.riskConsiderations?.length<2||v.investorAccessConstraints?.length<2
+   ||['datedFactsheetIsCurrentEtfOrSchemeEvidence',
+      'publishedIndexCapProvesActualEtfHoldings',
+      'domesticRevenueRuleGuaranteesDomesticOnlyExposure',
+      'actualNamedSchemeAndSidKimVerified',
+      'actualSchemeHoldingsAnd95PctComplianceVerified',
+      'currentSchemeRiskometerVerified','currentNavOrExecutableQuoteVerified',
+      'individualKycAndRetailAccessVerified','commercialMarketDataRightsVerified',
+      'fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'].some(key=>v[key]!==false);
+ }))throw new Error('FINANCIAL_NSE_CONSUMPTION_ETF_SOURCE_SCOPE_INVALID');
+
 const frameworkPublisherCautions=Object.freeze({
   GOVERNMENT_SCHEME_OPERATOR:'OFFICIAL_SCHEME_LISTING_NOT_INDIVIDUAL_ACCOUNT_OR_CURRENT_TERMS',
   GOVERNMENT_POLICY_PUBLISHER:'GOVERNMENT_GREEN_BOND_FRAMEWORK_NOT_A_SPECIFIC_ISSUE_OR_IMPACT_APPROVAL',
@@ -2326,6 +2356,25 @@ export function screenExtensionResearchForProfile(profileInput) {
       if(profile.emergencyFundMonths===0)reasons.push(codes[2]);
       if(profile.riskTolerance==='Conservative')reasons.push(codes[3]);
      }
+   }
+
+
+   // An index-provider consumption factsheet is not an authenticated ETF
+   // quote, scheme riskometer or investor permission. Profile facts add
+   // notices only; missing savings/horizon facts never imply zero coverage.
+   if(row.etfBenchmarkReview?.nseNov2026ConsumptionEtfReview){
+     reasons.push('NIFTY_CONSUMPTION_ETF_2026_INDEX_CAP_NOT_VERIFIED_SCHEME_HOLDINGS');
+     reasons.push('NIFTY_CONSUMPTION_DOMESTIC_REVENUE_RULE_NOT_DOWNSIDE_PROTECTION');
+     reasons.push('SEBI_FEB_2026_PASSIVE_95PCT_NOT_VERIFIED_SCHEME_COMPLIANCE');
+     reasons.push('CONSUMPTION_ETF_REQUIRES_AUTHENTICATED_LISTING_RISKOMETER_NAV_AND_ACCESS');
+     if((Number.isFinite(profile.investmentHorizonYears)
+       &&profile.investmentHorizonYears<=3)
+       ||profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('SHORT_OR_EMERGENCY_GOAL_REQUIRES_CONSUMPTION_ETF_SPREAD_AND_EXIT_REVIEW');
+     if(profile.emergencyFundMonths===0)
+       reasons.push('ZERO_EMERGENCY_BUFFER_REQUIRES_CONSUMPTION_ETF_ORDERBOOK_EXIT_REVIEW');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_CONSUMPTION_ETF_THEME_LOSS_REVIEW');
    }
 
    if(row.indexBenchmarkReview?.sebiFeb2026PassiveReplicationReview) {

@@ -1974,3 +1974,29 @@ test('three NSE benchmark reviews remain discovery-only and defensively copied',
    .investorAccessConstraints.includes('FORGED ETF PERMISSION'));
  }
 });
+
+test('Nifty India Consumption ETF benchmark research remains discovery-only and copied',()=>{
+ const id='catalog_2026_etf_india_consumption';
+ const get=()=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ const item=get(),v=item.frameworkResearch.etfBenchmarkReview.nseNov2026ConsumptionEtfReview;
+ assert.equal(v.factsheetAsOf,'2026-04-30');
+ assert.equal(v.publishedConstituentCount,30);
+ assert.equal(v.publishedConstituentCapAtRebalancePct,10);
+ assert.equal(v.categoryMinimumIndexSecuritiesAllocationPct,95);
+ assert.equal(v.currentSchemeRiskometerVerified,false);
+ assert.equal(v.currentNavOrExecutableQuoteVerified,false);
+ assert.equal(v.actualNamedSchemeAndSidKimVerified,false);
+ assert.equal(v.individualKycAndRetailAccessVerified,false);
+ assert.equal(v.commercialMarketDataRightsVerified,false);
+ assert.equal(v.fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified,false);
+ assert.equal(item.recommendationEligible,false);
+ assert.equal(item.productAvailability,'NOT_VERIFIED');
+ assert.equal(item.dataRights,'NOT_VERIFIED');
+ assert.equal(item.frameworkResearch.actualRiskScore,null);
+ assert.equal(item.frameworkResearch.issuerTermsVerified,false);
+ assert.equal(item.frameworkResearch.sourceRightsVerified,false);
+ assert.ok(Object.values(item.productData).every(x=>x===null));
+ v.investorAccessConstraints.push('FORGED PURCHASE APPROVAL');
+ assert.ok(!get().frameworkResearch.etfBenchmarkReview.nseNov2026ConsumptionEtfReview
+   .investorAccessConstraints.includes('FORGED PURCHASE APPROVAL'));
+});

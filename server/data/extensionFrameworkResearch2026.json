@@ -5254,6 +5254,40 @@
             "Independently verify actual AMC scheme, exchange ticker/ISIN, SID/KIM, current scheme riskometer, fees and tracking disclosures. An underlying index is not a listed ETF.",
             "Verify licensed live bid/ask, spread, NAV/iNAV, settlement, demat/KYC, broker permissions and actual exchange implementation; a circular is not an executable offer."
           ]
+        },
+        "nseNov2026ConsumptionEtfReview": {
+          "benchmarkCode": "NIFTY_INDIA_CONSUMPTION",
+          "wrapper": "ETF",
+          "officialNseFactsheetUrl": "https://niftyindices.com/Factsheet/ind_Nifty_India_Consumption.pdf",
+          "officialNseIndexPageUrl": "https://www.niftyindices.com/indices/equity/thematic-indices/nifty-india-consumption",
+          "officialSebiCategorizationCircularUrl": "https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html",
+          "factsheetAsOf": "2026-04-30",
+          "reviewedOn": "2026-11-01",
+          "publishedConstituentCount": 30,
+          "domesticRevenueShareMustExceedPct": 50,
+          "publishedConstituentCapAtRebalancePct": 10,
+          "indexRebalanceFrequency": "SEMIANNUAL",
+          "categoryMinimumIndexSecuritiesAllocationPct": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "categoryInterpretation": "The 30-stock NSE India Consumption benchmark uses a domestic-revenue eligibility test (>50% excluding exports), semiannual rebalancing and a 10% constituent cap applied at rebalancing or specified index changes in its 30 April 2026 factsheet. These are dated index rules, not a continuous holding cap, a verified AMC ETF portfolio or a guarantee of domestic-only sales, downside protection, current riskometer, exchange liquidity or access.",
+          "riskConsiderations": [
+            "Consumption-related companies across industries can decline together when demand, valuations or sector sentiment change; a domestic-revenue selection rule does not remove foreign business exposure or market loss.",
+            "An actual ETF can trade away from NAV and incur tracking difference, spreads and order-book illiquidity; the dated benchmark constituent cap cannot establish a current ETF's holdings or executable price."
+          ],
+          "investorAccessConstraints": [
+            "Independently identify the actual AMC ETF, exchange listing, ISIN/ticker, SID/KIM, fees, tracking disclosures, holdings, 95% compliance and current scheme-specific riskometer before any product-level assessment.",
+            "Independently verify the investor's applicable KYC/demat/broker permissions, authorized live bid/ask and NAV/iNAV data, settlement, tax position and financial-advice authorization; a benchmark factsheet establishes none of these."
+          ],
+          "datedFactsheetIsCurrentEtfOrSchemeEvidence": false,
+          "publishedIndexCapProvesActualEtfHoldings": false,
+          "domesticRevenueRuleGuaranteesDomesticOnlyExposure": false,
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualSchemeHoldingsAnd95PctComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
         }
       }
     },
