@@ -397,6 +397,40 @@ if(Object.entries(broadPassiveIndexSpecs).some(([id,name])=>{
     'fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'].some(key=>v[key]!==false);
 }))throw new Error('FINANCIAL_SEBI_2026_BROAD_PASSIVE_INDEX_SOURCE_BOUNDARY_INVALID');
 
+// NSE index constituent/weight methodology and SEBI passive-category allocation
+// are general references, never scheme holdings, a live ETF quote or retail approval.
+const equalWeightPassive2026Specs=Object.freeze({
+ 'catalog_2026_index_nifty50_equal':{benchmark:'Nifty50 Equal Weight',target:2,wrapper:'INDEX_MUTUAL_FUND'},
+ 'catalog_2026_index_nifty100_equal':{benchmark:'Nifty100 Equal Weight',target:1,wrapper:'INDEX_MUTUAL_FUND'},
+ 'catalog_2026_etf_nifty50_equal':{benchmark:'Nifty50 Equal Weight',target:2,wrapper:'EXCHANGE_TRADED_FUND'},
+ 'catalog_2026_etf_nifty100_equal':{benchmark:'Nifty100 Equal Weight',target:1,wrapper:'EXCHANGE_TRADED_FUND'},
+});
+if(Object.entries(equalWeightPassive2026Specs).some(([id,spec])=>{
+ const row=research.entries.find(x=>x.id===id);
+ const review=(spec.wrapper==='EXCHANGE_TRADED_FUND'
+  ?row?.etfBenchmarkReview:row?.indexBenchmarkReview)?.nseEqualWeight2026Review;
+ return !review
+  ||review.officialNseEquityMethodologyPdfUrl!=='https://www.niftyindices.com/Methodology/Method_NIFTY_Equity_Indices.pdf'
+  ||review.officialNseBenchmarkUrl!==(spec.wrapper==='EXCHANGE_TRADED_FUND'
+    ?row.etfBenchmarkReview.officialNseIndexUrl:row.indexBenchmarkReview.officialNseIndexUrl)
+  ||review.officialSebiCategorizationCircularUrl!==sebiDebtSchemeCircularUrl
+  ||review.sebiCircularIssuedOn!=='2026-02-26'||review.reviewedOn!=='2026-11-01'
+  ||review.benchmarkName!==spec.benchmark||review.wrapper!==spec.wrapper
+  ||review.parentConstituentReviewFrequency!=='SEMI_ANNUAL'
+  ||review.equalWeightCompanyResetFrequency!=='QUARTERLY'
+  ||review.targetEqualCompanyWeightPercentAtReset!==spec.target
+  ||review.categoryMinimumIndexSecuritiesAllocationPercent!==95
+  ||review.existingSchemeAlignmentWindowMonths!==6
+  ||review.indexProviderIssuerListIsNotSchemeVerification!==true
+  ||review.sourceScope!=='NSE_INDEX_CONSTITUENT_AND_WEIGHT_METHODOLOGY_PLUS_SEBI_PASSIVE_CATEGORY_RULE_NOT_SCHEME_APPROVAL'
+  ||review.categoryInterpretation?.length<90
+  ||review.riskConsiderations?.length<2||review.investorAccessConstraints?.length<2
+  ||['actualNamedSchemeAndSidKimVerified','actualPortfolioAndNinetyFivePercentComplianceVerified',
+   'currentSchemeRiskometerVerified','currentNavOrExecutableQuoteVerified',
+   'individualKycAndRetailAccessVerified','commercialMarketDataRightsVerified',
+   'fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'].some(key=>review[key]!==false);
+}))throw new Error('FINANCIAL_NSE_EQUAL_WEIGHT_2026_SOURCE_BOUNDARY_INVALID');
+
 const categoryRiskAccessReviewKeys=Object.freeze([
  'postalSavingsAccessReview','rbiRetailDirectAccessReview','sgsStripsAccessReview',
  'governmentBondStructureReview','bankDepositAccessReview','nbfcPublicDepositAccessReview',
@@ -2066,6 +2100,26 @@ export function screenExtensionResearchForProfile(profileInput) {
        reasons.push('EMERGENCY_FUND_REQUIRES_DEBT_SCHEME_SETTLEMENT_AND_LIQUIDITY_REVIEW');
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_DEBT_SCHEME_RATE_AND_CREDIT_RISK_REVIEW');
+   }
+   // Quarterly equal-weight resets and semi-annual parent reconstitution are
+   // benchmark mechanics, not a scheme's current holdings or a liquidity promise.
+   if(row.indexBenchmarkReview?.nseEqualWeight2026Review
+     ||row.etfBenchmarkReview?.nseEqualWeight2026Review){
+     const isEtf=Boolean(row.etfBenchmarkReview);
+     reasons.push('NSE_EQUAL_WEIGHT_QUARTERLY_RESET_DISTINCT_FROM_SEMIANNUAL_PARENT_RECONSTITUTION');
+     reasons.push(isEtf
+       ?'SEBI_2026_EQUAL_WEIGHT_ETF_95PCT_RULE_NOT_VERIFIED_LISTED_PRODUCT'
+       :'SEBI_2026_EQUAL_WEIGHT_INDEX_95PCT_RULE_NOT_VERIFIED_SCHEME_HOLDINGS');
+     reasons.push(row.id.includes('nifty50_equal')
+       ?'NIFTY50_EQUAL_WEIGHT_2PCT_RESET_TARGET_NOT_VERIFIED_SCHEME_HOLDINGS'
+       :'NIFTY100_EQUAL_WEIGHT_1PCT_RESET_TARGET_NOT_VERIFIED_SCHEME_HOLDINGS');
+     if(isEtf)reasons.push('EQUAL_WEIGHT_ETF_INDEX_PAGE_NOT_EXECUTABLE_EXCHANGE_SPREAD_OR_NAV');
+     if(profile.investmentHorizonYears<=3||profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('SHORT_OR_EMERGENCY_GOAL_REQUIRES_EQUAL_WEIGHT_EQUITY_NAV_AND_EXIT_REVIEW');
+     if(profile.emergencyFundMonths===0)
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_EQUAL_WEIGHT_LIQUIDITY_REVIEW');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_EQUAL_WEIGHT_DRAWDOWN_AND_TURNOVER_REVIEW');
    }
    if(row.indexBenchmarkReview?.sebiFeb2026PassiveReplicationReview) {
      reasons.push('SEBI_FEB_2026_PASSIVE_INDEX_95PCT_MANDATE_NOT_VERIFIED_SCHEME_HOLDINGS');
