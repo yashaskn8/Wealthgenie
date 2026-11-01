@@ -336,6 +336,28 @@
           "issuerUrl": "https://www.sbimf.com/docs/default-source/sif-forms/sid---sbi-nifty-200-quality-30-etf.pdf?sfvrsn=9b3ac45a_0"
         }
       ]
+    },
+    {
+      "familyId": "catalog_2026_bank_sweep_fd",
+      "benchmark": "BANK_SWEEP_IN_LINKED_FD",
+      "instrument": "BANK_DEPOSIT",
+      "products": [
+        {
+          "name": "SBI Multi Option Deposit Scheme (MODS)",
+          "issuer": "State Bank of India",
+          "issuerUrl": "https://sbi.bank.in/web/customer-care/multi-option-deposit-mod-"
+        },
+        {
+          "name": "HDFC Bank Sweep-In Linked Fixed Deposit",
+          "issuer": "HDFC Bank",
+          "issuerUrl": "https://www.hdfc.bank.in/fixed-deposit/sweepin-facility"
+        },
+        {
+          "name": "ICICI Bank Money Multiplier Fixed Deposit",
+          "issuer": "ICICI Bank",
+          "issuerUrl": "https://www.icici.bank.in/terms-condition/money-multiplier-terms-conditions"
+        }
+      ]
     }
   ]
 }
