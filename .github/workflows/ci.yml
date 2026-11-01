@@ -202,7 +202,7 @@ jobs:
       - name: Install reproducible server dependencies
         run: npm ci --prefix server
       - name: Red-team product qualification, suitability and migration hashes
-        run: node --test server/test/familyTopThree.test.js server/test/threeProductFamilyCatalog.test.js server/test/qualifyFamilyProduct.test.js server/test/financialPostgresReadiness.test.js server/test/verifyProviderEntitlement.test.js server/test/applySignedProviderEntitlement.test.js server/test/auditCatalog250Verification.test.js server/test/financialDiscoveryDirectory.test.js server/test/financialTopThreeAuditSql.test.js server/test/topThreeCoverageSummary.test.js server/test/financialCiArtifactContract.test.js server/test/validateFirstFamilyResearchPilot.test.js
+        run: node --test server/test/familyTopThree.test.js server/test/threeProductFamilyCatalog.test.js server/test/qualifyFamilyProduct.test.js server/test/financialPostgresReadiness.test.js server/test/verifyProviderEntitlement.test.js server/test/applySignedProviderEntitlement.test.js server/test/auditCatalog250Verification.test.js server/test/financialDiscoveryDirectory.test.js server/test/financialTopThreeAuditSql.test.js server/test/topThreeCoverageSummary.test.js server/test/financialCiArtifactContract.test.js server/test/validateFirstFamilyResearchPilot.test.js server/test/financialProductResearchCoverage.test.js
       - name: Audit every one of the 250 catalog families (source evidence, not live product approval)
         run: |
           node server/scripts/auditCatalog250Verification.js > financial-catalog-250-verification.json
@@ -224,6 +224,15 @@ jobs:
         run: node server/scripts/verifyFinancialPostgresIntegration.js
       - name: Audit all 250 families and report missing real product evidence
         run: node server/scripts/auditFinancialTopThreeCoverage.js > financial-top3-coverage.json
+      - name: Export 250-family issuer research coverage separately from production approvals
+        run: node server/scripts/generateFinancialProductResearchCoverage.js > financial-research-250.json
+      - name: Publish issuer research-only progress, never as a qualified product feed
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: financial-issuer-research-250-not-approved
+          path: financial-research-250.json
+          if-no-files-found: warn
       - name: Generate 750 empty evidence slots without pretending issuer verification
         run: node server/scripts/generateFinancialTopThreeEvidenceQueue.js > financial-top3-review-queue.csv
       - name: Validate financial audit artifacts are clean machine-readable outputs
