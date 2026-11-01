@@ -53,6 +53,7 @@ export default function SovereignVoiceControl({
   const callbacksRef = useRef({ onNavigate, onTranscript, onQuestion });
   const listeningRef = useRef(null);
   const reviewRef = useRef(null);
+  const reviewInputRef = useRef(null);
   const intentRef = useRef(null);
   const utteranceRef = useRef(null);
   const spokenRef = useRef(null);
@@ -514,6 +515,13 @@ export default function SovereignVoiceControl({
   const activelySpeaking = phase === 'speaking' &&
     sameVerifiedVoiceReply(spokenAnswer, lastAnswer);
 
+  // Financial-value confirmation is a required step, not an optional panel.
+  // Move keyboard/screen-reader focus to the correction input exactly when
+  // that review appears; avoid refocusing on ordinary caption updates.
+  useEffect(() => {
+    if (pendingReview && phase === 'confirming') reviewInputRef.current?.focus();
+  }, [pendingReview, phase]);
+
   const confirmFinancialReview = async () => {
     const review = reviewRef.current;
     if (!review || epochRef.current !== review.token ||
@@ -638,7 +646,7 @@ export default function SovereignVoiceControl({
           <p>The microphone may confuse amounts, percentages or years. Verify and correct the transcript before sending:</p>
           <p className="genie-voice-financial-review-text">Recognized: {pendingReview.transcript}</p>
           <label htmlFor="genie-voice-reviewed-question">Corrected question</label>
-          <textarea id="genie-voice-reviewed-question"
+          <textarea ref={reviewInputRef} id="genie-voice-reviewed-question"
             aria-label="Edit recognized financial question" rows={3}
             maxLength={1000} value={reviewDraft} disabled={disabled || chatBusy}
             onChange={event => {
