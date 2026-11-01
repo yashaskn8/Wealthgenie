@@ -3669,3 +3669,54 @@ test('four distinct passive index and ETF categories keep 95 percent mandate sep
  assert.ok(!listExtensionResearch().find(x=>x.id===ids[0])
   .indexBenchmarkReview.sebiFeb2026PassiveReplicationReview.riskConsiderations.includes('FABRICATED APPROVAL'));
 });
+
+// SEBI passive scheme rules and index methodology are not scheme riskometers or approvals.
+test('three broad passive index archetypes retain distinct regulatory and profile screening',()=>{
+ const ids=["catalog_2026_index_nifty500","catalog_2026_index_midcap150","catalog_2026_index_smallcap250"];
+ const rows=listExtensionResearch();
+ const base=screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+  emergencyFundMonths:null,riskTolerance:'Aggressive'
+ }));
+ const flagged=screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Emergency Fund'],investmentHorizonYears:2,
+  emergencyFundMonths:0,riskTolerance:'Conservative'
+ }));
+ for(const id of ids){
+  const v=rows.find(x=>x.id===id).indexBenchmarkReview.sebiFeb2026PassiveReplicationReview;
+  assert.equal(v.circularIssuedOn,'2026-02-26');
+  assert.equal(v.categoryMinimumIndexSecuritiesAllocationPct,95);
+  assert.equal(v.existingSchemeAlignmentWindowMonths,6);
+  assert.equal(v.actualSchemeAlignmentNotInferred,true);
+  assert.ok(v.riskConsiderations.length>=2&&v.investorAccessConstraints.length>=2);
+  for(const key of ['actualNamedSchemeAndSidKimVerified',
+   'actualPortfolioAndNinetyFivePctComplianceVerified','currentSchemeRiskometerVerified',
+   'currentNavOrExecutableQuoteVerified','individualKycAndRetailAccessVerified',
+   'commercialMarketDataRightsVerified','fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'])
+   assert.equal(v[key],false,id+':'+key);
+  const a=base.find(x=>x.id===id),b=flagged.find(x=>x.id===id);
+  for(const result of [a,b]){
+   assert.ok(result.screeningReasonCodes.includes('SEBI_FEB_2026_PASSIVE_INDEX_95PCT_MANDATE_NOT_VERIFIED_SCHEME_HOLDINGS'));
+   assert.equal(result.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(result.productQualified,false);
+   assert.equal(result.scoreAvailable,false);
+   assert.equal(result.productRiskLevel,null);
+  }
+  for(const code of ['SHORT_OR_EMERGENCY_GOAL_REQUIRES_PASSIVE_INDEX_NAV_REDEMPTION_AND_EQUITY_LOSS_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_PASSIVE_INDEX_EQUITY_DRAWDOWN_REVIEW']){
+   assert.ok(!a.screeningReasonCodes.includes(code),id+':'+code);
+   assert.ok(b.screeningReasonCodes.includes(code),id+':'+code);
+  }
+ }
+ for(const [id,code] of Object.entries({"catalog_2026_index_nifty500":"NIFTY500_BROAD_MARKET_WEIGHTING_NOT_VERIFIED_FUND_DIVERSIFICATION","catalog_2026_index_midcap150":"MIDCAP150_RANKS_101_250_NOT_VERIFIED_SCHEME_LIQUIDITY","catalog_2026_index_smallcap250":"SMALLCAP250_RANKS_251_500_NOT_VERIFIED_SCHEME_EXIT"}))
+  assert.ok(base.find(x=>x.id===id).screeningReasonCodes.includes(code));
+ for(const id of ids.slice(1)){
+  const code='RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_MID_SMALL_INDEX_REDEMPTION_AND_LIQUIDITY_REVIEW';
+  assert.ok(!base.find(x=>x.id===id).screeningReasonCodes.includes(code));
+  assert.ok(flagged.find(x=>x.id===id).screeningReasonCodes.includes(code));
+ }
+ const v=rows.find(x=>x.id===ids[0]).indexBenchmarkReview.sebiFeb2026PassiveReplicationReview;
+ v.riskConsiderations.push('FORGED SCHEME APPROVAL');
+ assert.ok(!listExtensionResearch().find(x=>x.id===ids[0])
+  .indexBenchmarkReview.sebiFeb2026PassiveReplicationReview.riskConsiderations.includes('FORGED SCHEME APPROVAL'));
+});
