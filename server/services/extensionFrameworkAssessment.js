@@ -2134,6 +2134,34 @@ export function screenExtensionResearchForProfile(profileInput) {
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_DEBT_SCHEME_RATE_AND_CREDIT_RISK_REVIEW');
    }
+   // The NSE calendar distinguishes quarterly Nifty100 low-volatility reviews
+   // from semiannual Nifty500 low-volatility/momentum reviews. Historical
+   // factor scores and index-provider issuer lists are not fund permissions.
+   if(row.indexBenchmarkReview?.nseFactorRebalance2026Review
+     ||row.etfBenchmarkReview?.nseFactorRebalance2026Review){
+     const factorReview=row.indexBenchmarkReview?.nseFactorRebalance2026Review
+       ||row.etfBenchmarkReview.nseFactorRebalance2026Review;
+     const isEtf=factorReview.wrapper==='EXCHANGE_TRADED_FUND';
+     reasons.push('NSE_FACTOR_RECONSTITUTION_CALENDAR_NOT_VERIFIED_SCHEME_PORTFOLIO');
+     reasons.push(factorReview.categoryFactor==='LOW_VOLATILITY_NIFTY100'
+       ?'NIFTY100_LOWVOL_QUARTERLY_REVIEW_NOT_CAPITAL_PROTECTION'
+       :factorReview.categoryFactor==='LOW_VOLATILITY_NIFTY500'
+       ?'NIFTY500_LOWVOL_SEMIANNUAL_PAGE_WEIGHTING_WORDING_REQUIRES_METHODOLOGY_REVIEW'
+       :'NIFTY500_MOMENTUM_SEMIANNUAL_REVIEW_REVERSAL_AND_TURNOVER_RISK');
+     reasons.push(isEtf
+       ?'SEBI_2026_FACTOR_ETF_95PCT_RULE_NOT_VERIFIED_LISTING_OR_QUOTE'
+       :'SEBI_2026_FACTOR_INDEX_95PCT_RULE_NOT_SCHEME_RISKOMETER_OR_NAV');
+     if(isEtf)
+       reasons.push('FACTOR_ETF_INDEX_PAGE_NOT_EXECUTABLE_ORDERBOOK_OR_BROKER_ACCESS');
+     if((Number.isFinite(profile.investmentHorizonYears)
+       &&profile.investmentHorizonYears<=3)
+       ||profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('SHORT_OR_EMERGENCY_GOAL_REQUIRES_FACTOR_EQUITY_LOSS_AND_EXIT_REVIEW');
+     if(profile.emergencyFundMonths===0)
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_FACTOR_LIQUIDITY_REVIEW');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_FACTOR_DRAWDOWN_REVIEW');
+   }
    // Published quality-factor accounting metrics are benchmark methodology,
    // not capital protection or a named scheme's riskometer or live NAV.
    if(row.indexBenchmarkReview?.nseQuality2026SourceReview

@@ -1885,3 +1885,39 @@ test('Nifty200 Quality 30 research is educational, unqualified and defensively c
    .investorAccessConstraints.includes('FORGED RETAIL APPROVAL'));
  }
 });
+
+// NSE factor-index calendar, even when current, cannot qualify a purchasable fund.
+test('four factor calendar reviews remain educational and defensively copied in discovery',()=>{
+ const specs=[
+  ['catalog_2026_index_nifty_lowvol',false,'QUARTERLY'],
+  ['catalog_2026_index_nifty500_momentum',false,'SEMI_ANNUAL'],
+  ['catalog_2026_etf_nifty500_lowvol',true,'SEMI_ANNUAL'],
+  ['catalog_2026_etf_nifty500_momentum',true,'SEMI_ANNUAL'],
+ ];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ for(const [id,isEtf,frequency] of specs){
+  const item=get(id);
+  const review=(isEtf?item.frameworkResearch.etfBenchmarkReview:
+   item.frameworkResearch.indexBenchmarkReview).nseFactorRebalance2026Review;
+  assert.equal(review.reconstitutionFrequency,frequency);
+  assert.equal(review.categoryMinimumIndexSecuritiesAllocationPct,95);
+  assert.equal(review.actualNamedSchemeAndSidKimVerified,false);
+  assert.equal(review.currentSchemeRiskometerVerified,false);
+  assert.equal(review.currentNavOrExecutableQuoteVerified,false);
+  assert.equal(review.individualKycAndRetailAccessVerified,false);
+  assert.equal(review.commercialMarketDataRightsVerified,false);
+  assert.equal(review.fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified,false);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.equal(item.frameworkResearch.actualRiskScore,null);
+  assert.equal(item.frameworkResearch.issuerTermsVerified,false);
+  assert.equal(item.frameworkResearch.sourceRightsVerified,false);
+  assert.ok(Object.values(item.productData).every(x=>x===null));
+  review.investorAccessConstraints.push('FORGED FACTOR ETF APPROVAL');
+  const fresh=get(id);
+  assert.ok(!(isEtf?fresh.frameworkResearch.etfBenchmarkReview:
+   fresh.frameworkResearch.indexBenchmarkReview).nseFactorRebalance2026Review
+   .investorAccessConstraints.includes('FORGED FACTOR ETF APPROVAL'));
+ }
+});

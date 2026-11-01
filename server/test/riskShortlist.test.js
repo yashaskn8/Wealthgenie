@@ -3873,3 +3873,76 @@ test('Nifty200 Quality 30 published methodology remains separate from personaliz
  assert.ok(!listExtensionResearch().find(x=>x.id===ids[0])
   .indexBenchmarkReview.nseQuality2026SourceReview.riskConsiderations.includes('FORGED QUALITY FUND APPROVAL'));
 });
+
+// NSE's public reconstitution calendar is not a scheme portfolio or a risk-o-meter.
+test('four low-volatility and momentum factor archetypes retain distinct calendar and profile screens',()=>{
+ const specs=[
+  ['catalog_2026_index_nifty_lowvol','LOW_VOLATILITY_NIFTY100','QUARTERLY',30,false],
+  ['catalog_2026_index_nifty500_momentum','MOMENTUM_NIFTY500','SEMI_ANNUAL',50,false],
+  ['catalog_2026_etf_nifty500_lowvol','LOW_VOLATILITY_NIFTY500','SEMI_ANNUAL',50,true],
+  ['catalog_2026_etf_nifty500_momentum','MOMENTUM_NIFTY500','SEMI_ANNUAL',50,true],
+ ];
+ const rows=listExtensionResearch();
+ const screen=overrides=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+  emergencyFundMonths:null,riskTolerance:'Aggressive',...overrides,
+ })).map(x=>[x.id,x]));
+ const base=screen({});
+ const flagged=screen({investmentGoals:['Emergency Fund'],
+  investmentHorizonYears:2,emergencyFundMonths:0,riskTolerance:'Conservative'});
+ const interpretations=new Set();
+ for(const [id,factor,frequency,count,isEtf] of specs){
+  const row=rows.find(x=>x.id===id);
+  const review=(isEtf?row.etfBenchmarkReview:row.indexBenchmarkReview).nseFactorRebalance2026Review;
+  assert.equal(review.wrapper,isEtf?'EXCHANGE_TRADED_FUND':'INDEX_MUTUAL_FUND');
+  assert.equal(review.categoryFactor,factor);
+  assert.equal(review.reconstitutionFrequency,frequency);
+  assert.equal(review.targetConstituentCount,count);
+  assert.deepEqual(review.reconstitutionEffectiveMonths,frequency==='QUARTERLY'?[3,6,9,12]:[6,12]);
+  assert.equal(review.officialNseReconstitutionCalendarUrl,
+   'https://niftyindices.com/resources/index-rebalancing-schedule');
+  assert.equal(review.sebiCircularIssuedOn,'2026-02-26');
+  assert.equal(review.categoryMinimumIndexSecuritiesAllocationPct,95);
+  assert.equal(review.indexPageLastRevisionDateIndependentlyVerified,false);
+  assert.equal(review.generalAllocationRuleDoesNotProveActualSchemeCompliance,true);
+  assert.equal(review.lowVolatility500OfficialPageHasConflictingQualityScoreWording,
+   factor==='LOW_VOLATILITY_NIFTY500');
+  assert.equal(review.exactLowVolatility500WeightingFormulaIndependentlyReconciled,false);
+  assert.ok(review.riskConsiderations.length>=2&&review.investorAccessConstraints.length>=2);
+  interpretations.add(review.categoryFactor+'_'+review.wrapper);
+  for(const key of ['actualNamedSchemeAndSidKimVerified',
+   'actualPortfolioAndNinetyFivePctComplianceVerified','currentSchemeRiskometerVerified',
+   'currentNavOrExecutableQuoteVerified','individualKycAndRetailAccessVerified',
+   'commercialMarketDataRightsVerified','fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'])
+   assert.equal(review[key],false,id+':'+key);
+  for(const item of [base.get(id),flagged.get(id)]){
+   assert.ok(item.screeningReasonCodes.includes('NSE_FACTOR_RECONSTITUTION_CALENDAR_NOT_VERIFIED_SCHEME_PORTFOLIO'));
+   assert.ok(item.screeningReasonCodes.includes(isEtf
+    ?'SEBI_2026_FACTOR_ETF_95PCT_RULE_NOT_VERIFIED_LISTING_OR_QUOTE'
+    :'SEBI_2026_FACTOR_INDEX_95PCT_RULE_NOT_SCHEME_RISKOMETER_OR_NAV'));
+   assert.equal(item.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(item.productQualified,false);
+   assert.equal(item.scoreAvailable,false);
+   assert.equal(item.productRiskLevel,null);
+  }
+  const factorCode=factor==='LOW_VOLATILITY_NIFTY100'
+   ?'NIFTY100_LOWVOL_QUARTERLY_REVIEW_NOT_CAPITAL_PROTECTION'
+   :factor==='LOW_VOLATILITY_NIFTY500'
+   ?'NIFTY500_LOWVOL_SEMIANNUAL_PAGE_WEIGHTING_WORDING_REQUIRES_METHODOLOGY_REVIEW'
+   :'NIFTY500_MOMENTUM_SEMIANNUAL_REVIEW_REVERSAL_AND_TURNOVER_RISK';
+  assert.ok(base.get(id).screeningReasonCodes.includes(factorCode));
+  if(isEtf)assert.ok(base.get(id).screeningReasonCodes.includes(
+   'FACTOR_ETF_INDEX_PAGE_NOT_EXECUTABLE_ORDERBOOK_OR_BROKER_ACCESS'));
+  for(const code of ['SHORT_OR_EMERGENCY_GOAL_REQUIRES_FACTOR_EQUITY_LOSS_AND_EXIT_REVIEW',
+   'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_FACTOR_LIQUIDITY_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_FACTOR_DRAWDOWN_REVIEW']){
+   assert.ok(!base.get(id).screeningReasonCodes.includes(code),id+':'+code);
+   assert.ok(flagged.get(id).screeningReasonCodes.includes(code),id+':'+code);
+  }
+ }
+ assert.equal(interpretations.size,4);
+ rows.find(x=>x.id===specs[0][0]).indexBenchmarkReview.nseFactorRebalance2026Review
+  .riskConsiderations.push('FORGED DOWNSIDE GUARANTEE');
+ assert.ok(!listExtensionResearch().find(x=>x.id===specs[0][0]).indexBenchmarkReview
+  .nseFactorRebalance2026Review.riskConsiderations.includes('FORGED DOWNSIDE GUARANTEE'));
+});
