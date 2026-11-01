@@ -3815,3 +3815,61 @@ test('four NSE equal-weight passive archetypes preserve independent source and p
  assert.ok(!listExtensionResearch().find(x=>x.id===ids[0]).indexBenchmarkReview
   .nseEqualWeight2026Review.riskConsiderations.includes('FORGED FUND RISKOMETER'));
 });
+
+// NSE's dated quality-index methodology does not authenticate a scheme or ETF.
+test('Nifty200 Quality 30 published methodology remains separate from personalized purchase qualification',()=>{
+ const ids=['catalog_2026_index_nifty200_quality','catalog_2026_etf_nifty200_quality'];
+ const rows=listExtensionResearch();
+ const screen=overrides=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+  emergencyFundMonths:null,riskTolerance:'Aggressive',...overrides,
+ })).map(x=>[x.id,x]));
+ const baseline=screen({});
+ const needsReview=screen({investmentGoals:['Emergency Fund'],
+  investmentHorizonYears:2,emergencyFundMonths:0,riskTolerance:'Conservative'});
+ const interpretations=new Set();
+ for(const [i,id] of ids.entries()){
+  const etf=i===1,row=rows.find(x=>x.id===id);
+  const review=(etf?row.etfBenchmarkReview:row.indexBenchmarkReview).nseQuality2026SourceReview;
+  assert.equal(review.wrapper,etf?'EXCHANGE_TRADED_FUND':'INDEX_MUTUAL_FUND');
+  assert.equal(review.officialNseMethodologyPdfUrl,
+   'https://www.niftyindices.com/Methodology/Method_NIFTY200_Quality30.pdf');
+  assert.equal(review.methodologyDocumentPublished,'2019-09');
+  assert.equal(review.currentMethodologyRevisionIndependentlyVerified,false);
+  assert.equal(review.targetConstituentCount,30);
+  assert.equal(review.publishedRebalanceFrequency,'SEMI_ANNUAL');
+  assert.equal(review.categoryMinimumIndexSecuritiesAllocationPct,95);
+  assert.equal(review.qualityFactorIsNotCapitalOrDownsideProtection,true);
+  assert.equal(review.indexProviderIssuerListIsNotSchemeVerification,true);
+  assert.ok(review.riskConsiderations.length>=2&&review.investorAccessConstraints.length>=2);
+  interpretations.add(review.categoryInterpretation);
+  for(const key of ['actualNamedSchemeAndSidKimVerified',
+   'actualPortfolioAndNinetyFivePctComplianceVerified','currentSchemeRiskometerVerified',
+   'currentNavOrExecutableQuoteVerified','individualKycAndRetailAccessVerified',
+   'commercialMarketDataRightsVerified','fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'])
+   assert.equal(review[key],false,id+':'+key);
+  for(const result of [baseline.get(id),needsReview.get(id)]){
+   assert.ok(result.screeningReasonCodes.includes('NSE_QUALITY30_ROE_LEVERAGE_EPS_FACTOR_NOT_DOWNSIDE_PROTECTION'));
+   assert.ok(result.screeningReasonCodes.includes(etf
+    ?'SEBI_2026_QUALITY_ETF_95PCT_RULE_NOT_LISTING_OR_EXECUTABLE_QUOTE'
+    :'SEBI_2026_QUALITY_INDEX_95PCT_RULE_NOT_SCHEME_RISKOMETER_OR_NAV'));
+   assert.equal(result.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(result.productQualified,false);
+   assert.equal(result.scoreAvailable,false);
+   assert.equal(result.productRiskLevel,null);
+  }
+  if(etf)assert.ok(baseline.get(id).screeningReasonCodes.includes(
+   'QUALITY_ETF_INDEX_PROVIDER_ISSUER_LIST_NOT_VERIFIED_TICKER_SPREAD_OR_DEMAT_ACCESS'));
+  for(const code of ['SHORT_OR_EMERGENCY_GOAL_REQUIRES_QUALITY_EQUITY_LOSS_AND_EXIT_REVIEW',
+   'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_QUALITY_FUND_LIQUIDITY_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_QUALITY_FACTOR_DRAWDOWN_REVIEW']){
+   assert.ok(!baseline.get(id).screeningReasonCodes.includes(code),id+':'+code);
+   assert.ok(needsReview.get(id).screeningReasonCodes.includes(code),id+':'+code);
+  }
+ }
+ assert.equal(interpretations.size,2);
+ rows.find(x=>x.id===ids[0]).indexBenchmarkReview.nseQuality2026SourceReview
+  .riskConsiderations.push('FORGED QUALITY FUND APPROVAL');
+ assert.ok(!listExtensionResearch().find(x=>x.id===ids[0])
+  .indexBenchmarkReview.nseQuality2026SourceReview.riskConsiderations.includes('FORGED QUALITY FUND APPROVAL'));
+});
