@@ -1795,3 +1795,27 @@ test('three broad passive index reviews stay unapproved in the educational direc
    .investorAccessConstraints.includes('FORGED RETAIL APPROVAL'));
  }
 });
+
+// Directory evidence is an educational copy, not an order or rollover authorization.
+test('three RBI T-bill reinvestment profiles are defensively copied and never qualified',()=>{
+ const ids=['catalog_2026_tbill_91','catalog_2026_tbill_182','catalog_2026_tbill_364'];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ for(const [i,id] of ids.entries()){
+  const item=get(id),e=item.frameworkResearch.retailDirectAccessReview.retailDirectTbillReinvestmentReview;
+  assert.equal(e.nominalTenorDays,[91,182,364][i]);
+  assert.equal(e.reviewedOn,'2026-11-01');
+  assert.equal(e.noticePublicationDateVerified,false);
+  assert.equal(e.actualRdgAccountAndAutoBidRuleVerified,false);
+  assert.equal(e.currentAuctionIsinAndAllotmentVerified,false);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.equal(item.frameworkResearch.actualRiskScore,null);
+  assert.equal(item.frameworkResearch.issuerTermsVerified,false);
+  assert.ok(Object.values(item.productData).every(x=>x===null));
+  e.investorAccessConstraints.push('FAKE AUTO-BID APPROVAL');
+  assert.ok(!get(id).frameworkResearch.retailDirectAccessReview.retailDirectTbillReinvestmentReview
+   .investorAccessConstraints.includes('FAKE AUTO-BID APPROVAL'));
+ }
+ assert.equal(get('catalog_2026_sdl_dated').frameworkResearch.retailDirectAccessReview.retailDirectTbillReinvestmentReview,undefined);
+});

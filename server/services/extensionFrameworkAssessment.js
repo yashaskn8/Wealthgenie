@@ -1652,6 +1652,28 @@ if(research.entries.some(row=>{
   || !Array.isArray(e.riskConsiderations)||e.riskConsiderations.length<2
   || !Array.isArray(e.investorAccessConstraints)||e.investorAccessConstraints.length<2;
 }))throw new Error('FINANCIAL_RBI_RETAIL_DIRECT_HISTORICAL_AUCTION_EVIDENCE_INVALID');
+// The RBI Retail Direct auto-bid facility is optional bid placement, not a verified rollover.
+const tBillAutoBidTenors=Object.freeze({'catalog_2026_tbill_91':91,'catalog_2026_tbill_182':182,'catalog_2026_tbill_364':364});
+if(research.entries.some(row=>{
+ const d=tBillAutoBidTenors[row.id],e=row.rbiRetailDirectAccessReview?.retailDirectTbillReinvestmentReview;
+ if(!d)return e!==undefined;
+ return !e||e.nominalTenorDays!==d
+  ||e.officialRbiRetailDirectNoticeUrl!=='https://rbiretaildirect.org.in/common/pdf/auto-bidding-reinvest.html'
+  ||e.reviewedOn!=='2026-11-01'
+  ||e.sourceScope!=='RBI_PORTAL_OPTIONAL_TBILL_MATURITY_REINVESTMENT_BID_RULE_NOT_VERIFIED_NEW_ALLOTMENT_OR_PERSONAL_ACCESS'
+  ||typeof e.categoryInterpretation!=='string'||e.categoryInterpretation.length<140
+  ||e.optionalMaturityProceedsAutoBidDescribed!==true||e.investorSpecifiesReinvestmentPercentageAndPeriod!==true
+  ||e.portalNoticeAuctionLotMinimumInr!==10000||e.portalNoticeAuctionLotMultipleInr!==10000
+  ||e.noticeAmountIsNotVerifiedCurrentPersonalBidEligibility!==true
+  ||e.autoBidIsBidPlacementNotGuaranteedAllotment!==true
+  ||['noticePublicationDateVerified','actualRdgAccountAndAutoBidRuleVerified',
+   'currentAuctionIsinAndAllotmentVerified','actualMaturityProceedsAndReinvestmentAmountVerified',
+   'currentSecondaryMarketBidAndExitPriceVerified','commercialDataAndAdviceRightsVerified'].some(k=>e[k]!==false)
+  ||!Array.isArray(e.riskConsiderations)||e.riskConsiderations.length<2
+  ||!Array.isArray(e.investorAccessConstraints)||e.investorAccessConstraints.length<2
+  ||row.productRiskScore!==null||row.actualRetailProductEligible!==false
+  ||row.suitabilityRankingPermitted!==false||row.sourcePermissionVerified!==false;
+}))throw new Error('FINANCIAL_RBI_TBILL_AUTO_BID_EVIDENCE_INVALID');
 const centralGsecStrip2025GazetteUrl='https://egazette.gov.in/WriteReadData/2025/263478.pdf';
 const centralGsecStripCashFlows=Object.freeze({
  'catalog_2026_gsec_coupon_strip':'COUPON_PAYMENT',
@@ -2188,6 +2210,20 @@ export function screenExtensionResearchForProfile(profileInput) {
      if(profile.hasLumpSum===true&&nonnegative(profile.lumpSumAmount)
        &&profile.lumpSumAmount<auction.historicalFaqMinimumInvestmentInr)
        reasons.push('REPORTED_LUMP_SUM_BELOW_HISTORICAL_RETAIL_DIRECT_MINIMUM_REQUIRES_CURRENT_ACCESS_REVIEW_NOT_REJECTION');
+   }
+   if(row.rbiRetailDirectAccessReview?.retailDirectTbillReinvestmentReview){
+     reasons.push('RBI_TBILL_OPTIONAL_AUTO_BID_NOT_GUARANTEED_REINVESTMENT_OR_ALLOTMENT');
+     reasons.push('TBILL_ACTUAL_REINVESTMENT_RULE_AUCTION_AND_SETTLEMENT_UNVERIFIED');
+     const tenorNotice={catalog_2026_tbill_91:'TBILL_91D_AUTO_BID_CAN_EXTEND_QUARTERLY_CASH_HORIZON',
+       catalog_2026_tbill_182:'TBILL_182D_AUTO_BID_CAN_EXTEND_HALF_YEAR_CASH_HORIZON',
+       catalog_2026_tbill_364:'TBILL_364D_AUTO_BID_CAN_EXTEND_NEAR_YEAR_CASH_HORIZON'};
+     reasons.push(tenorNotice[row.id]);
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_TBILL_REINVESTMENT_OPT_IN_AND_CASH_ACCESS_REVIEW');
+     if(profile.emergencyFundMonths===0)
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_TBILL_MATURITY_CASH_RESERVE_REVIEW');
+     if(Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=1)
+       reasons.push('RECORDED_ONE_YEAR_OR_LESS_HORIZON_REQUIRES_TBILL_ROLLOVER_AND_SETTLEMENT_REVIEW');
    }
    if(row.rbiRetailDirectAccessReview) {
      reasons.push('RBI_RETAIL_DIRECT_ACCOUNT_KYC_AND_PERSONAL_ELIGIBILITY_UNVERIFIED');

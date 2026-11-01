@@ -3720,3 +3720,41 @@ test('three broad passive index archetypes retain distinct regulatory and profil
  assert.ok(!listExtensionResearch().find(x=>x.id===ids[0])
   .indexBenchmarkReview.sebiFeb2026PassiveReplicationReview.riskConsiderations.includes('FORGED SCHEME APPROVAL'));
 });
+
+// A portal auto-bid does not guarantee a T-bill rollover or liquidity.
+test('three RBI Treasury Bill auto-bid rules remain non-ranking and depend on recorded cash needs',()=>{
+ const ids=['catalog_2026_tbill_91','catalog_2026_tbill_182','catalog_2026_tbill_364'];
+ const screen=overrides=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],investmentHorizonYears:10,emergencyFundMonths:null,...overrides,
+ })).map(x=>[x.id,x]));
+ const baseline=screen({}),urgent=screen({investmentGoals:['Emergency Fund'],investmentHorizonYears:1,emergencyFundMonths:0});
+ const interpretations=new Set();
+ for(const [i,id] of ids.entries()){
+  const row=listExtensionResearch().find(x=>x.id===id);
+  const e=row.rbiRetailDirectAccessReview.retailDirectTbillReinvestmentReview;
+  assert.equal(e.nominalTenorDays,[91,182,364][i]);
+  assert.equal(e.optionalMaturityProceedsAutoBidDescribed,true);
+  assert.equal(e.autoBidIsBidPlacementNotGuaranteedAllotment,true);
+  assert.equal(e.portalNoticeAuctionLotMinimumInr,10000);
+  for(const key of ['actualRdgAccountAndAutoBidRuleVerified','currentAuctionIsinAndAllotmentVerified',
+   'currentSecondaryMarketBidAndExitPriceVerified','commercialDataAndAdviceRightsVerified'])assert.equal(e[key],false);
+  interpretations.add(e.categoryInterpretation);
+  for(const screened of [baseline.get(id),urgent.get(id)]){
+   assert.ok(screened.screeningReasonCodes.includes('RBI_TBILL_OPTIONAL_AUTO_BID_NOT_GUARANTEED_REINVESTMENT_OR_ALLOTMENT'));
+   assert.equal(screened.productQualified,false);assert.equal(screened.scoreAvailable,false);
+   assert.equal(screened.productRiskLevel,null);
+  }
+  for(const notice of ['EMERGENCY_FUND_GOAL_REQUIRES_TBILL_REINVESTMENT_OPT_IN_AND_CASH_ACCESS_REVIEW',
+   'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_TBILL_MATURITY_CASH_RESERVE_REVIEW',
+   'RECORDED_ONE_YEAR_OR_LESS_HORIZON_REQUIRES_TBILL_ROLLOVER_AND_SETTLEMENT_REVIEW']){
+   assert.ok(!baseline.get(id).screeningReasonCodes.includes(notice));
+   assert.ok(urgent.get(id).screeningReasonCodes.includes(notice));
+  }
+ }
+ assert.equal(interpretations.size,3);
+ assert.ok(!baseline.get('catalog_2026_sdl_dated').screeningReasonCodes.includes('RBI_TBILL_OPTIONAL_AUTO_BID_NOT_GUARANTEED_REINVESTMENT_OR_ALLOTMENT'));
+ const mutated=listExtensionResearch().find(x=>x.id===ids[0]);
+ mutated.rbiRetailDirectAccessReview.retailDirectTbillReinvestmentReview.riskConsiderations.push('FAKE RETURN');
+ assert.ok(!listExtensionResearch().find(x=>x.id===ids[0]).rbiRetailDirectAccessReview
+  .retailDirectTbillReinvestmentReview.riskConsiderations.includes('FAKE RETURN'));
+});
