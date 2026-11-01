@@ -8,6 +8,7 @@ import { investmentDatabase } from '../data/investmentDatabase.js';
 import { listExtensionResearch, getFrameworkSourcePublisherType } from './extensionFrameworkAssessment.js';
 import { validateFirstFamilyResearchPilot } from '../scripts/validateFirstFamilyResearchPilot.js';
 import { validateIssuerResearchBatch } from '../scripts/generateFinancialProductResearchCoverage.js';
+import { listAdditionalIssuerExamples } from './additionalIssuerExamples.js';
 
 const extensions = JSON.parse(readFileSync(
   new URL('../data/investmentUniverseExtensions2026.json', import.meta.url), 'utf8',
@@ -68,7 +69,14 @@ const RD_OFFICIAL_ISSUER_REFERENCES = Object.freeze(readOfficialIssuerReferences
 // Public issuer identities are research links, not broker inventory or
 // authorized current quotes. They are deliberately separated from productData.
 const INDEX_RESEARCH_BY_FAMILY = validateIssuerResearchBatch().candidateByFamily;
+const ADDITIONAL_ISSUER_EXAMPLES = listAdditionalIssuerExamples();
 function listedResearchCandidates(familyId) {
+  if (ADDITIONAL_ISSUER_EXAMPLES.has(familyId)) {
+    if (INDEX_RESEARCH_BY_FAMILY.has(familyId)) {
+      throw new Error('FINANCIAL_DUPLICATE_PUBLIC_ISSUER_RESEARCH_FAMILY');
+    }
+    return ADDITIONAL_ISSUER_EXAMPLES.get(familyId).map(row => ({ ...row }));
+  }
   if (familyId === RD_FAMILY_ID) {
     return rdResearch.candidates.map(offer => ({
       name: offer.offerLabel,
