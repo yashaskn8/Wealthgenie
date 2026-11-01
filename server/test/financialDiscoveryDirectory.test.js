@@ -2068,3 +2068,50 @@ test('six NSE broad-index research records remain unqualified and deeply copied 
   assert.ok(!fresh.investorAccessConstraints.includes('FORGED PURCHASE APPROVAL'));
  }
 });
+
+test('SIF interval and five-level Risk-band disclosure is educational only and defensively copied',()=>{
+ const find=()=>listFinancialDiscoveryDirectory().items
+  .find(x=>x.id==='catalog_2026_sif_hybrid_longshort');
+ const item=find(),v=item.frameworkResearch.individualCategoryReview
+  .sifMarch2026RiskBandAndIntervalDisclosureReview;
+ assert.equal(v.officialSebiMasterCircularPdfUrl,'https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf');
+ assert.equal(v.sifRiskBandLevelCount,5);
+ assert.equal(v.twiceWeeklyRedemptionGuaranteedForActualStrategy,false);
+ assert.equal(v.actualStrategyCurrentFiveLevelRiskBandVerified,false);
+ assert.equal(v.actualStrategyIsidAndRedemptionWindowVerified,false);
+ assert.equal(v.individualPanThresholdKycAndExceptionsVerified,false);
+ assert.equal(v.currentAuthorizedNavAndSettlementVerified,false);
+ assert.equal(v.distributorCertificationAndSignedProviderRightsVerified,false);
+ assert.equal(v.taxAndPersonalizedAdviceAuthorizationVerified,false);
+ assert.equal(item.recommendationEligible,false);
+ assert.equal(item.productAvailability,'NOT_VERIFIED');
+ assert.equal(item.dataRights,'NOT_VERIFIED');
+ assert.equal(item.frameworkResearch.actualRiskScore,null);
+ assert.ok(Object.values(item.productData).every(x=>x===null));
+ v.investorAccessConstraints.push('FORGED RETAIL ELIGIBILITY');
+ assert.ok(!find().frameworkResearch.individualCategoryReview
+  .sifMarch2026RiskBandAndIntervalDisclosureReview.investorAccessConstraints.includes('FORGED RETAIL ELIGIBILITY'));
+});
+
+test('physical bullion EGR scope research is discovery-only and deeply copied',()=>{
+ const ids=['catalog_2026_physical_gold_bullion','catalog_2026_physical_silver_bullion'];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ for(const id of ids){
+  const item=get(id),v=item.frameworkResearch.preciousMetalsCategoryReview.sebiOct2026EgrVaultBoundaryReview;
+  assert.equal(v.regulationsLastAmendedOn,'2026-10-09');
+  assert.equal(v.actualBarAssayAndProvenanceVerified,false);
+  assert.equal(v.actualEgrReceiptOrVaultEntitlementVerified,false);
+  assert.equal(v.actualRetailKycAndTransactionRightsVerified,false);
+  assert.equal(v.currentAuthorizedPriceAndSignedDataRightsVerified,false);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.equal(item.frameworkResearch.actualRiskScore,null);
+  assert.ok(Object.values(item.productData).every(x=>x===null));
+  v.investorAccessConstraints.push('FORGED EGR RIGHT');
+  assert.ok(!get(id).frameworkResearch.preciousMetalsCategoryReview
+   .sebiOct2026EgrVaultBoundaryReview.investorAccessConstraints.includes('FORGED EGR RIGHT'));
+ }
+ assert.equal(get('catalog_2026_silver_fof').frameworkResearch.preciousMetalsCategoryReview
+  .sebiOct2026EgrVaultBoundaryReview,undefined);
+});

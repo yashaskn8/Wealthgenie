@@ -10341,6 +10341,52 @@
           "actualDistributorCertificationVerified": false,
           "signedProviderDistributionEntitlementVerified": false,
           "personalizedAdviceAuthorizationVerified": false
+        },
+        "sifMarch2026RiskBandAndIntervalDisclosureReview": {
+          "officialSebiMasterCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf",
+          "circularIssuedOn": "2026-03-20",
+          "reviewedOn": "2026-11-01",
+          "paragraphs": [
+            "21.3.1(c)(ii)",
+            "21.4.1-21.4.2",
+            "21.11.1",
+            "21.12.1-21.12.7",
+            "21.13.1-21.13.4"
+          ],
+          "sourceScope": "SIF_CATEGORY_INTERVAL_AND_DISCLOSURE_REQUIREMENTS_NOT_CURRENT_STRATEGY_RISK_BAND_OR_RETAIL_ACCESS",
+          "categoryInterpretation": "Hybrid Long-Short is an interval SIF strategy with at least 25% equity/equity-related instruments, at least 25% debt, and up to 25% unhedged derivative short exposure in equity/debt. The table states twice-weekly redemption or a lesser frequency chosen by the AMC: it is not a guaranteed twice-weekly exit for an unidentified strategy.",
+          "minimumEquityAllocationPercent": 25,
+          "minimumDebtAllocationPercent": 25,
+          "maximumUnhedgedDerivativeShortExposurePercent": 25,
+          "sourceRedemptionFrequencyWording": "TWO_TIMES_IN_A_WEEK_OR_ANY_LESSER_FREQUENCY_AS_DECIDED_BY_AMC",
+          "twiceWeeklyRedemptionGuaranteedForActualStrategy": false,
+          "sifRiskBandLevelCount": 5,
+          "sifRiskBandIsDistinctFromActualMutualFundSchemeRiskometer": true,
+          "riskBandEvaluatedMonthly": true,
+          "riskBandPublicationWithinCalendarDaysOfMonthEnd": 10,
+          "portfolioDisclosureEveryAlternateMonth": true,
+          "portfolioDisclosureIncludesDerivatives": true,
+          "portfolioPublicationWithinCalendarDaysOfRelevantMonthEnd": 10,
+          "isidRequiresDerivativeScenarioAnalysis": true,
+          "isidRequiresActualSubscriptionRedemptionAndNoticeTerms": true,
+          "actualStrategyIsidAndRedemptionWindowVerified": false,
+          "actualStrategyCurrentFiveLevelRiskBandVerified": false,
+          "actualPortfolioDerivativePositionsAndLossScenariosVerified": false,
+          "individualPanThresholdKycAndExceptionsVerified": false,
+          "currentAuthorizedNavAndSettlementVerified": false,
+          "distributorCertificationAndSignedProviderRightsVerified": false,
+          "taxAndPersonalizedAdviceAuthorizationVerified": false,
+          "laterRegulatoryAmendmentsAndActualStrategyDisclosuresFullyReconciled": false,
+          "riskConsiderations": [
+            "A category maximum on unhedged short derivative exposure does not cap losses to 25%; basis movements, leverage-like effects, credit and equity declines remain possible.",
+            "An interval label and the circular's twice-weekly-or-less-frequent wording cannot establish when a particular investor can redeem or at what NAV.",
+            "A five-level SIF Risk-band is strategy-specific and time-varying, not a verified mutual-fund scheme riskometer or a fabricated product risk score."
+          ],
+          "investorAccessConstraints": [
+            "Read the actual current ISID/SAI/KIM for subscription/redemption dates, notice, derivative scenario analysis, liquidity tools and the strategy's disclosed five-level Risk-band.",
+            "Check the AMC/AMFI monthly Risk-band and alternate-month portfolio disclosures for the named strategy; public disclosure duties do not prove a live risk reading, holdings or eligibility.",
+            "Confirm aggregate PAN-level SIF holdings, lawful exceptions, investor KYC, distributor certification, current NAV, settlement, fees, licensed data rights and authorized advice separately."
+          ]
         }
       }
     },
@@ -10522,6 +10568,32 @@
             "Verify the specific bar/coin, refinery or mint license status, fineness, invoice, storage and seller/buyback arrangements.",
             "A quality-standard reference does not verify individual purchasing permission, licensed live prices, tax consequences or financial-advice authorization."
           ]
+        },
+        "sebiOct2026EgrVaultBoundaryReview": {
+          "officialSebiVaultManagersRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-vault-managers-regulations-2021-last-amended-on-october-9-2026-_105249.html",
+          "officialSebiEgrMasterCircularUrl": "https://www.sebi.gov.in/legal/master-circulars/jun-2024/master-circular-for-electronic-gold-receipts-egrs-_84369.html",
+          "officialSebiEgrFaqUrl": "https://www.sebi.gov.in/sebi_data/faqfiles/nov-2022/1667996603757.pdf",
+          "regulationsLastAmendedOn": "2026-10-09",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "GOLD_EGR_VAULT_MANAGER_FRAMEWORK_NOT_PHYSICAL_BULLION_CERTIFICATION_OR_INVESTOR_ACCESS",
+          "categoryCode": "PHYSICAL_GOLD_BAR_DISTINCT_FROM_EGR",
+          "categoryInterpretation": "SEBI's October 2026 Vault Managers Regulations concern vaulting for Electronic Gold Receipts (EGRs). The June 2024 EGR Master Circular governs a separate gold-receipt securities framework, not an ordinary dealer's physical gold bar. SEBI's 2022 FAQ explains that delivery of gold against an EGR need not return the same uniquely numbered bar; no actual EGR or dealer bar is authenticated here.",
+          "egrFrameworkCoversGoldReceiptsNotSilverBullion": true,
+          "egrVaultManagerFrameworkIsNotPhysicalDealerCertification": true,
+          "actualBarAssayAndProvenanceVerified": false,
+          "actualBarSellerAndBuybackTermsVerified": false,
+          "actualEgrReceiptOrVaultEntitlementVerified": false,
+          "actualRetailKycAndTransactionRightsVerified": false,
+          "currentAuthorizedPriceAndSignedDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "A physical gold bar has independent purity, custody, theft, price and dealer buyback-spread risks; EGR vault procedures do not establish the safety of that bar.",
+            "An EGR's redemption and custody rules do not guarantee that an unverified dealer will repurchase a bar at any price."
+          ],
+          "investorAccessConstraints": [
+            "Verify the exact bar's weight, assay, refinery/mint, invoice, seller and custody; a vault-manager regulation is not bar-specific seller authorization.",
+            "If a separate EGR is offered, verify the actual receipt, depository, vault, KYC, fees, delivery rights and licensed quote; none is established by this physical-bar archetype."
+          ]
         }
       }
     },
@@ -10615,6 +10687,32 @@
           "investorAccessConstraints": [
             "Confirm an individual bar's independent assay, weight, seller provenance, invoice, storage and dealer repurchase terms.",
             "Do not represent BIS silver jewellery HUID as bullion certification or infer retail approval, market-data permission or a personal risk score."
+          ]
+        },
+        "sebiOct2026EgrVaultBoundaryReview": {
+          "officialSebiVaultManagersRegulationsUrl": "https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-vault-managers-regulations-2021-last-amended-on-october-9-2026-_105249.html",
+          "officialSebiEgrMasterCircularUrl": "https://www.sebi.gov.in/legal/master-circulars/jun-2024/master-circular-for-electronic-gold-receipts-egrs-_84369.html",
+          "officialSebiEgrFaqUrl": "https://www.sebi.gov.in/sebi_data/faqfiles/nov-2022/1667996603757.pdf",
+          "regulationsLastAmendedOn": "2026-10-09",
+          "reviewedOn": "2026-11-01",
+          "sourceScope": "GOLD_EGR_VAULT_MANAGER_FRAMEWORK_NOT_PHYSICAL_BULLION_CERTIFICATION_OR_INVESTOR_ACCESS",
+          "categoryCode": "PHYSICAL_SILVER_BAR_OUTSIDE_GOLD_EGR",
+          "categoryInterpretation": "SEBI's October 2026 Vault Managers Regulations and June 2024 EGR Master Circular concern Electronic Gold Receipts backed by gold, not physical silver bars. Neither the gold EGR vaulting framework nor the separate BIS silver-jewellery HUID standard authenticates a silver investment bar or grants silver-bar delivery rights.",
+          "egrFrameworkCoversGoldReceiptsNotSilverBullion": true,
+          "egrVaultManagerFrameworkIsNotPhysicalDealerCertification": true,
+          "actualBarAssayAndProvenanceVerified": false,
+          "actualBarSellerAndBuybackTermsVerified": false,
+          "actualEgrReceiptOrVaultEntitlementVerified": false,
+          "actualRetailKycAndTransactionRightsVerified": false,
+          "currentAuthorizedPriceAndSignedDataRightsVerified": false,
+          "personalizedAdviceAuthorizationVerified": false,
+          "riskConsiderations": [
+            "A physical silver bar has assay, custody, price and dealer resale-spread risks separate from SEBI's gold EGR framework.",
+            "Gold EGR vault oversight and silver-jewellery HUID do not validate a specific silver bar's fineness or resale proceeds."
+          ],
+          "investorAccessConstraints": [
+            "Verify the silver bar's independent assay, seller, invoice, custody and buyback terms; the gold EGR rules do not grant silver-bar vault rights.",
+            "No actual silver-bar purchase permission, certified assay, signed quote rights or personalized suitability follows from the EGR framework."
           ]
         }
       }

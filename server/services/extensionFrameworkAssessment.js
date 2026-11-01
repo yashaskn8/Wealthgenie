@@ -870,6 +870,26 @@ if(!silverHallmarkScope
  ||research.entries.some(row=>row.id!=='catalog_2026_physical_silver_bullion'
    &&row.preciousMetalsCategoryReview?.silverHallmarking2025ScopeReview!==undefined))
  throw new Error('FINANCIAL_SILVER_2025_HALLMARK_SCOPE_INVALID');
+// SEBI's October 2026 gold EGR vault rules do not certify dealer bullion bars.
+for(const [id,code] of Object.entries({
+  catalog_2026_physical_gold_bullion:'PHYSICAL_GOLD_BAR_DISTINCT_FROM_EGR',
+  catalog_2026_physical_silver_bullion:'PHYSICAL_SILVER_BAR_OUTSIDE_GOLD_EGR',
+})){
+ const v=research.entries.find(row=>row.id===id)
+  ?.preciousMetalsCategoryReview?.sebiOct2026EgrVaultBoundaryReview;
+ if(!v||v.categoryCode!==code||v.regulationsLastAmendedOn!=='2026-10-09'
+  ||v.officialSebiVaultManagersRegulationsUrl!=='https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-vault-managers-regulations-2021-last-amended-on-october-9-2026-_105249.html'
+  ||v.officialSebiEgrMasterCircularUrl!=='https://www.sebi.gov.in/legal/master-circulars/jun-2024/master-circular-for-electronic-gold-receipts-egrs-_84369.html'
+  ||v.egrFrameworkCoversGoldReceiptsNotSilverBullion!==true
+  ||v.egrVaultManagerFrameworkIsNotPhysicalDealerCertification!==true
+  ||['actualBarAssayAndProvenanceVerified','actualBarSellerAndBuybackTermsVerified',
+   'actualEgrReceiptOrVaultEntitlementVerified','actualRetailKycAndTransactionRightsVerified',
+   'currentAuthorizedPriceAndSignedDataRightsVerified','personalizedAdviceAuthorizationVerified']
+    .some(key=>v[key]!==false)
+  ||!Array.isArray(v.riskConsiderations)||v.riskConsiderations.length<2
+  ||!Array.isArray(v.investorAccessConstraints)||v.investorAccessConstraints.length<2)
+  throw new Error('FINANCIAL_PHYSICAL_BULLION_EGR_SCOPE_INVALID');
+}
 // The final 15 source-scoped profiles include corporate debt, money-market,
 // SIF, SM REIT and silver FoF structures; no verified instrument is inferred.
 const finalRiskAccessReviewFields=Object.freeze({"catalog_2026_ncd_secured":["debtInstrumentReview","https://www.sebi.gov.in/legal/regulations/jan-2026/securities-and-exchange-board-of-india-issue-and-listing-of-non-convertible-securities-regulations-2021-last-amended-as-on-january-21-2026-_99288.html"],"catalog_2026_ncd_unsecured":["debtInstrumentReview","https://www.sebi.gov.in/legal/regulations/jan-2026/securities-and-exchange-board-of-india-issue-and-listing-of-non-convertible-securities-regulations-2021-last-amended-as-on-january-21-2026-_99288.html"],"catalog_2026_ncd_unlisted":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_bond_subordinated":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_bond_perpetual":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_bond_corporate_floating":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_bond_corporate_zero":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_bond_convertible":["debtInstrumentReview","https://www.sebi.gov.in/legal/regulations/mar-2026/securities-and-exchange-board-of-india-issue-of-capital-and-disclosure-requirements-regulations-2018-last-amended-on-march-21-2026-_100581.html"],"catalog_2026_psu_bond_taxable":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_infra_corporate_bond":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_municipal_green":["individualCategoryReview","https://www.sebi.gov.in/legal/regulations/jul-2026/securities-and-exchange-board-of-india-issue-and-listing-of-municipal-debt-securities-regulations-2015-last-amendment-on-july-08-2026-_102918.html"],"catalog_2026_commercial_paper":["debtInstrumentReview","https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12592"],"catalog_2026_sif_hybrid_longshort":["individualCategoryReview","https://www.sebi.gov.in/legal/circulars/feb-2025/regulatory-framework-for-specialized-investment-funds-sif-_92299.html"],"catalog_2026_sm_reit_scheme":["individualCategoryReview","https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-real-estate-investment-trusts-regulations-2014-last-amended-on-october-15-2026-_105376.html"],"catalog_2026_silver_fof":["preciousMetalsCategoryReview","https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html"]});
@@ -1150,6 +1170,32 @@ if(sifThreshold?.officialSebiCircularUrl!==sifMinimumThresholdMonitoringUrl
   ||['actualDistributorCertificationVerified','signedProviderDistributionEntitlementVerified',
     'personalizedAdviceAuthorizationVerified'].some(key=>sifDistribution[key]!==false))
  throw new Error('FINANCIAL_SIF_THRESHOLD_DISTRIBUTION_EVIDENCE_INVALID');
+// SEBI's SIF Risk-band is a five-level strategy-specific monthly disclosure,
+// not an MF scheme riskometer, a live category risk score, or a redemption promise.
+const sifDisclosure=sifReview?.sifMarch2026RiskBandAndIntervalDisclosureReview;
+if(sifDisclosure?.officialSebiMasterCircularPdfUrl!=='https://www.sebi.gov.in/sebi_data/attachdocs/mar-2026/1774024028162.pdf'
+  ||sifDisclosure.circularIssuedOn!=='2026-03-20'
+  ||sifDisclosure.sifRiskBandLevelCount!==5
+  ||sifDisclosure.minimumEquityAllocationPercent!==25
+  ||sifDisclosure.minimumDebtAllocationPercent!==25
+  ||sifDisclosure.maximumUnhedgedDerivativeShortExposurePercent!==25
+  ||sifDisclosure.sourceRedemptionFrequencyWording!=='TWO_TIMES_IN_A_WEEK_OR_ANY_LESSER_FREQUENCY_AS_DECIDED_BY_AMC'
+  ||sifDisclosure.riskBandPublicationWithinCalendarDaysOfMonthEnd!==10
+  ||sifDisclosure.portfolioPublicationWithinCalendarDaysOfRelevantMonthEnd!==10
+  ||['riskBandEvaluatedMonthly','portfolioDisclosureEveryAlternateMonth',
+    'portfolioDisclosureIncludesDerivatives','isidRequiresDerivativeScenarioAnalysis',
+    'isidRequiresActualSubscriptionRedemptionAndNoticeTerms',
+    'sifRiskBandIsDistinctFromActualMutualFundSchemeRiskometer'].some(k=>sifDisclosure[k]!==true)
+  ||['twiceWeeklyRedemptionGuaranteedForActualStrategy',
+    'actualStrategyIsidAndRedemptionWindowVerified',
+    'actualStrategyCurrentFiveLevelRiskBandVerified',
+    'actualPortfolioDerivativePositionsAndLossScenariosVerified',
+    'individualPanThresholdKycAndExceptionsVerified',
+    'currentAuthorizedNavAndSettlementVerified',
+    'distributorCertificationAndSignedProviderRightsVerified',
+    'taxAndPersonalizedAdviceAuthorizationVerified',
+    'laterRegulatoryAmendmentsAndActualStrategyDisclosuresFullyReconciled'].some(k=>sifDisclosure[k]!==false))
+ throw new Error('FINANCIAL_SIF_RISK_BAND_INTERVAL_DISCLOSURE_SCOPE_INVALID');
 // All 95 rows must now have distinct, nonempty structured risk and investor
 // access cautions; this does NOT qualify 95 products or grant advice rights.
 if(research.entries.some(row=>!Object.values(row).some(v=>v&&typeof v==='object'
@@ -2844,6 +2890,15 @@ export function screenExtensionResearchForProfile(profileInput) {
      if(row.id==='catalog_2026_physical_gold_bullion'
        ||row.id==='catalog_2026_physical_silver_bullion'){
        reasons.push('BIS_BULLION_QUALITY_FRAMEWORK_NOT_ACTUAL_BAR_ASSAY_OR_PURCHASE_APPROVAL');
+       reasons.push('SEBI_OCT_2026_GOLD_EGR_VAULT_RULES_NOT_PHYSICAL_BULLION_CERTIFICATION');
+       reasons.push(row.id==='catalog_2026_physical_gold_bullion'
+        ? 'PHYSICAL_GOLD_BAR_NOT_EGR_DEPOSIT_OR_DELIVERY_RIGHT'
+        : 'PHYSICAL_SILVER_BAR_NOT_GOLD_EGR_VAULT_ENTITLEMENT');
+       if((Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
+         ||profile.investmentGoals.includes('Emergency Fund'))
+         reasons.push('SHORT_OR_EMERGENCY_GOAL_REQUIRES_BULLION_DEALER_EXIT_NOT_EGR_REDEMPTION_REVIEW');
+       if(profile.emergencyFundMonths===0)
+         reasons.push('RECORDED_ZERO_BUFFER_REQUIRES_BULLION_RESALE_NOT_EGR_SETTLEMENT_REVIEW');
        if(profile.emergencyFundMonths===0)
          reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_PHYSICAL_BULLION_RESALE_AND_CUSTODY_REVIEW');
        if(Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
@@ -3074,6 +3129,15 @@ export function screenExtensionResearchForProfile(profileInput) {
      reasons.push('SIF_DERIVATIVE_SHORT_AND_INTERVAL_REDEMPTION_TERMS_UNVERIFIED');
      reasons.push('SIF_PAN_AGGREGATE_THRESHOLD_ACTIVE_BREACH_AND_REDEMPTION_REVIEW');
      reasons.push('SIF_DISTRIBUTOR_CERTIFICATION_AND_SIGNED_ENTITLEMENT_UNVERIFIED');
+     reasons.push('SIF_FIVE_LEVEL_MONTHLY_RISK_BAND_NOT_VERIFIED_STRATEGY_RISK_OR_MF_RISKOMETER');
+     reasons.push('SIF_TWICE_WEEKLY_OR_LESS_FREQUENT_REFERENCE_NOT_GUARANTEED_EXIT');
+     if((Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
+       ||profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('SIF_SHORT_HORIZON_OR_EMERGENCY_GOAL_REQUIRES_ISID_NOTICE_AND_DERIVATIVE_SCENARIO_REVIEW');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_SIF_DERIVATIVE_AND_INTERVAL_LOSS_CAPACITY_REVIEW');
+     if(profile.emergencyFundMonths===0)
+       reasons.push('RECORDED_ZERO_BUFFER_REQUIRES_SIF_ACTUAL_INTERVAL_REDEMPTION_WINDOW_REVIEW');
      // A reported lump sum is not the investor's verified aggregate PAN-level
      // holdings in this SIF. The notice must never become an eligibility denial.
      if(profile.hasLumpSum===true&&nonnegative(profile.lumpSumAmount)
