@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import SovereignVoiceControl from '../SovereignVoiceControl';
 import * as api from '../../services/api';
+import axe from 'axe-core';
 
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
@@ -498,6 +499,16 @@ describe('GenieVoice opt-in navigation',()=>{
 });
 
 
+describe('GenieVoice accessibility release regression', () => {
+  it('has no detectable accessible-name or form-label violations before microphone use', async () => {
+    const view=render(<SovereignVoiceControl sessionKey="a" onTranscript={()=>{}} />);
+    const audit=await axe.run(view.container,{
+      rules:{'color-contrast':{enabled:false}}
+    });
+    expect(audit.violations.map(v=>({id:v.id,impact:v.impact}))).toEqual([]);
+  });
+});
+
 describe('GenieVoice high-stakes speech review', () => {
   function setup() {
     let recognition;
@@ -527,6 +538,9 @@ describe('GenieVoice high-stakes speech review', () => {
     expect(t.ask).not.toHaveBeenCalled();
     expect(screen.getByRole('group',{name:'Review recognized financial question'}))
       .toHaveTextContent('₹15000');
+    // Required confirmation must be immediately discoverable using the keyboard.
+    expect(screen.getByRole('textbox',{name:'Edit recognized financial question'}))
+      .toHaveFocus();
     fireEvent.click(screen.getByRole('button',{name:'Confirm and ask Genie'}));
     await act(async()=>{});
     expect(t.ask).toHaveBeenCalledTimes(1);
