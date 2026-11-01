@@ -2756,7 +2756,38 @@
         "investorKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "sebiFeb2026PassiveReplicationReview": {
+          "officialSebiCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+          "circularNumber": "HO/24/13/15(2)2026-IMD-RAC4/I/5764/2026",
+          "circularIssuedOn": "2026-02-26",
+          "effectiveFrom": "2026-02-26",
+          "reviewedOn": "2026-11-01",
+          "sourceClause": "2.6.3(E) Other Schemes item 1, and 2.6.7 transition",
+          "categoryMinimumIndexSecuritiesAllocationPct": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "actualSchemeAlignmentNotInferred": true,
+          "benchmarkName": "Nifty Next 50",
+          "officialIndexProviderMethodologyUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-next-50",
+          "wrapper": "INDEX_MUTUAL_FUND",
+          "categoryInterpretation": "Nifty Next 50 benchmark consists of 50 Nifty 100 companies excluding Nifty 50 constituents; it is not the Nifty 50 and not an AMC portfolio.",
+          "sourceScope": "SEBI_PASSIVE_CATEGORY_ALLOCATION_AND_NSE_BENCHMARK_NOT_SCHEME_HOLDINGS_OR_APPROVAL",
+          "riskConsiderations": [
+            "Next 50 equity constituents may have distinct concentration, volatility and reconstitution losses compared with the Nifty 50; the 95% category rule is not a guarantee of tracking accuracy.",
+            "Index-fund tracking difference, cash drag, fees and redemption NAV can change realised returns even when the benchmark methodology is published."
+          ],
+          "investorAccessConstraints": [
+            "Confirm a named AMC scheme, current SID/KIM, benchmark variant, risk-o-meter, holdings and redemption terms; SEBI's 95% category allocation is not evidence of this scheme's compliance.",
+            "Verify individual KYC, current authorized NAV, settlement, applicable taxes, data redistribution and advice rights before any product-specific output."
+          ],
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualPortfolioAndNinetyFivePctComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
@@ -2810,7 +2841,38 @@
         "investorKycAndRetailAccessVerified": false,
         "independentCommercialDataRightsVerified": false,
         "taxTreatmentAndAdviceAuthorizationVerified": false,
-        "individualSuitabilityVerified": false
+        "individualSuitabilityVerified": false,
+        "sebiFeb2026PassiveReplicationReview": {
+          "officialSebiCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+          "circularNumber": "HO/24/13/15(2)2026-IMD-RAC4/I/5764/2026",
+          "circularIssuedOn": "2026-02-26",
+          "effectiveFrom": "2026-02-26",
+          "reviewedOn": "2026-11-01",
+          "sourceClause": "2.6.3(E) Other Schemes item 1, and 2.6.7 transition",
+          "categoryMinimumIndexSecuritiesAllocationPct": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "actualSchemeAlignmentNotInferred": true,
+          "benchmarkName": "Nifty 100",
+          "officialIndexProviderMethodologyUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-100",
+          "wrapper": "INDEX_MUTUAL_FUND",
+          "categoryInterpretation": "Nifty 100 benchmark combines Nifty 50 and Nifty Next 50 companies; a published 100-company index is not evidence of a particular fund's holdings or risk-o-meter.",
+          "sourceScope": "SEBI_PASSIVE_CATEGORY_ALLOCATION_AND_NSE_BENCHMARK_NOT_SCHEME_HOLDINGS_OR_APPROVAL",
+          "riskConsiderations": [
+            "Capitalization-weighted Nifty 100 exposure may remain concentrated in its largest companies; 100 benchmark names do not guarantee equal diversification.",
+            "Scheme tracking difference, costs and redemption NAV can diverge from benchmark index levels and can generate losses."
+          ],
+          "investorAccessConstraints": [
+            "Identify the actual Nifty 100 index fund, current SID/KIM, scheme risk-o-meter, holdings and benchmark variant rather than treating the index as a purchasable scheme.",
+            "Verify applicant KYC, subscription and redemption rules, authorized current NAV, tax treatment and licensed display/advice permissions."
+          ],
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualPortfolioAndNinetyFivePctComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
+        }
       }
     },
     {
@@ -3557,6 +3619,37 @@
             "Identify actual AMC ETF, exchange ticker, ISIN, SID/KIM and scheme riskometer. An underlying index is not a listed ETF.",
             "Verify licensed live bid/ask, spread, NAV/iNAV, settlement, demat/KYC, broker permissions and actual exchange implementation; a circular is not an executable offer."
           ]
+        },
+        "sebiFeb2026PassiveReplicationReview": {
+          "officialSebiCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+          "circularNumber": "HO/24/13/15(2)2026-IMD-RAC4/I/5764/2026",
+          "circularIssuedOn": "2026-02-26",
+          "effectiveFrom": "2026-02-26",
+          "reviewedOn": "2026-11-01",
+          "sourceClause": "2.6.3(E) Other Schemes item 1, and 2.6.7 transition",
+          "categoryMinimumIndexSecuritiesAllocationPct": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "actualSchemeAlignmentNotInferred": true,
+          "benchmarkName": "Nifty 100",
+          "officialIndexProviderMethodologyUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/nifty-100",
+          "wrapper": "EXCHANGE_TRADED_FUND",
+          "categoryInterpretation": "Nifty 100 benchmark combines Nifty 50 and Nifty Next 50; an ETF wrapper requires a separately verified listing and executable order book.",
+          "sourceScope": "SEBI_PASSIVE_CATEGORY_ALLOCATION_AND_NSE_BENCHMARK_NOT_SCHEME_HOLDINGS_OR_APPROVAL",
+          "riskConsiderations": [
+            "Large-constituent concentration and equity drawdowns can coexist with ETF tracking differences and costs.",
+            "Secondary-market ETF execution price can differ from NAV or indicative NAV because of spreads, premiums, discounts and order-book depth; 95% category allocation is not price protection."
+          ],
+          "investorAccessConstraints": [
+            "Confirm actual AMC ETF, exchange listing, ticker, ISIN, SID/KIM, current risk-o-meter and disclosed holdings before claiming 95% replication compliance.",
+            "Verify demat/broker KYC, executable bid/ask, trading and settlement conditions, licensed quote rights and advice authorization; no index fact is an ETF offer."
+          ],
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualPortfolioAndNinetyFivePctComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
         }
       }
     },
@@ -3737,6 +3830,37 @@
             "Verify named ETF, AMC, exchange ticker, ISIN, SID/KIM and riskometer. An underlying index is not a listed ETF.",
             "Verify licensed live bid/ask, spread, NAV/iNAV, settlement, demat/KYC, broker permissions and actual exchange implementation; a circular is not an executable offer."
           ]
+        },
+        "sebiFeb2026PassiveReplicationReview": {
+          "officialSebiCircularPdfUrl": "https://www.sebi.gov.in/sebi_data/attachdocs/feb-2026/1772079826878.pdf",
+          "circularNumber": "HO/24/13/15(2)2026-IMD-RAC4/I/5764/2026",
+          "circularIssuedOn": "2026-02-26",
+          "effectiveFrom": "2026-02-26",
+          "reviewedOn": "2026-11-01",
+          "sourceClause": "2.6.3(E) Other Schemes item 1, and 2.6.7 transition",
+          "categoryMinimumIndexSecuritiesAllocationPct": 95,
+          "existingSchemeAlignmentWindowMonths": 6,
+          "actualSchemeAlignmentNotInferred": true,
+          "benchmarkName": "Nifty Smallcap 250",
+          "officialIndexProviderMethodologyUrl": "https://www.niftyindices.com/indices/equity/broad-based-indices/niftysmallcap250",
+          "wrapper": "EXCHANGE_TRADED_FUND",
+          "categoryInterpretation": "Nifty Smallcap 250 benchmark comprises Nifty 500 companies ranked 251-500 by full market capitalization; this is not an actual ETF holdings or exchange-liquidity observation.",
+          "sourceScope": "SEBI_PASSIVE_CATEGORY_ALLOCATION_AND_NSE_BENCHMARK_NOT_SCHEME_HOLDINGS_OR_APPROVAL",
+          "riskConsiderations": [
+            "Small-cap constituent liquidity and price gaps may worsen ETF replication, spreads and tracking difference during volatile markets.",
+            "The 95% passive category allocation rule does not establish executable ETF bids, NAV protection or the ability to sell at an indicated price."
+          ],
+          "investorAccessConstraints": [
+            "Verify a named ETF's AMC, exchange ticker, ISIN, SID/KIM, holdings, risk-o-meter and actual compliance with index replication before presenting a product.",
+            "Check investor demat/KYC, current order-book depth, settlement, premiums or discounts, authorized quotes, fees, tax and advice permissions."
+          ],
+          "actualNamedSchemeAndSidKimVerified": false,
+          "actualPortfolioAndNinetyFivePctComplianceVerified": false,
+          "currentSchemeRiskometerVerified": false,
+          "currentNavOrExecutableQuoteVerified": false,
+          "individualKycAndRetailAccessVerified": false,
+          "commercialMarketDataRightsVerified": false,
+          "fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified": false
         }
       }
     },

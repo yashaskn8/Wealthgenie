@@ -2022,6 +2022,16 @@ export function screenExtensionResearchForProfile(profileInput) {
      if(profile.riskTolerance==='Conservative')
        reasons.push('CONSERVATIVE_PROFILE_REQUIRES_DEBT_SCHEME_RATE_AND_CREDIT_RISK_REVIEW');
    }
+   if(row.indexBenchmarkReview?.sebiFeb2026PassiveReplicationReview) {
+     reasons.push('SEBI_FEB_2026_PASSIVE_INDEX_95PCT_MANDATE_NOT_VERIFIED_SCHEME_HOLDINGS');
+     reasons.push(row.id==='catalog_2026_index_nifty_next50'
+       ? 'NIFTY_NEXT50_EXCLUDES_NIFTY50_NOT_A_VERIFIED_FUND_PORTFOLIO'
+       : 'NIFTY100_COMBINES_NIFTY50_NEXT50_NOT_A_VERIFIED_FUND_PORTFOLIO');
+     if(profile.investmentHorizonYears<=3 || profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('SHORT_OR_EMERGENCY_GOAL_REQUIRES_PASSIVE_INDEX_NAV_REDEMPTION_AND_EQUITY_LOSS_REVIEW');
+     if(profile.riskTolerance==='Conservative')
+       reasons.push('CONSERVATIVE_PROFILE_REQUIRES_PASSIVE_INDEX_EQUITY_DRAWDOWN_REVIEW');
+   }
    if(row.indexBenchmarkReview) {
      reasons.push('EQUITY_INDEX_BENCHMARK_NOT_AN_APPROVED_FUND_OR_ETF');
      reasons.push('INDEX_FUND_SCHEME_RISKOMETER_NAV_TRACKING_COSTS_KYC_AND_SOURCE_RIGHTS_UNVERIFIED');
@@ -2049,6 +2059,16 @@ export function screenExtensionResearchForProfile(profileInput) {
        if(profile.riskTolerance==='Conservative')
          reasons.push('CONSERVATIVE_PROFILE_REQUIRES_FACTOR_STRATEGY_LOSS_CAPACITY_REVIEW');
      }
+   }
+   if(row.etfBenchmarkReview?.sebiFeb2026PassiveReplicationReview) {
+     reasons.push('SEBI_FEB_2026_PASSIVE_ETF_95PCT_MANDATE_NOT_VERIFIED_LISTING_OR_QUOTE');
+     reasons.push(row.id==='catalog_2026_etf_smallcap250'
+       ? 'SMALLCAP250_ETF_BENCHMARK_LIQUIDITY_NOT_EXECUTABLE_ORDERBOOK'
+       : 'NIFTY100_ETF_BENCHMARK_NOT_VERIFIED_ETF_HOLDINGS');
+     if(profile.investmentGoals.includes('Emergency Fund'))
+       reasons.push('EMERGENCY_GOAL_REQUIRES_PASSIVE_ETF_BID_ASK_AND_SETTLEMENT_REVIEW');
+     if(profile.emergencyFundMonths===0)
+       reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_PASSIVE_ETF_EXECUTABLE_EXIT_REVIEW');
    }
    if(row.etfBenchmarkReview) {
      reasons.push('ETF_INDEX_BENCHMARK_NOT_VERIFIED_AS_A_LISTED_PRODUCT');

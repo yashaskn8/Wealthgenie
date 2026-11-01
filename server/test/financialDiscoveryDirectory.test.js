@@ -1732,3 +1732,37 @@ test('NPS Class C NDB circular evidence remains discovery-only and deeply copied
  assert.equal(fresh.actualPensionFundHoldingAndNavVerified,false);
  assert.ok(!fresh.investorAccessConstraints.includes('FABRICATED NDB ISSUE'));
 });
+
+// The directory must expose nested source research without granting market-data or advice rights.
+test('passive 2026 replication reviews stay distinct and deep copied in the educational directory',()=>{
+ const ids=['catalog_2026_index_nifty_next50','catalog_2026_index_nifty100',
+  'catalog_2026_etf_nifty100','catalog_2026_etf_smallcap250'];
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ const snapshots=ids.map(get);
+ assert.equal(new Set(snapshots.map(x=>x.id)).size,4);
+ for(const item of snapshots){
+  const isEtf=item.id.startsWith('catalog_2026_etf_');
+  const review=(isEtf?item.frameworkResearch.etfBenchmarkReview:
+   item.frameworkResearch.indexBenchmarkReview).sebiFeb2026PassiveReplicationReview;
+  assert.equal(review.categoryMinimumIndexSecuritiesAllocationPct,95);
+  assert.equal(review.circularIssuedOn,'2026-02-26');
+  assert.equal(review.actualSchemeAlignmentNotInferred,true);
+  assert.ok(review.officialSebiCircularPdfUrl.includes('sebi.gov.in/'));
+  assert.ok(review.officialIndexProviderMethodologyUrl.includes('niftyindices.com/'));
+  assert.ok(review.riskConsiderations.length>=2&&review.investorAccessConstraints.length>=2);
+  assert.equal(review.actualNamedSchemeAndSidKimVerified,false);
+  assert.equal(review.currentSchemeRiskometerVerified,false);
+  assert.equal(review.currentNavOrExecutableQuoteVerified,false);
+  assert.equal(review.individualKycAndRetailAccessVerified,false);
+  assert.equal(review.commercialMarketDataRightsVerified,false);
+  assert.equal(review.fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified,false);
+  assert.equal(item.frameworkResearch.productRiskScore,null);
+  assert.equal(item.frameworkResearch.actualRetailProductEligible,false);
+  assert.equal(item.frameworkResearch.sourcePermissionVerified,false);
+  review.riskConsiderations.push('FAKE FUND NAV');
+  const fresh=get(item.id);
+  const freshReview=(isEtf?fresh.frameworkResearch.etfBenchmarkReview:
+   fresh.frameworkResearch.indexBenchmarkReview).sebiFeb2026PassiveReplicationReview;
+  assert.ok(!freshReview.riskConsiderations.includes('FAKE FUND NAV'));
+ }
+});

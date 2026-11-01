@@ -3606,3 +3606,66 @@ test('PFRDA 2026 NDB eligibility is limited to NPS Class C and never approves a 
  assert.equal(clean.actualPensionFundHoldingAndNavVerified,false);
  assert.ok(!clean.riskConsiderations.includes('FORGED NPS FUND APPROVAL'));
 });
+
+// SEBI 26 February 2026 passive-category allocation is not a named scheme's holdings.
+test('four distinct passive index and ETF categories keep 95 percent mandate separate from investor access',()=>{
+ const ids=['catalog_2026_index_nifty_next50','catalog_2026_index_nifty100',
+  'catalog_2026_etf_nifty100','catalog_2026_etf_smallcap250'];
+ const rows=listExtensionResearch();
+ const base=screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+  emergencyFundMonths:null,riskTolerance:'Aggressive'
+ }));
+ const flagged=screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Emergency Fund'],investmentHorizonYears:2,
+  emergencyFundMonths:0,riskTolerance:'Conservative'
+ }));
+ const conditionalIndex=['SHORT_OR_EMERGENCY_GOAL_REQUIRES_PASSIVE_INDEX_NAV_REDEMPTION_AND_EQUITY_LOSS_REVIEW',
+  'CONSERVATIVE_PROFILE_REQUIRES_PASSIVE_INDEX_EQUITY_DRAWDOWN_REVIEW'];
+ const conditionalEtf=['EMERGENCY_GOAL_REQUIRES_PASSIVE_ETF_BID_ASK_AND_SETTLEMENT_REVIEW',
+  'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_PASSIVE_ETF_EXECUTABLE_EXIT_REVIEW'];
+ for(const id of ids){
+  const row=rows.find(x=>x.id===id);
+  const isEtf=id.startsWith('catalog_2026_etf_');
+  const review=(isEtf?row.etfBenchmarkReview:row.indexBenchmarkReview).sebiFeb2026PassiveReplicationReview;
+  assert.equal(review.circularIssuedOn,'2026-02-26');
+  assert.equal(review.categoryMinimumIndexSecuritiesAllocationPct,95);
+  assert.equal(review.existingSchemeAlignmentWindowMonths,6);
+  assert.equal(review.actualSchemeAlignmentNotInferred,true);
+  assert.equal(review.wrapper,isEtf?'EXCHANGE_TRADED_FUND':'INDEX_MUTUAL_FUND');
+  assert.ok(review.categoryInterpretation.length>70);
+  assert.ok(review.riskConsiderations.length>=2&&review.investorAccessConstraints.length>=2);
+  for(const key of ['actualNamedSchemeAndSidKimVerified',
+   'actualPortfolioAndNinetyFivePctComplianceVerified','currentSchemeRiskometerVerified',
+   'currentNavOrExecutableQuoteVerified','individualKycAndRetailAccessVerified',
+   'commercialMarketDataRightsVerified','fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'])
+   assert.equal(review[key],false,id+':'+key);
+  const a=base.find(x=>x.id===id),b=flagged.find(x=>x.id===id);
+  const always=isEtf?'SEBI_FEB_2026_PASSIVE_ETF_95PCT_MANDATE_NOT_VERIFIED_LISTING_OR_QUOTE'
+   :'SEBI_FEB_2026_PASSIVE_INDEX_95PCT_MANDATE_NOT_VERIFIED_SCHEME_HOLDINGS';
+  assert.ok(a.screeningReasonCodes.includes(always));
+  assert.ok(b.screeningReasonCodes.includes(always));
+  for(const code of (isEtf?conditionalEtf:conditionalIndex)){
+   assert.ok(!a.screeningReasonCodes.includes(code),id+':'+code);
+   assert.ok(b.screeningReasonCodes.includes(code),id+':'+code);
+  }
+  for(const result of [a,b]){
+   assert.equal(result.productQualified,false);
+   assert.equal(result.scoreAvailable,false);
+   assert.equal(result.productRiskLevel,null);
+   assert.equal(result.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+  }
+ }
+ const next=base.find(x=>x.id==='catalog_2026_index_nifty_next50');
+ const n100=base.find(x=>x.id==='catalog_2026_index_nifty100');
+ const e100=base.find(x=>x.id==='catalog_2026_etf_nifty100');
+ const small=base.find(x=>x.id==='catalog_2026_etf_smallcap250');
+ assert.ok(next.screeningReasonCodes.includes('NIFTY_NEXT50_EXCLUDES_NIFTY50_NOT_A_VERIFIED_FUND_PORTFOLIO'));
+ assert.ok(n100.screeningReasonCodes.includes('NIFTY100_COMBINES_NIFTY50_NEXT50_NOT_A_VERIFIED_FUND_PORTFOLIO'));
+ assert.ok(e100.screeningReasonCodes.includes('NIFTY100_ETF_BENCHMARK_NOT_VERIFIED_ETF_HOLDINGS'));
+ assert.ok(small.screeningReasonCodes.includes('SMALLCAP250_ETF_BENCHMARK_LIQUIDITY_NOT_EXECUTABLE_ORDERBOOK'));
+ const mutable=rows.find(x=>x.id===ids[0]).indexBenchmarkReview.sebiFeb2026PassiveReplicationReview;
+ mutable.riskConsiderations.push('FABRICATED APPROVAL');
+ assert.ok(!listExtensionResearch().find(x=>x.id===ids[0])
+  .indexBenchmarkReview.sebiFeb2026PassiveReplicationReview.riskConsiderations.includes('FABRICATED APPROVAL'));
+});
