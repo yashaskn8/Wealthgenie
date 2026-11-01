@@ -30,6 +30,12 @@ export async function attachSourceBoundAfterTaxReturns({
       && observation?.type === 'PUBLISHED_RATE'
       && result.officialSourceId === observation.sourceId
       && String(result.officialObservationId) === observation.observationId
+      && Number.isFinite(new Date(result.sourceObservationTime).getTime())
+      && new Date(result.sourceObservationTime).getTime()
+        === new Date(observation.asOf).getTime()
+      && typeof result.source?.nominalAnnualRatePct === 'number'
+      && Number.isFinite(result.source.nominalAnnualRatePct)
+      && result.source.nominalAnnualRatePct === Number(observation.value)
       && result.canonicalProductId === product.id
       && Number.isFinite(result.postTaxXirr)
       && result.postTaxXirr > -1 && result.postTaxXirr < 1000
