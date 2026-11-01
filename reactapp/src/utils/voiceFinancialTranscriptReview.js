@@ -17,6 +17,12 @@ const QUANTIFIED = /[\p{Nd}%₹$€£]|\b(?:inr|rupees?|rs|percent|percentage|do
 // currency or percentage from review in a financial assistant.
 const EXPLICIT_VALUE = /[\p{Nd}%₹$€£]/u;
 const MONETARY_UNIT = /\b(?:inr|rupees?|rs|lakhs?|lacs?|crores?|millions?|billions?)\b|(?:रुपये|रुपया|लाख|करोड़|ರೂಪಾಯಿ|ಲಕ್ಷ|ಕೋಟಿ)/iu;
+
+// Hindi has irregular spoken number words; Kannada composes numbers from
+// tens stems. Recognized quantities without numerals or currency symbols
+// must still require review. Unicode boundaries avoid matching substrings
+// inside ordinary words (for example, Hindi "दोस्त").
+const INDIC_SPOKEN_NUMBER = /(?:^|[^\p{L}\p{M}])(?:शून्य|जीरो|एक|दो|तीन|चार|पाँच|पांच|छह|छः|सात|आठ|नौ|ग्यारह|बारह|तेरह|चौदह|पंद्रह|पन्द्रह|सोलह|सत्रह|अठारह|उन्नीस|इक्कीस|बाईस|तेईस|चौबीस|पच्चीस|छब्बीस|सत्ताईस|अट्ठाईस|उनतीस|छत्तीस|छप्पन|सत्तावन|ಶೂನ್ಯ|ಒಂದು|ಎರಡು|ಮೂರು|ನಾಲ್ಕು|ಐದು|ಆರು|ಏಳು|ಎಂಟು|ಒಂಬತ್ತು|ಹನ್ನೊಂದು|ಹನ್ನೆರಡು|ಹದಿಮೂರು|ಹದಿನಾಲ್ಕು|ಹದಿನೈದು|ಹದಿನಾರು|ಹದಿನೇಳು|ಹದಿನೆಂಟು|ಹತ್ತೊಂಬತ್ತು|(?:ಇಪ್ಪತ್ತ|ಮೂವತ್ತ|ನಲವತ್ತ|ಐವತ್ತ|ಅರವತ್ತ|ಎಪ್ಪತ್ತ|ಎಂಭತ್ತ|ತೊಂಬತ್ತ)[\p{L}\p{M}]*)(?![\p{L}\p{M}])/iu;
 const INVALID = /[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}]/u;
 
 export function needsFinancialTranscriptReview(raw) {
@@ -26,5 +32,6 @@ export function needsFinancialTranscriptReview(raw) {
   // In a financial assistant an uncategorized spoken quantity can still be
   // a salary, debt, tenure, insurance premium or projected return. Fail closed
   // for ALL recognized numbers; keyword classification is not a safety gate.
-  return EXPLICIT_VALUE.test(text) || MONETARY_UNIT.test(text) || QUANTIFIED.test(text);
+  return EXPLICIT_VALUE.test(text) || MONETARY_UNIT.test(text) ||
+    QUANTIFIED.test(text) || INDIC_SPOKEN_NUMBER.test(text);
 }

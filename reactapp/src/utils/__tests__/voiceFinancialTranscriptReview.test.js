@@ -39,6 +39,20 @@ describe('Financial voice ASR value-confirmation boundary', () => {
       'Please explain a lakh in rupees',
     ]) expect(needsFinancialTranscriptReview(question), question).toBe(true);
   });
+  it('requires review for Indic spoken numbers even without digits or currency units', () => {
+    for (const question of [
+      'मेरी ईएमआई पाँच', 'मेरे निवेश का समय दो', 'मेरी बचत ग्यारह',
+      'मेरा ऋण पच्चीस', 'क्या मेरा लक्ष्य छप्पन होगा?',
+      'ನನ್ನ SIP ಒಂದು', 'ನನ್ನ ವೆಚ್ಚ ಮೂರು', 'ನನ್ನ ಉಳಿತಾಯ ಹನ್ನೊಂದು',
+      'ನನ್ನ ವೆಚ್ಚ ಹದಿನೈದು', 'ನನ್ನ ಖರ್ಚು ಐವತ್ತೈದು',
+      'ನನ್ನ ಗುರಿ ಎಪ್ಪತ್ತೊಂದು',
+    ]) expect(needsFinancialTranscriptReview(question), question).toBe(true);
+  });
+  it('does not match Indic numeral substrings inside unrelated words', () => {
+    for (const question of [
+      'मेरे दोस्त की योजना', 'सिप क्या है?', 'ಸಿಪ್ ಎಂದರೇನು?',
+    ]) expect(needsFinancialTranscriptReview(question), question).toBe(false);
+  });
   it('keeps low-risk conversational questions fast, without confirmation friction', () => {
     for (const question of [
       'Explain SIP', 'What is diversification?', 'Hello Genie',
