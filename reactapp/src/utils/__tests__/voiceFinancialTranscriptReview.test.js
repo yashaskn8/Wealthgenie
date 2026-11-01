@@ -48,6 +48,12 @@ describe('Financial voice ASR value-confirmation boundary', () => {
       'ನನ್ನ ಗುರಿ ಎಪ್ಪತ್ತೊಂದು',
     ]) expect(needsFinancialTranscriptReview(question), question).toBe(true);
   });
+  it('requires review for irregular Hindi 31–99 numeric words', () => {
+    for (const word of [
+      'बयालीस', 'अड़तालीस', 'उनसठ', 'चौंसठ', 'पचहत्तर',
+      'अठहत्तर', 'उन्यासी', 'अट्ठासी', 'चौरानवे', 'निन्यानवे',
+    ]) expect(needsFinancialTranscriptReview('मेरे निवेश ' + word), word).toBe(true);
+  });
   it('does not match Indic numeral substrings inside unrelated words', () => {
     for (const question of [
       'मेरे दोस्त की योजना', 'सिप क्या है?', 'ಸಿಪ್ ಎಂದರೇನು?',
