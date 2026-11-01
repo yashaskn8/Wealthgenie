@@ -4324,3 +4324,51 @@ test('SIF March 2026 five-level Risk-band and interval terms remain strategy-spe
  assert.ok(!listExtensionResearch().find(x=>x.id===id).individualCategoryReview
   .sifMarch2026RiskBandAndIntervalDisclosureReview.riskConsiderations.includes('FORGED RISK BAND'));
 });
+
+test('October 2026 SEBI gold EGR vault rules do not approve physical gold or silver bullion',()=>{
+ const ids=['catalog_2026_physical_gold_bullion','catalog_2026_physical_silver_bullion'];
+ const codes=['PHYSICAL_GOLD_BAR_DISTINCT_FROM_EGR','PHYSICAL_SILVER_BAR_OUTSIDE_GOLD_EGR'];
+ const pick=options=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+  investmentHorizonYears:10,investmentGoals:['Wealth Growth'],
+  riskTolerance:'Moderate',emergencyFundMonths:null,...options
+ })).map(row=>[row.id,row]));
+ const base=pick({}),short=pick({investmentHorizonYears:2}),
+  goal=pick({investmentGoals:['Emergency Fund']}),zero=pick({emergencyFundMonths:0});
+ for(const [i,id] of ids.entries()){
+  const row=listExtensionResearch().find(x=>x.id===id);
+  const v=row.preciousMetalsCategoryReview.sebiOct2026EgrVaultBoundaryReview;
+  assert.equal(v.categoryCode,codes[i]);
+  assert.equal(v.regulationsLastAmendedOn,'2026-10-09');
+  for(const url of [v.officialSebiVaultManagersRegulationsUrl,
+   v.officialSebiEgrMasterCircularUrl,v.officialSebiEgrFaqUrl])
+   assert.ok(isOfficialFrameworkReferenceUrl(url),url);
+  assert.equal(v.egrFrameworkCoversGoldReceiptsNotSilverBullion,true);
+  for(const key of ['actualBarAssayAndProvenanceVerified','actualBarSellerAndBuybackTermsVerified',
+   'actualEgrReceiptOrVaultEntitlementVerified','actualRetailKycAndTransactionRightsVerified',
+   'currentAuthorizedPriceAndSignedDataRightsVerified','personalizedAdviceAuthorizationVerified'])
+   assert.equal(v[key],false,key);
+  const specific=i===0?'PHYSICAL_GOLD_BAR_NOT_EGR_DEPOSIT_OR_DELIVERY_RIGHT'
+   :'PHYSICAL_SILVER_BAR_NOT_GOLD_EGR_VAULT_ENTITLEMENT';
+  for(const group of [base,short,goal,zero]){
+   const x=group.get(id);
+   assert.equal(x.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(x.productQualified,false);
+   assert.equal(x.scoreAvailable,false);
+   assert.equal(x.productRiskLevel,null);
+   assert.ok(x.screeningReasonCodes.includes(specific));
+   assert.ok(x.screeningReasonCodes.includes('SEBI_OCT_2026_GOLD_EGR_VAULT_RULES_NOT_PHYSICAL_BULLION_CERTIFICATION'));
+  }
+  const exit='SHORT_OR_EMERGENCY_GOAL_REQUIRES_BULLION_DEALER_EXIT_NOT_EGR_REDEMPTION_REVIEW';
+  const buffer='RECORDED_ZERO_BUFFER_REQUIRES_BULLION_RESALE_NOT_EGR_SETTLEMENT_REVIEW';
+  assert.ok(!base.get(id).screeningReasonCodes.includes(exit));
+  assert.ok(short.get(id).screeningReasonCodes.includes(exit));
+  assert.ok(goal.get(id).screeningReasonCodes.includes(exit));
+  assert.ok(!base.get(id).screeningReasonCodes.includes(buffer));
+  assert.ok(zero.get(id).screeningReasonCodes.includes(buffer));
+  v.riskConsiderations.push('FORGED BULLION APPROVAL');
+  assert.ok(!listExtensionResearch().find(x=>x.id===id).preciousMetalsCategoryReview
+   .sebiOct2026EgrVaultBoundaryReview.riskConsiderations.includes('FORGED BULLION APPROVAL'));
+ }
+ assert.ok(!base.get('catalog_2026_silver_fof').screeningReasonCodes.includes(
+  'SEBI_OCT_2026_GOLD_EGR_VAULT_RULES_NOT_PHYSICAL_BULLION_CERTIFICATION'));
+});

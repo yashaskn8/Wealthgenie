@@ -870,6 +870,26 @@ if(!silverHallmarkScope
  ||research.entries.some(row=>row.id!=='catalog_2026_physical_silver_bullion'
    &&row.preciousMetalsCategoryReview?.silverHallmarking2025ScopeReview!==undefined))
  throw new Error('FINANCIAL_SILVER_2025_HALLMARK_SCOPE_INVALID');
+// SEBI's October 2026 gold EGR vault rules do not certify dealer bullion bars.
+for(const [id,code] of Object.entries({
+  catalog_2026_physical_gold_bullion:'PHYSICAL_GOLD_BAR_DISTINCT_FROM_EGR',
+  catalog_2026_physical_silver_bullion:'PHYSICAL_SILVER_BAR_OUTSIDE_GOLD_EGR',
+})){
+ const v=research.entries.find(row=>row.id===id)
+  ?.preciousMetalsCategoryReview?.sebiOct2026EgrVaultBoundaryReview;
+ if(!v||v.categoryCode!==code||v.regulationsLastAmendedOn!=='2026-10-09'
+  ||v.officialSebiVaultManagersRegulationsUrl!=='https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-vault-managers-regulations-2021-last-amended-on-october-9-2026-_105249.html'
+  ||v.officialSebiEgrMasterCircularUrl!=='https://www.sebi.gov.in/legal/master-circulars/jun-2024/master-circular-for-electronic-gold-receipts-egrs-_84369.html'
+  ||v.egrFrameworkCoversGoldReceiptsNotSilverBullion!==true
+  ||v.egrVaultManagerFrameworkIsNotPhysicalDealerCertification!==true
+  ||['actualBarAssayAndProvenanceVerified','actualBarSellerAndBuybackTermsVerified',
+   'actualEgrReceiptOrVaultEntitlementVerified','actualRetailKycAndTransactionRightsVerified',
+   'currentAuthorizedPriceAndSignedDataRightsVerified','personalizedAdviceAuthorizationVerified']
+    .some(key=>v[key]!==false)
+  ||!Array.isArray(v.riskConsiderations)||v.riskConsiderations.length<2
+  ||!Array.isArray(v.investorAccessConstraints)||v.investorAccessConstraints.length<2)
+  throw new Error('FINANCIAL_PHYSICAL_BULLION_EGR_SCOPE_INVALID');
+}
 // The final 15 source-scoped profiles include corporate debt, money-market,
 // SIF, SM REIT and silver FoF structures; no verified instrument is inferred.
 const finalRiskAccessReviewFields=Object.freeze({"catalog_2026_ncd_secured":["debtInstrumentReview","https://www.sebi.gov.in/legal/regulations/jan-2026/securities-and-exchange-board-of-india-issue-and-listing-of-non-convertible-securities-regulations-2021-last-amended-as-on-january-21-2026-_99288.html"],"catalog_2026_ncd_unsecured":["debtInstrumentReview","https://www.sebi.gov.in/legal/regulations/jan-2026/securities-and-exchange-board-of-india-issue-and-listing-of-non-convertible-securities-regulations-2021-last-amended-as-on-january-21-2026-_99288.html"],"catalog_2026_ncd_unlisted":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_bond_subordinated":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_bond_perpetual":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_bond_corporate_floating":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_bond_corporate_zero":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_bond_convertible":["debtInstrumentReview","https://www.sebi.gov.in/legal/regulations/mar-2026/securities-and-exchange-board-of-india-issue-of-capital-and-disclosure-requirements-regulations-2018-last-amended-on-march-21-2026-_100581.html"],"catalog_2026_psu_bond_taxable":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_infra_corporate_bond":["debtInstrumentReview","https://www.sebi.gov.in/legal/master-circulars/oct-2025/master-circular-for-issue-and-listing-of-non-convertible-securities-securitised-debt-instruments-security-receipts-municipal-debt-securities-and-commercial-paper_97343.html"],"catalog_2026_municipal_green":["individualCategoryReview","https://www.sebi.gov.in/legal/regulations/jul-2026/securities-and-exchange-board-of-india-issue-and-listing-of-municipal-debt-securities-regulations-2015-last-amendment-on-july-08-2026-_102918.html"],"catalog_2026_commercial_paper":["debtInstrumentReview","https://www.rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12592"],"catalog_2026_sif_hybrid_longshort":["individualCategoryReview","https://www.sebi.gov.in/legal/circulars/feb-2025/regulatory-framework-for-specialized-investment-funds-sif-_92299.html"],"catalog_2026_sm_reit_scheme":["individualCategoryReview","https://www.sebi.gov.in/legal/regulations/oct-2026/securities-and-exchange-board-of-india-real-estate-investment-trusts-regulations-2014-last-amended-on-october-15-2026-_105376.html"],"catalog_2026_silver_fof":["preciousMetalsCategoryReview","https://www.sebi.gov.in/legal/master-circulars/mar-2026/master-circular-for-mutual-funds_100491.html"]});
@@ -2870,6 +2890,15 @@ export function screenExtensionResearchForProfile(profileInput) {
      if(row.id==='catalog_2026_physical_gold_bullion'
        ||row.id==='catalog_2026_physical_silver_bullion'){
        reasons.push('BIS_BULLION_QUALITY_FRAMEWORK_NOT_ACTUAL_BAR_ASSAY_OR_PURCHASE_APPROVAL');
+       reasons.push('SEBI_OCT_2026_GOLD_EGR_VAULT_RULES_NOT_PHYSICAL_BULLION_CERTIFICATION');
+       reasons.push(row.id==='catalog_2026_physical_gold_bullion'
+        ? 'PHYSICAL_GOLD_BAR_NOT_EGR_DEPOSIT_OR_DELIVERY_RIGHT'
+        : 'PHYSICAL_SILVER_BAR_NOT_GOLD_EGR_VAULT_ENTITLEMENT');
+       if((Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
+         ||profile.investmentGoals.includes('Emergency Fund'))
+         reasons.push('SHORT_OR_EMERGENCY_GOAL_REQUIRES_BULLION_DEALER_EXIT_NOT_EGR_REDEMPTION_REVIEW');
+       if(profile.emergencyFundMonths===0)
+         reasons.push('RECORDED_ZERO_BUFFER_REQUIRES_BULLION_RESALE_NOT_EGR_SETTLEMENT_REVIEW');
        if(profile.emergencyFundMonths===0)
          reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_PHYSICAL_BULLION_RESALE_AND_CUSTODY_REVIEW');
        if(Number.isFinite(profile.investmentHorizonYears)&&profile.investmentHorizonYears<=3)
