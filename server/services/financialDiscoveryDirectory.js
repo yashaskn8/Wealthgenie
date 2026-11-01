@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { investmentDatabase } from '../data/investmentDatabase.js';
 import { listExtensionResearch, getFrameworkSourcePublisherType } from './extensionFrameworkAssessment.js';
 import { validateFirstFamilyResearchPilot } from '../scripts/validateFirstFamilyResearchPilot.js';
+import { validateIssuerResearchBatch } from '../scripts/generateFinancialProductResearchCoverage.js';
 
 const extensions = JSON.parse(readFileSync(
   new URL('../data/investmentUniverseExtensions2026.json', import.meta.url), 'utf8',
@@ -64,6 +65,28 @@ function readOfficialIssuerReferences() {
 }
 const RD_OFFICIAL_ISSUER_REFERENCES = Object.freeze(readOfficialIssuerReferences());
 
+// Public issuer identities are research links, not broker inventory or
+// authorized current quotes. They are deliberately separated from productData.
+const INDEX_RESEARCH_BY_FAMILY = validateIssuerResearchBatch().candidateByFamily;
+function listedResearchCandidates(familyId) {
+  if (familyId === RD_FAMILY_ID) {
+    return rdResearch.candidates.map(offer => ({
+      name: offer.offerLabel,
+      issuer: offer.issuer,
+      issuerUrl: offer.officialProductUrl,
+      researchedOn: rdResearch.researchReviewedOn,
+      displayScope: 'PUBLIC_ISSUER_RESEARCH_ONLY',
+    }));
+  }
+  return (INDEX_RESEARCH_BY_FAMILY.get(familyId) || []).map(candidate => ({
+    name: candidate.schemeName,
+    issuer: candidate.issuer,
+    issuerUrl: candidate.officialSourceUrl,
+    researchedOn: '2026-11-01',
+    displayScope: 'PUBLIC_ISSUER_RESEARCH_ONLY',
+  }));
+}
+
 const normalize = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const asText = s => typeof s === 'string' && s.trim() ? s.trim() : null;
 const sourceLearningPoints = values => Array.isArray(values)
@@ -104,6 +127,7 @@ function buildDirectory() {
     subcategory: item.subCategory || null,
     record_kind: 'ARCHETYPE', origin: 'LEGACY_155',
     publicIssuerReferences: [],
+    researchCandidates: listedResearchCandidates(item.id),
     instrumentForm: null,
     description: asText(item.description),
     // The source catalog may contain assumptions, which are NOT market quotes.
@@ -121,6 +145,7 @@ function buildDirectory() {
     subcategory: item.subCategory || null,
     record_kind: 'ARCHETYPE', origin: 'EXTENDED_95',
     publicIssuerReferences: item.id === RD_FAMILY_ID ? RD_OFFICIAL_ISSUER_REFERENCES : [],
+    researchCandidates: listedResearchCandidates(item.id),
     instrumentForm: asText(item.instrumentForm),
     frameworkResearch: (() => {
       const research = extensionResearchById.get(item.id);
@@ -231,6 +256,7 @@ export function listFinancialDiscoveryDirectory() {
     disclaimer: '250 educational investment categories, not 250 verified purchasable products. No current prices, rates, tax outcomes or personalized investment recommendations are established by this catalog.',
     items: DIRECTORY.map(item => ({
       ...item, productData: { ...item.productData },
+      researchCandidates: item.researchCandidates.map(candidate => ({ ...candidate })),
       frameworkResearch: item.frameworkResearch ? {
         ...item.frameworkResearch,
         categoryRiskConsiderations: [...item.frameworkResearch.categoryRiskConsiderations],
