@@ -108,6 +108,30 @@ beforeEach(()=>{
 afterEach(()=>{cleanup();vi.clearAllMocks();});
 
 describe('all 250 investment categories are browseable without product approval',()=>{
+ it('displays issuer-listed product names within the existing 250-family cards without claiming tax returns', async()=>{
+   const sourced = directory();
+   sourced.items[0].researchCandidates=[
+     {name:'Example Nifty 500 Index Fund A',issuer:'Issuer A',
+       issuerUrl:'https://example.com/fund-a',researchedOn:'2026-11-01',
+       displayScope:'PUBLIC_ISSUER_RESEARCH_ONLY'},
+     {name:'Example Nifty 500 Index Fund B',issuer:'Issuer B',
+       issuerUrl:'https://example.org/fund-b',researchedOn:'2026-11-01',
+       displayScope:'PUBLIC_ISSUER_RESEARCH_ONLY'},
+     {name:'Example Nifty 500 Index Fund C',issuer:'Issuer C',
+       issuerUrl:'https://example.net/fund-c',researchedOn:'2026-11-01',
+       displayScope:'PUBLIC_ISSUER_RESEARCH_ONLY'},
+   ];
+   api.getFinancialDiscoveryDirectory.mockResolvedValue(sourced);
+   render(<Explorer/>);
+   await waitFor(()=>expect(screen.getByText('250 matching options')).toBeTruthy());
+   for(const product of sourced.items[0].researchCandidates){
+     expect(screen.getByRole('link',{name:product.name})).toHaveAttribute('href',product.issuerUrl);
+   }
+   expect(screen.getByText(/Public issuer research, not a personalized ranking/)).toBeTruthy();
+   expect(screen.getByText(/Issuer listings for comparison/)).toBeTruthy();
+   expect(screen.getByText('Investment family 250')).toBeTruthy();
+   expect(api.getQualifiedFamilyTopProducts).not.toHaveBeenCalled();
+ });
  it('shows 155 legacy + 95 extended entries, searchable, with all categories visible',async()=>{
    render(<Explorer/>);
    await waitFor(()=>expect(screen.getByText(/250 educational investment categories loaded/)).toBeTruthy());
