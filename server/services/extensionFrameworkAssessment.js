@@ -187,6 +187,30 @@ export function getFrameworkSourcePublisherType(value) {
 // The 28 August 2026 PFRDA PDF itself prints circular 47; the website
 // listing displays 48. Preserve that provenance discrepancy rather than
 // silently treating the listing number as the PDF's identifier.
+// PFRDA/2026/29 adds one eligible INR bond issuer to non-government NPS Class C.
+// It neither proves that a pension fund holds the issue nor qualifies a retail offer.
+const npsNdbRupeeBondCircularUrl='https://www.pfrda.org.in/documents/33652/154008/Inclusion%2Bof%2BRupee%2BBonds%2Bissued%2Bby%2BNew%2BDevelopment%2BBank%2Bin%2Bthe%2Beligible%2Binvestment%2Buniverse%2Bunder%2BNPS.pdf';
+const npsNdbRows=research.entries.filter(row=>row.npsCommonSchemeReview?.ndbRupeeBond2026InvestmentGuidelineReview);
+if(npsNdbRows.length!==1||npsNdbRows[0].id!=='catalog_2026_nps_asset_c')
+ throw new Error('FINANCIAL_NPS_CLASS_C_NDB_REVIEW_SCOPE_INVALID');
+const ndb=npsNdbRows[0].npsCommonSchemeReview.ndbRupeeBond2026InvestmentGuidelineReview;
+if(ndb.officialPfrdaCircularPdfUrl!==npsNdbRupeeBondCircularUrl
+ ||ndb.circularNumber!=='PFRDA/2026/29/REG-PF/06'
+ ||ndb.issuedOn!=='2026-05-13'||ndb.effectiveFrom!=='2026-05-13'
+ ||ndb.reviewedOn!=='2026-11-01'
+ ||ndb.sourceScope!=='PFRDA_NON_GOVT_NPS_ASSET_CLASS_C_ELIGIBLE_MULTILATERAL_RUPEE_BOND_UNIVERSE_NOT_ACTUAL_HOLDINGS_OR_RETAIL_OFFER'
+ ||ndb.assetClass!=='C'||ndb.amendsNonGovernmentGuidelinesDated!=='2025-12-10'
+ ||ndb.eligibleIssuer!=='New Development Bank'||ndb.eligibleInstrumentCurrency!=='INR'
+ ||ndb.existingCreditRatingRequirement!=='AA_OR_ABOVE'
+ ||ndb.applicableMaturityRequirementsRemain!==true
+ ||ndb.alsoAmendsGovernmentSectorDebtGuidelines!==true
+ ||ndb.otherAssetClassesAutomaticallyAuthorized!==false
+ ||typeof ndb.categoryInterpretation!=='string'||ndb.categoryInterpretation.length<100
+ ||ndb.riskConsiderations?.length<2||ndb.investorAccessConstraints?.length<2
+ ||['specificNdbBondIsinAndRatingVerified','actualPensionFundHoldingAndNavVerified',
+  'individualSubscriberSectorKycAndAccessVerified','commercialNavAndMarketDataRightsVerified',
+  'personalizedAdviceAuthorizationVerified'].some(k=>ndb[k]!==false))
+ throw new Error('FINANCIAL_NPS_CLASS_C_NDB_REGULATORY_EVIDENCE_INVALID');
 const npsPresentationCircularPdfUrl="https://www.pfrda.org.in/documents/33652/154008/Circular%2B-%2BStandardised%2Bframework%2Bfor%2Bclassification%2Band%2Bpresentation%2Bof%2BSchemes%2Bunder%2Bthe%2BNPS.pdf";
 const npsPresentationClassification=Object.freeze({"catalog_2026_nps_lc25":"LIFECYCLE","catalog_2026_nps_lc50":"LIFECYCLE","catalog_2026_nps_lc75":"LIFECYCLE","catalog_2026_nps_lc_aggressive":"LIFECYCLE","catalog_2026_nps_asset_e":"ACTIVE_CHOICE","catalog_2026_nps_asset_c":"ACTIVE_CHOICE","catalog_2026_nps_asset_g":"ACTIVE_CHOICE","catalog_2026_nps_asset_a":"ACTIVE_CHOICE_A_NOT_LISTED","catalog_2026_nps_vatsalya":"FOUR_A"});
 const validNpsPresentationReview=row=>{
@@ -2143,6 +2167,16 @@ export function screenExtensionResearchForProfile(profileInput) {
          catalog_2026_nps_asset_a:'NPS_CLASS_A_ALTERNATIVES_FIVE_PERCENT_CAP_LIQUIDITY_AND_VALUATION_REVIEW',
        };
        reasons.push(activeRisks[row.id]);
+       if(row.id==='catalog_2026_nps_asset_c'){
+         reasons.push('PFRDA_2026_NDB_RUPEE_BOND_CLASS_C_PERMISSION_NOT_VERIFIED_FUND_HOLDING');
+         reasons.push('NPS_CLASS_C_NDB_AA_RATING_AND_MATURITY_CONDITIONS_NOT_ISSUE_APPROVAL');
+         if(profile.investmentGoals.includes('Emergency Fund'))
+           reasons.push('EMERGENCY_FUND_GOAL_REQUIRES_NPS_CLASS_C_CREDIT_AND_TIER_I_WITHDRAWAL_REVIEW');
+         if(profile.riskTolerance==='Conservative')
+           reasons.push('CONSERVATIVE_PROFILE_REQUIRES_NPS_CLASS_C_ISSUER_AND_RATE_LOSS_REVIEW');
+         if(profile.emergencyFundMonths===0)
+           reasons.push('RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_NPS_CLASS_C_LIQUIDITY_AND_NAV_REVIEW');
+       }
      }
      if(profile.riskTolerance==='Conservative'
        && ['catalog_2026_nps_lc50','catalog_2026_nps_lc75',
