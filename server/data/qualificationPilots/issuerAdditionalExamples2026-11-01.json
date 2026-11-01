@@ -138,6 +138,28 @@
           "issuerUrl": "https://bandhanmutual.com/mutual-funds/index-funds-and-etfs/bandhan-nifty-500-momentum-50-index-fund/regular"
         }
       ]
+    },
+    {
+      "familyId": "catalog_2026_bank_tax_saver_fd",
+      "benchmark": "FIVE_YEAR_BANK_TAX_SAVER_FD",
+      "instrument": "BANK_DEPOSIT",
+      "products": [
+        {
+          "name": "Axis Bank 5-Year Tax Saver Fixed Deposit",
+          "issuer": "Axis Bank",
+          "issuerUrl": "https://www.axis.bank.in/deposits/tax-saver-fixed-deposit"
+        },
+        {
+          "name": "Kotak Mahindra Bank Tax Saving Fixed Deposit",
+          "issuer": "Kotak Mahindra Bank",
+          "issuerUrl": "https://www.kotak.bank.in/en/personal-banking/deposits/tax-saving-fixed-deposit.html"
+        },
+        {
+          "name": "HDFC Bank Five-Year Tax Saving Fixed Deposit",
+          "issuer": "HDFC Bank",
+          "issuerUrl": "https://www.hdfc.bank.in/fixed-deposit/five-year-tax-saving-fixed-deposit"
+        }
+      ]
     }
   ]
 }
