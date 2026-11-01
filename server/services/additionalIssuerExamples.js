@@ -12,6 +12,9 @@ const HOSTS = Object.freeze({
   'UTI Mutual Fund': ['www.utimf.com'],
   'ICICI Prudential Mutual Fund': ['www.icicipruamc.com', 'digitalfactsheet.icicipruamc.com'],
   'Nippon India Mutual Fund': ['mf.nipponindiaim.com'],
+  'Kotak Mutual Fund': ['www.kotakmf.com'],
+  'Sundaram Mutual Fund': ['www.sundarammutual.com'],
+  'DSP Mutual Fund': ['www.dspim.com'],
 });
 const EXPECTED = Object.freeze({
   catalog_2026_index_nifty500: {
@@ -25,6 +28,14 @@ const EXPECTED = Object.freeze({
   catalog_2026_etf_nifty100: {
     benchmark: 'Nifty 100 TRI', instrument: 'ETF',
     pattern: /(?:nifty.?100.?etf|etf.?nifty.?100)/i,
+  },
+  catalog_2026_index_nifty100_equal: {
+    benchmark: 'Nifty100 Equal Weight TRI', instrument: 'INDEX_FUND',
+    pattern: /nifty.?100.?equal.?weight.?(?:index.?)?fund/i,
+  },
+  catalog_2026_etf_nifty50_equal: {
+    benchmark: 'Nifty50 Equal Weight TRI', instrument: 'ETF',
+    pattern: /nifty.?50.?equal.?weight.?etf/i,
   },
 });
 const invalid = code => { throw new Error('FINANCIAL_ISSUER_EXAMPLES_' + code); };
