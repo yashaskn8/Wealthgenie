@@ -3758,3 +3758,60 @@ test('three RBI Treasury Bill auto-bid rules remain non-ranking and depend on re
  assert.ok(!listExtensionResearch().find(x=>x.id===ids[0]).rbiRetailDirectAccessReview
   .retailDirectTbillReinvestmentReview.riskConsiderations.includes('FAKE RETURN'));
 });
+
+// Quarterly benchmark weights and general SEBI allocation rules do not qualify a scheme.
+test('four NSE equal-weight passive archetypes preserve independent source and profile boundaries',()=>{
+ const ids=['catalog_2026_index_nifty50_equal','catalog_2026_index_nifty100_equal',
+  'catalog_2026_etf_nifty50_equal','catalog_2026_etf_nifty100_equal'];
+ const research=listExtensionResearch();
+ const screen=overrides=>new Map(screenExtensionResearchForProfile(canonicalProfile({
+  investmentGoals:['Wealth Growth'],investmentHorizonYears:10,
+  emergencyFundMonths:null,riskTolerance:'Aggressive',...overrides,
+ })).map(x=>[x.id,x]));
+ const base=screen({}),flagged=screen({investmentGoals:['Emergency Fund'],
+  investmentHorizonYears:2,emergencyFundMonths:0,riskTolerance:'Conservative'});
+ const interpretations=new Set();
+ for(const [i,id] of ids.entries()){
+  const isEtf=i>=2;
+  const review=(isEtf?research.find(x=>x.id===id).etfBenchmarkReview:
+   research.find(x=>x.id===id).indexBenchmarkReview).nseEqualWeight2026Review;
+  assert.equal(review.parentConstituentReviewFrequency,'SEMI_ANNUAL');
+  assert.equal(review.equalWeightCompanyResetFrequency,'QUARTERLY');
+  assert.equal(review.targetEqualCompanyWeightPercentAtReset,i%2===0?2:1);
+  assert.equal(review.categoryMinimumIndexSecuritiesAllocationPercent,95);
+  assert.equal(review.existingSchemeAlignmentWindowMonths,6);
+  assert.equal(review.indexProviderIssuerListIsNotSchemeVerification,true);
+  assert.equal(review.officialSebiCategorizationCircularUrl,
+   'https://www.sebi.gov.in/legal/circulars/feb-2026/categorization-and-rationalization-of-mutual-fund-schemes_99983.html');
+  assert.ok(review.riskConsiderations.length>=2&&review.investorAccessConstraints.length>=2);
+  interpretations.add(review.categoryInterpretation);
+  for(const key of ['actualNamedSchemeAndSidKimVerified',
+   'actualPortfolioAndNinetyFivePercentComplianceVerified','currentSchemeRiskometerVerified',
+   'currentNavOrExecutableQuoteVerified','individualKycAndRetailAccessVerified',
+   'commercialMarketDataRightsVerified','fiscalYearTaxAndPersonalizedAdviceAuthorizationVerified'])
+   assert.equal(review[key],false,id+':'+key);
+  for(const result of [base.get(id),flagged.get(id)]){
+   assert.ok(result.screeningReasonCodes.includes('NSE_EQUAL_WEIGHT_QUARTERLY_RESET_DISTINCT_FROM_SEMIANNUAL_PARENT_RECONSTITUTION'));
+   assert.ok(result.screeningReasonCodes.includes(isEtf
+    ?'SEBI_2026_EQUAL_WEIGHT_ETF_95PCT_RULE_NOT_VERIFIED_LISTED_PRODUCT'
+    :'SEBI_2026_EQUAL_WEIGHT_INDEX_95PCT_RULE_NOT_VERIFIED_SCHEME_HOLDINGS'));
+   assert.equal(result.profileAssessment,'MISSING_SUITABILITY_EVIDENCE');
+   assert.equal(result.productQualified,false);
+   assert.equal(result.scoreAvailable,false);
+   assert.equal(result.productRiskLevel,null);
+  }
+  for(const code of ['SHORT_OR_EMERGENCY_GOAL_REQUIRES_EQUAL_WEIGHT_EQUITY_NAV_AND_EXIT_REVIEW',
+   'RECORDED_ZERO_EMERGENCY_BUFFER_REQUIRES_EQUAL_WEIGHT_LIQUIDITY_REVIEW',
+   'CONSERVATIVE_PROFILE_REQUIRES_EQUAL_WEIGHT_DRAWDOWN_AND_TURNOVER_REVIEW']){
+   assert.ok(!base.get(id).screeningReasonCodes.includes(code),id+':'+code);
+   assert.ok(flagged.get(id).screeningReasonCodes.includes(code),id+':'+code);
+  }
+  if(isEtf)assert.ok(base.get(id).screeningReasonCodes.includes(
+   'EQUAL_WEIGHT_ETF_INDEX_PAGE_NOT_EXECUTABLE_EXCHANGE_SPREAD_OR_NAV'));
+ }
+ assert.equal(interpretations.size,4);
+ const mutated=research.find(x=>x.id===ids[0]).indexBenchmarkReview.nseEqualWeight2026Review;
+ mutated.riskConsiderations.push('FORGED FUND RISKOMETER');
+ assert.ok(!listExtensionResearch().find(x=>x.id===ids[0]).indexBenchmarkReview
+  .nseEqualWeight2026Review.riskConsiderations.includes('FORGED FUND RISKOMETER'));
+});
