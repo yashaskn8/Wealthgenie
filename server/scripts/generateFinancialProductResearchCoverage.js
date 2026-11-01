@@ -1,9 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { buildTopThreeProductEvidenceQueue } from './generateFinancialTopThreeEvidenceQueue.js';
+import { listAdditionalIssuerExamples } from '../services/additionalIssuerExamples.js';
+import { assertDistinctIssuerOptionsByCategory } from '../services/issuerCandidateUniqueness.js';
+import { validateFirstFamilyResearchPilot } from './validateFirstFamilyResearchPilot.js';
 
 const INDEX_RESEARCH = JSON.parse(readFileSync(
   new URL('../data/qualificationPilots/issuerIndexFunds2026-11-01.json', import.meta.url), 'utf8',
+));
+const RD_RESEARCH = JSON.parse(readFileSync(
+  new URL('../data/qualificationPilots/bankRecurringDeposit2026-10-28.json', import.meta.url), 'utf8',
 ));
 const STATUS = 'RESEARCH_ONLY_NOT_RECOMMENDATIONS';
 const TRUSTED_ISSUER_HOSTS = Object.freeze({
@@ -96,8 +102,35 @@ export function validateIssuerResearchBatch(batch = INDEX_RESEARCH, queue = buil
 export function buildFinancial250ResearchCoverage({
   queue = buildTopThreeProductEvidenceQueue(), batch = INDEX_RESEARCH
 } = {}) {
-  const { candidateByFamily, researchedFamilyCount, issuerIdentitiesResearched } =
+  const { candidateByFamily: indexCandidates } =
     validateIssuerResearchBatch(batch, queue);
+  // Audit ALL public issuer examples through one 250-family coverage report.
+  // These are research identities, not market observations or approved
+  // personalized investment recommendations.
+  validateFirstFamilyResearchPilot(RD_RESEARCH);
+  if (RD_RESEARCH.familyId !== 'catalog_2026_bank_rd'
+    || RD_RESEARCH.candidates.length !== 2
+    || RD_RESEARCH.actualProductsApprovedForRecommendations !== 0) {
+    throw new Error('FINANCIAL_RD_RESEARCH_MUST_REMAIN_UNAPPROVED');
+  }
+  const candidateByFamily = new Map();
+  for (const [id, schemes] of indexCandidates) {
+    candidateByFamily.set(id, schemes.map(x => ({
+      name: x.schemeName, issuer: x.issuer, issuerUrl: x.officialSourceUrl,
+      researchedOn: batch.researchDate,
+      displayScope: 'PUBLIC_ISSUER_RESEARCH_ONLY',
+    })));
+  }
+  for (const [id, schemes] of listAdditionalIssuerExamples()) {
+    if (candidateByFamily.has(id)) throw new Error('FINANCIAL_RESEARCH_FAMILY_DUPLICATED');
+    candidateByFamily.set(id, schemes);
+  }
+  if (candidateByFamily.has(RD_RESEARCH.familyId)) throw new Error('FINANCIAL_RESEARCH_FAMILY_DUPLICATED');
+  candidateByFamily.set(RD_RESEARCH.familyId, RD_RESEARCH.candidates.map(x => ({
+    name: x.offerLabel, issuer: x.issuer, issuerUrl: x.officialProductUrl,
+    researchedOn: RD_RESEARCH.researchReviewedOn,
+    displayScope: 'PUBLIC_ISSUER_RESEARCH_ONLY',
+  })));
   const rows = new Map();
   for (const slot of queue) {
     if (!rows.has(slot.familyId)) {
@@ -113,12 +146,19 @@ export function buildFinancial250ResearchCoverage({
       });
     }
   }
+  const unique = assertDistinctIssuerOptionsByCategory([...rows.values()].map(row => ({
+    id: row.familyId,
+    category: row.category,
+    researchCandidates: candidateByFamily.get(row.familyId) || [],
+  })));
   for (const [familyId, candidates] of candidateByFamily) {
-    rows.get(familyId).researchOnlyCandidates = candidates.map(candidate => ({
-      schemeName: candidate.schemeName,
+    const family = rows.get(familyId);
+    if (!family) throw new Error('FINANCIAL_RESEARCH_UNRECOGNIZED_FAMILY');
+    family.researchOnlyCandidates = candidates.map(candidate => ({
+      schemeName: candidate.name,
       issuer: candidate.issuer,
-      issuerSourceUrl: candidate.officialSourceUrl,
-      sourceReviewedOn: batch.researchDate,
+      issuerSourceUrl: candidate.issuerUrl,
+      sourceReviewedOn: candidate.researchedOn,
       eligibleForRecommendation: false,
       hasCommercialDisplayPermission: false,
       marketObservationQualified: false,
@@ -130,7 +170,9 @@ export function buildFinancial250ResearchCoverage({
     basis: 'REPOSITORY_RESEARCH_ONLY_NOT_LIVE_POSTGRES',
     familyCount: rows.size,
     researchSlotCapacity: queue.length,
-    researchedFamilyCount, issuerIdentitiesResearched,
+    researchedFamilyCount: unique.familiesWithIssuerExamples,
+    issuerIdentitiesResearched: unique.issuerExampleCount,
+    duplicateIssuerProductsWithinCategory: unique.crossFamilyCategoryDuplicates,
     productionQualifiedFamilies: 'NOT_MEASURED',
     verifiedMarketObservations: 'NOT_MEASURED',
     personalizedTopThreeComputed: false,
