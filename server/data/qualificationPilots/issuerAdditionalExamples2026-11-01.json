@@ -5,7 +5,7 @@
   "noPersonalizedRecommendation": true,
   "noMarketPriceOrReturnFacts": true,
   "sourcePermissionIndependentApproval": false,
-  "notes": "Three first-party issuer-linked examples per selected family. They are not ranked, do not confer product qualifications, data entitlements, price freshness, individual suitability, or after-tax return projections. Distinct from live production recommendations.",
+  "notes": "Distinct official issuer-linked scheme identities for each exact catalog strategy. Three examples per researched family, not personalized Top 3 rankings. Cross-family duplicates in the same category must fail inventory validation. Published issuer examples are not live rate facts or user-specific after-tax returns.",
   "families": [
     {
       "familyId": "catalog_2026_index_nifty500",
@@ -70,6 +70,50 @@
           "name": "Nippon India ETF Nifty 100",
           "issuer": "Nippon India Mutual Fund",
           "issuerUrl": "https://mf.nipponindiaim.com/FundsAndPerformance/Pages/NipponIndia-ETF-Nifty-100.aspx"
+        }
+      ]
+    },
+    {
+      "familyId": "catalog_2026_index_nifty100_equal",
+      "benchmark": "Nifty100 Equal Weight TRI",
+      "instrument": "INDEX_FUND",
+      "products": [
+        {
+          "name": "HDFC NIFTY100 Equal Weight Index Fund",
+          "issuer": "HDFC Mutual Fund",
+          "issuerUrl": "https://www.hdfcfund.com/explore/mutual-funds/hdfc-nifty100-equal-weight-index-fund/regular"
+        },
+        {
+          "name": "Kotak Nifty 100 Equal Weight Index Fund",
+          "issuer": "Kotak Mutual Fund",
+          "issuerUrl": "https://www.kotakmf.com/mutual-funds/passive-funds/kotak-nifty-100-equal-weight-index-fund"
+        },
+        {
+          "name": "Sundaram Nifty 100 Equal Weight Fund",
+          "issuer": "Sundaram Mutual Fund",
+          "issuerUrl": "https://www.sundarammutual.com/fund/nifty-100-equal-weight-fund"
+        }
+      ]
+    },
+    {
+      "familyId": "catalog_2026_etf_nifty50_equal",
+      "benchmark": "Nifty50 Equal Weight TRI",
+      "instrument": "ETF",
+      "products": [
+        {
+          "name": "Motilal Oswal Nifty 50 Equal Weight ETF",
+          "issuer": "Motilal Oswal Mutual Fund",
+          "issuerUrl": "https://www.motilaloswalmf.com/mutual-funds/motilal-oswal-nifty-50-equal-weight-etf"
+        },
+        {
+          "name": "SBI Nifty50 Equal Weight ETF",
+          "issuer": "SBI Mutual Fund",
+          "issuerUrl": "https://www.sbimf.com/learn-about-mutual-funds/equal-weight-strategy-for-market-volatility"
+        },
+        {
+          "name": "DSP Nifty 50 Equal Weight ETF",
+          "issuer": "DSP Mutual Fund",
+          "issuerUrl": "https://www.dspim.com/invest/mutual-fund-schemes/exchange-traded-funds/nifty-50-equal-weight/dnew-direct-daily-idcw"
         }
       ]
     }
