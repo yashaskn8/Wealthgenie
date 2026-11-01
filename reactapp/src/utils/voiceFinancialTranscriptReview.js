@@ -23,6 +23,19 @@ const MONETARY_UNIT = /\b(?:inr|rupees?|rs|lakhs?|lacs?|crores?|millions?|billio
 // must still require review. Unicode boundaries avoid matching substrings
 // inside ordinary words (for example, Hindi "दोस्त").
 const INDIC_SPOKEN_NUMBER = /(?:^|[^\p{L}\p{M}])(?:शून्य|जीरो|एक|दो|तीन|चार|पाँच|पांच|छह|छः|सात|आठ|नौ|ग्यारह|बारह|तेरह|चौदह|पंद्रह|पन्द्रह|सोलह|सत्रह|अठारह|उन्नीस|इक्कीस|बाईस|तेईस|चौबीस|पच्चीस|छब्बीस|सत्ताईस|अट्ठाईस|उनतीस|छत्तीस|छप्पन|सत्तावन|ಶೂನ್ಯ|ಒಂದು|ಎರಡು|ಮೂರು|ನಾಲ್ಕು|ಐದು|ಆರು|ಏಳು|ಎಂಟು|ಒಂಬತ್ತು|ಹನ್ನೊಂದು|ಹನ್ನೆರಡು|ಹದಿಮೂರು|ಹದಿನಾಲ್ಕು|ಹದಿನೈದು|ಹದಿನಾರು|ಹದಿನೇಳು|ಹದಿನೆಂಟು|ಹತ್ತೊಂಬತ್ತು|(?:ಇಪ್ಪತ್ತ|ಮೂವತ್ತ|ನಲವತ್ತ|ಐವತ್ತ|ಅರವತ್ತ|ಎಪ್ಪತ್ತ|ಎಂಭತ್ತ|ತೊಂಬತ್ತ)[\p{L}\p{M}]*)(?![\p{L}\p{M}])/iu;
+// Common Hindi 31–99 numbers are irregular; tens stems alone can miss them.
+// Match complete Devanagari words so ordinary substrings never trigger review.
+const HINDI_SPOKEN_31_TO_99 = new Set(`
+  इकतीस बत्तीस तैंतीस चौंतीस पैंतीस छत्तीस सैंतीस अड़तीस उनतालीस
+  इकतालीस बयालीस तैंतालीस चवालीस पैंतालीस छियालीस सैंतालीस अड़तालीस उनचास
+  इक्यावन बावन तिरपन चौवन पचपन छप्पन सत्तावन अट्ठावन उनसठ
+  इकसठ बासठ तिरसठ चौंसठ पैंसठ छियासठ सड़सठ अड़सठ उनहत्तर
+  इकहत्तर बहत्तर तिहत्तर चौहत्तर पचहत्तर छिहत्तर सतहत्तर अठहत्तर उन्यासी
+  इक्यासी बयासी तिरासी चौरासी पचासी छियासी सत्तासी अट्ठासी नवासी
+  इक्यानवे बानवे तिरानवे चौरानवे पचानवे छियानवे सत्तानवे अट्ठानवे निन्यानवे
+`.trim().split(/\s+/u));
+const hasHindiSpokenNumber = text =>
+  (text.match(/[\u0900-\u097F]+/gu) || []).some(word => HINDI_SPOKEN_31_TO_99.has(word));
 const INVALID = /[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}]/u;
 
 export function needsFinancialTranscriptReview(raw) {
@@ -33,5 +46,6 @@ export function needsFinancialTranscriptReview(raw) {
   // a salary, debt, tenure, insurance premium or projected return. Fail closed
   // for ALL recognized numbers; keyword classification is not a safety gate.
   return EXPLICIT_VALUE.test(text) || MONETARY_UNIT.test(text) ||
-    QUANTIFIED.test(text) || INDIC_SPOKEN_NUMBER.test(text);
+    QUANTIFIED.test(text) || INDIC_SPOKEN_NUMBER.test(text) ||
+    hasHindiSpokenNumber(text);
 }
