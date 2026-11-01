@@ -33,6 +33,55 @@ describe('GenieProof beginner-facing claim checking', () => {
   afterEach(() => cleanup());
 
 
+  it('makes supported syntax discoverable without submitting or claiming a verified rate', () => {
+    render(<GenieProofEntry />);
+    expect(screen.getByText('Current capability')).toBeInTheDocument();
+    expect(screen.getByText('Detect the claim')).toBeInTheDocument();
+    expect(screen.getByText('Check the evidence')).toBeInTheDocument();
+    expect(screen.getByText('Explain the result')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Try supported wording' }));
+    expect(screen.getByLabelText('Financial statement to check')).toHaveValue(
+      'The current official PPF interest rate is 7.1% p.a.');
+    expect(checkGenieProofClaims).not.toHaveBeenCalled();
+    expect(screen.queryByText('Supported by evidence')).not.toBeInTheDocument();
+  });
+
+  it('shows dated-claim limitations instead of a generic evidence failure', async () => {
+    const statement="As of 1 November 2026, India's Public Provident Fund (PPF) annual interest rate is 7.1%.";
+    checkGenieProofClaims.mockResolvedValue(status([{
+      claimId:'f'.repeat(32), statement, verdict:'NOT_VERIFIED',
+      reasonCode:'CLAIM_DATE_OUTSIDE_CURRENT_SCOPE',
+      explanation:'This is a dated claim, not checked.',
+      source:null, warningSignals:[],
+    }]));
+    render(<GenieProofEntry />);
+    fireEvent.change(screen.getByLabelText('Financial statement to check'),{
+      target:{value:statement},
+    });
+    fireEvent.click(screen.getByRole('button',{name:'Check claim'}));
+    expect(await screen.findByText('Date-specific statement not supported')).toBeInTheDocument();
+    expect(screen.getByText(/current-rate verifier does not certify historical/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 without a verified conclusion/)).toBeInTheDocument();
+    expect(screen.queryByText('Supported by evidence')).not.toBeInTheDocument();
+  });
+
+  it('honestly explains disabled official evidence even for exact current PPF wording', async () => {
+    const statement='The current official PPF interest rate is 7.1% p.a.';
+    checkGenieProofClaims.mockResolvedValue(status([{
+      claimId:'c'.repeat(32), statement, verdict:'NOT_VERIFIED',
+      reasonCode:'NO_TRUSTED_EVIDENCE_VERIFIER',
+      explanation:'We cannot confirm this claim with an approved official source right now.',
+      source:null, warningSignals:[],
+    }]));
+    render(<GenieProofEntry />);
+    fireEvent.change(screen.getByLabelText('Financial statement to check'),{
+      target:{value:statement},
+    });
+    fireEvent.click(screen.getByRole('button',{name:'Check claim'}));
+    expect(await screen.findByText('Evidence verifier unavailable')).toBeInTheDocument();
+    expect(screen.getByText(/Even a correct number cannot be marked verified/)).toBeInTheDocument();
+  });
+
   it('blocks PAN, labelled Aadhaar and bank account identifiers before the API request', () => {
     render(<GenieProofEntry />);
     const field = screen.getByLabelText('Financial statement to check');
