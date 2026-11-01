@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "public-issuer-examples-v1",
+  "reviewDate": "2026-11-01",
+  "status": "PUBLIC_ISSUER_RESEARCH_ONLY",
+  "noPersonalizedRecommendation": true,
+  "noMarketPriceOrReturnFacts": true,
+  "sourcePermissionIndependentApproval": false,
+  "notes": "Three first-party issuer-linked examples per selected family. They are not ranked, do not confer product qualifications, data entitlements, price freshness, individual suitability, or after-tax return projections. Distinct from live production recommendations.",
+  "families": [
+    {
+      "familyId": "catalog_2026_index_nifty500",
+      "benchmark": "Nifty 500 TRI",
+      "instrument": "INDEX_FUND",
+      "products": [
+        {
+          "name": "Motilal Oswal Nifty 500 Index Fund",
+          "issuer": "Motilal Oswal Mutual Fund",
+          "issuerUrl": "https://www.motilaloswalmf.com/mutual-funds/motilal-oswal-nifty-500-index-fund"
+        },
+        {
+          "name": "Axis Nifty 500 Index Fund",
+          "issuer": "Axis Mutual Fund",
+          "issuerUrl": "https://www.axismf.com/mutual-funds/index-funds/axis-nifty-500-index-fund/nf-gp/regular"
+        },
+        {
+          "name": "SBI Nifty 500 Index Fund",
+          "issuer": "SBI Mutual Fund",
+          "issuerUrl": "https://www.sbimf.com/docs/default-source/scheme-factsheets/sbi-nifty-500-index-fund-factsheet-march-2026.pdf?sfvrsn=1685c194_2"
+        }
+      ]
+    },
+    {
+      "familyId": "catalog_2026_index_nifty50_equal",
+      "benchmark": "Nifty50 Equal Weight TRI",
+      "instrument": "INDEX_FUND",
+      "products": [
+        {
+          "name": "HDFC NIFTY50 Equal Weight Index Fund",
+          "issuer": "HDFC Mutual Fund",
+          "issuerUrl": "https://www.hdfcfund.com/explore/mutual-funds/hdfc-nifty50-equal-weight-index-fund/direct"
+        },
+        {
+          "name": "UTI NIFTY50 Equal Weight Index Fund",
+          "issuer": "UTI Mutual Fund",
+          "issuerUrl": "https://www.utimf.com/mutual-funds/uti-nifty50-equal-weight-index-fund"
+        },
+        {
+          "name": "ICICI Prudential Nifty50 Equal Weight Index Fund",
+          "issuer": "ICICI Prudential Mutual Fund",
+          "issuerUrl": "https://www.icicipruamc.com/mutual-fund/index-funds/icici-prudential-nifty50-equal-weight-index-fund/1850"
+        }
+      ]
+    },
+    {
+      "familyId": "catalog_2026_etf_nifty100",
+      "benchmark": "Nifty 100 TRI",
+      "instrument": "ETF",
+      "products": [
+        {
+          "name": "Motilal Oswal Nifty 100 ETF",
+          "issuer": "Motilal Oswal Mutual Fund",
+          "issuerUrl": "https://www.motilaloswalmf.com/mutual-funds/motilal-oswal-nifty-100-etf"
+        },
+        {
+          "name": "ICICI Prudential Nifty 100 ETF",
+          "issuer": "ICICI Prudential Mutual Fund",
+          "issuerUrl": "https://digitalfactsheet.icicipruamc.com/passive/icici-prudential-nifty-100-etf.php"
+        },
+        {
+          "name": "Nippon India ETF Nifty 100",
+          "issuer": "Nippon India Mutual Fund",
+          "issuerUrl": "https://mf.nipponindiaim.com/FundsAndPerformance/Pages/NipponIndia-ETF-Nifty-100.aspx"
+        }
+      ]
+    }
+  ]
+}
