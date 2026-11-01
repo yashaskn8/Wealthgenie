@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "issuer-index-research-v1",
+  "researchDate": "2026-11-01",
+  "basis": "FIRST_PARTY_ISSUER_PRODUCT_IDENTITY_RESEARCH",
+  "status": "RESEARCH_ONLY_NOT_RECOMMENDATIONS",
+  "actualProductRowsInserted": 0,
+  "qualificationsGranted": 0,
+  "afterTaxProductReturnsVerified": false,
+  "dataRightsIndependentApproval": false,
+  "note": "Three unranked issuer-identified scheme candidates for each of two catalogue families. Not a Top 3 investment recommendation, purchase confirmation, live quote, verified source entitlement, retail eligibility review, or personalized suitability assessment.",
+  "families": [
+    {
+      "familyId": "catalog_2026_index_nifty_next50",
+      "familyName": "Nifty Next 50 Index-Tracking Fund Strategy",
+      "benchmark": "Nifty Next 50 TRI",
+      "researchCandidates": [
+        {
+          "researchSlot": 1,
+          "schemeName": "UTI Nifty Next 50 Index Fund",
+          "issuer": "UTI Mutual Fund",
+          "issuerDomain": "www.utimf.com",
+          "officialSourceUrl": "https://www.utimf.com/mutual-funds/uti-nifty-next-50-index-fund",
+          "publicIssuerIdentityObserved": true
+        },
+        {
+          "researchSlot": 2,
+          "schemeName": "HDFC NIFTY Next 50 Index Fund",
+          "issuer": "HDFC Mutual Fund",
+          "issuerDomain": "www.hdfcfund.com",
+          "officialSourceUrl": "https://www.hdfcfund.com/explore/mutual-funds/hdfc-nifty-next-50-index-fund/direct",
+          "publicIssuerIdentityObserved": true
+        },
+        {
+          "researchSlot": 3,
+          "schemeName": "ICICI Prudential Nifty Next 50 Index Fund",
+          "issuer": "ICICI Prudential Mutual Fund",
+          "issuerDomain": "www.icicipruamc.com",
+          "officialSourceUrl": "https://www.icicipruamc.com/blob/sebi-repo/Advertisements/2026/January/Filing%20date%2020-02-2026/Release%20date%2018-02-2026/Advertisements/Annexure%205%20-%20Index%20Fund%20Bluebook.pdf",
+          "publicIssuerIdentityObserved": true
+        }
+      ]
+    },
+    {
+      "familyId": "catalog_2026_index_nifty100",
+      "familyName": "Nifty 100 Index-Tracking Fund Strategy",
+      "benchmark": "Nifty 100 TRI",
+      "researchCandidates": [
+        {
+          "researchSlot": 1,
+          "schemeName": "HDFC NIFTY 100 Index Fund",
+          "issuer": "HDFC Mutual Fund",
+          "issuerDomain": "www.hdfcfund.com",
+          "officialSourceUrl": "https://www.hdfcfund.com/explore/mutual-funds/hdfc-nifty-100-index-fund/direct",
+          "publicIssuerIdentityObserved": true
+        },
+        {
+          "researchSlot": 2,
+          "schemeName": "Bandhan Nifty 100 Index Fund",
+          "issuer": "Bandhan Mutual Fund",
+          "issuerDomain": "bandhanmutual.com",
+          "officialSourceUrl": "https://bandhanmutual.com/mutual-funds/index-funds-and-etfs/bandhan-nifty-100-index-fund/regular",
+          "publicIssuerIdentityObserved": true
+        },
+        {
+          "researchSlot": 3,
+          "schemeName": "quant Nifty 100 Index Fund",
+          "issuer": "quant Mutual Fund",
+          "issuerDomain": "quantmutual.com",
+          "officialSourceUrl": "https://quantmutual.com/Equity/quant-Nifty-100-Index-Fund.aspx",
+          "publicIssuerIdentityObserved": true
+        }
+      ]
+    }
+  ]
+}
