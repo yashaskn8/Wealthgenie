@@ -2024,3 +2024,24 @@ test('nine NPS August 2026 contribution cut-off reviews remain discovery-only an
    .pfrdaAug2026SameDayContributionReview.investorAccessConstraints.includes('FORGED ACCOUNT APPROVAL'));
  }
 });
+
+
+test('six FoF March 2026 SID benchmark reviews are discovery-only and copied',()=>{
+ const codes={"catalog_2026_equity_diversified_fof":"DIVERSIFIED_EQUITY","catalog_2026_equity_sector_fof":"SECTORAL_THEMATIC_EQUITY","catalog_2026_fof_aggressive_hybrid":"AGGRESSIVE_HYBRID","catalog_2026_fof_conservative_hybrid":"CONSERVATIVE_HYBRID","catalog_2026_fof_income_arbitrage":"INCOME_PLUS_ARBITRAGE","catalog_2026_fof_dynamic_allocation":"DYNAMIC_ASSET_ALLOCATION"};
+ const get=id=>listFinancialDiscoveryDirectory().items.find(x=>x.id===id);
+ for(const [id,code] of Object.entries(codes)){
+  const item=get(id),v=item.frameworkResearch.fundOfFundsCategoryReview.sebiMarch2026FoFSidBenchmarkReview;
+  assert.equal(v.categoryCode,code);
+  assert.equal(v.currentSchemeBenchmarkAndSidVerified,false);
+  assert.equal(v.currentFoFAndUnderlyingRiskometersVerified,false);
+  assert.equal(v.licensedDataAndSignedProviderEntitlementsVerified,false);
+  assert.equal(item.recommendationEligible,false);
+  assert.equal(item.productAvailability,'NOT_VERIFIED');
+  assert.equal(item.dataRights,'NOT_VERIFIED');
+  assert.equal(item.frameworkResearch.actualRiskScore,null);
+  assert.ok(Object.values(item.productData).every(x=>x===null));
+  v.investorAccessConstraints.push('FORGED RETAIL ACCESS');
+  assert.ok(!get(id).frameworkResearch.fundOfFundsCategoryReview
+   .sebiMarch2026FoFSidBenchmarkReview.investorAccessConstraints.includes('FORGED RETAIL ACCESS'));
+ }
+});
