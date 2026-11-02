@@ -57,14 +57,14 @@ describe('GenieProof beginner-facing claim checking', () => {
     });
     const { unmount } = render(<GenieProofEntry />);
     await waitFor(() => expect(getGenieProofCapabilities).toHaveBeenCalledTimes(1));
-    expect(screen.queryByText(/Official evidence-backed verification is not active in this environment/))
-      .not.toBeInTheDocument();
+    expect(await screen.findByText(/Official verification availability could not be confirmed/))
+      .toBeInTheDocument();
     unmount();
     getGenieProofCapabilities.mockRejectedValueOnce(new Error('unavailable'));
     render(<GenieProofEntry />);
     await waitFor(() => expect(getGenieProofCapabilities).toHaveBeenCalledTimes(2));
-    expect(screen.queryByText(/Official evidence-backed verification is not active in this environment/))
-      .not.toBeInTheDocument();
+    expect(await screen.findByText(/Official verification availability could not be confirmed/))
+      .toBeInTheDocument();
     expect(checkGenieProofClaims).not.toHaveBeenCalled();
   });
 
