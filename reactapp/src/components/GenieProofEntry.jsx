@@ -85,12 +85,29 @@ export default function GenieProofEntry() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [checking, setChecking] = useState(false);
+  const [evidenceAvailability, setEvidenceAvailability] = useState(null);
   const requestRef = useRef(null);
   const bytes = new TextEncoder().encode(statement).length;
   const tooLarge = bytes > MAX_BYTES;
   const sensitiveIdentifier = containsGenieProofSensitiveIdentifiers(statement);
 
   useEffect(() => () => requestRef.current?.abort(), []);
+  useEffect(() => {
+    const controller = new AbortController();
+    api.getGenieProofCapabilities({ signal: controller.signal }).then(value => {
+      if (controller.signal.aborted) return;
+      if (value?.productionVerified === false && value?.mode === 'UNAVAILABLE'
+        && value?.extractionPreviewEnabled === true && value?.interactiveEnabled === false) {
+        setEvidenceAvailability('PRODUCTION_VERIFICATION_UNAVAILABLE');
+      } else if (value?.productionVerified === false && value?.mode === 'LOCAL_RESEARCH') {
+        setEvidenceAvailability('LOCAL_RESEARCH_ONLY');
+      }
+    }).catch(() => {
+      // The capability lookup is advisory. Its failure can never imply
+      // available evidence or modify the result of a claim check.
+    });
+    return () => controller.abort();
+  }, []);
 
   function edit(value) {
     requestRef.current?.abort();
@@ -169,6 +186,18 @@ export default function GenieProofEntry() {
             Try supported wording
           </button>
           <small>This inserts an example for testing; it does not verify or change a provider’s original statement.</small>
+          {evidenceAvailability === 'PRODUCTION_VERIFICATION_UNAVAILABLE' && (
+            <p className="gp-source-state" role="status">
+              Official evidence-backed verification is not active in this environment.
+              Checking a claim can still explain what is unsupported, but cannot certify the rate.
+            </p>
+          )}
+          {evidenceAvailability === 'LOCAL_RESEARCH_ONLY' && (
+            <p className="gp-source-state" role="status">
+              Local research is not a production-authorized source-verification service.
+              Any findings must remain subject to the signed-evidence checks.
+            </p>
+          )}
         </aside>
         <form onSubmit={check} aria-label="Financial claim check" aria-busy={checking || undefined}>
           <label htmlFor="genieproof-claim" style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>
