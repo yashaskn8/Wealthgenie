@@ -1,86 +1,96 @@
-# MongoDB connections when a developer IP changes
+# MongoDB Atlas access when a Windows developer IP changes
 
-## Choose the right architecture
+This workflow uses the existing Atlas database. It never copies accounts,
+changes a database, or edits the Atlas access list during application startup.
+Changing Wi-Fi or a VPN can still change a laptop's Atlas egress IP; a temporary
+access entry must then be approved for the new IP. A fixed server egress or
+private endpoint is the separate production solution.
 
-WealthGenie's **existing** `docker-compose.yml` starts an isolated local MongoDB
-7 replica set and keeps the MongoDB host port bound to `127.0.0.1`.
-For local work with **disposable development data**, prefer that setup instead
-of connecting every laptop directly to a production Atlas cluster:
+## Configure the existing database once
 
-```powershell
-docker compose up -d --build
-docker compose ps
-```
+Set `MONGODB_URI` in `server/.env` to the **existing** Atlas connection string
+and `MONGODB_EXPECTED_DATABASE` to the database holding the existing accounts.
+Do not paste either value into terminal logs, Git, or a browser URL. The server
+currently gives these two values in `server/.env` precedence over inherited
+Windows variables during development; a shell-only override will not change
+the effective target. The backend refuses a mismatched database and requires
+a transaction-capable replica set. The ML service also checks its optional
+`MONGODB_EXPECTED_DATABASE` pin when set.
 
-The backend, worker, and ML service inside this Compose stack use
-`mongodb://mongodb:27017/wealthgenie?replicaSet=rs0`. That hostname resolves
-inside Docker; it is **not** your Wi-Fi, mobile-data or public IP.
+If `server/.env` points to loopback, Atlas access cannot be established until
+the operator selects the existing Atlas URI and matching database pin. No
+configuration secret is changed by these scripts.
 
-**Do not switch an existing account database or copy production credentials into
-a demo configuration.** Persistent login records belong to the original
-database. The backend pins `MONGODB_EXPECTED_DATABASE` and should fail closed
-if connected to the wrong database. For local Windows demonstration with
-synthetic data, `scripts/start_local_demo.ps1 -UseDurableMongoStorage` uses a
-different isolated demo DB; it is not an Atlas account migration.
+## Read-only preflight and startup (Windows PowerShell 5.1)
 
-## Temporary IP access for a developer using Atlas
-
-If you **need** direct Atlas access from your laptop and its public IP rotates:
-
-1. Install MongoDB Atlas CLI and authenticate in your own terminal with
-   `atlas auth login`. Use an authorized project account with IP access-list
-   management permission. Do not paste credentials into chat, scripts, or Git.
-2. In Atlas, locate the relevant **project ID**, not the cluster password.
-3. From this repository root, first inspect the dry run:
+From the repository root:
 
 ```powershell
-.\scripts\allow_atlas_current_ip.ps1 -ProjectId "<your-24-character-project-id>"
+powershell.exe -NoProfile -File .\scripts\check_atlas_connection.ps1
+# Add -ProjectId <24-character Atlas project ID> for an optional access-list check.
+powershell.exe -NoProfile -File .\scripts\start_backend_atlas.ps1 -ProjectId <project-id>
 ```
 
-4. If the project and UTC expiry are correct, explicitly approve the change:
+The preflight uses the backend's effective configuration and performs only
+MongoDB connection, replica-set identity, and ping checks. It reports DNS,
+authentication, TLS, server selection, database identity, and transaction
+failures with safe codes. A timeout alone **cannot prove** an Atlas IP block.
+With an authenticated Atlas CLI and `-ProjectId`, it compares the observed
+public IPv4 with active Atlas access entries; VPN or split routing can make
+that comparison indicative rather than conclusive. Neither preflight nor
+backend startup modifies Atlas networking.
+
+If the preflight succeeds, `start_backend_atlas.ps1` starts the backend in the
+foreground. Start the frontend in another PowerShell window:
 
 ```powershell
-.\scripts\allow_atlas_current_ip.ps1 -ProjectId "<your-24-character-project-id>" -Hours 8 -Apply
+npm run dev --prefix reactapp -- --host 127.0.0.1
 ```
 
-The helper invokes `atlas accessLists create --currentIp` with `--deleteAfter`.
-It creates only a *temporary single-address* entry, does not grant
-`0.0.0.0/0`, and never runs automatically at backend startup. You may need
-to repeat it on a new network, or sign in again if the CLI session expires.
-Atlas may reject duplicate entries, insufficient permissions or project network
-policies. **Review and remove obsolete manually added entries**; the helper
-does not delete unrelated access-list records or broaden access on failure.
+The optional Python service must use the same existing Atlas URI and expected
+database pin when its MongoDB state backend is enabled. Its normal command is:
 
-A different command, `atlas organizations apiKeys accessLists`, controls
-access to the **Atlas administration API key**, not access from your backend
-to the database. Do not confuse these two network rules.
+```powershell
+Set-Location ml-service
+python -m uvicorn main:app --host 127.0.0.1 --port 8000
+```
 
-## Permanent production solution
+## Temporary developer access, only when explicitly approved
 
-Avoid treating a developer laptop as an application server. Deploy your backend,
-worker and ML service in a controlled network with **fixed egress public IP**,
-allowlist that narrow IP in Atlas, and keep the database connection string only
-in server-side secrets. For eligible dedicated Atlas tiers, prefer **private
-endpoints** or VPC/VNet peering to avoid public access paths altogether.
-Use normal TLS authentication and a least-privileged database user. Keep
-`MONGODB_EXPECTED_DATABASE` pinned and retain transaction-capable replica sets.
+The helper defaults to a dry run and creates **only** a temporary IPv4 `/32`
+entry when both approval switches are supplied:
 
-Do not add `0.0.0.0/0` (allow from anywhere) to stop a changing IP problem.
-Do not implement an always-on job that changes production allowlists whenever
-a home IP changes, and never commit Atlas CLI tokens or MongoDB passwords.
+```powershell
+powershell.exe -NoProfile -File .\scripts\allow_atlas_current_ip.ps1 -ProjectId <project-id>
+powershell.exe -NoProfile -File .\scripts\allow_atlas_current_ip.ps1 -ProjectId <project-id> -Hours 8 -Apply -ConfirmDevelopmentProject
+powershell.exe -NoProfile -File .\scripts\check_atlas_connection.ps1 -ProjectId <project-id>
+```
 
-## Diagnose correctly
+The write operation requires an already authenticated Atlas CLI with project
+network-access permission. Database usernames and passwords **cannot** grant
+Atlas administration rights. If the CLI is unavailable, review the current
+IPv4 and add a temporary `/32` entry in the Atlas UI instead. The helper
+detects an existing active entry, does not widen or remove entries, and
+verifies that an expiring exact `/32` exists after creation. It does not run
+automatically on Wi-Fi change or service restart. If the public IP changes
+during the request, repeat the read-only preflight before connecting.
 
-- `serverSelectionTimeoutMS`, DNS errors or a timeout: check outbound network,
-  DNS, Atlas project access list, cluster availability and firewalls.
-- Authentication error: check username, password encoding and database-user
-  roles separately from the IP access list.
-- `MONGODB_DATABASE_IDENTITY_MISMATCH`: stop and check the intended database.
-  Do **not** erase or recreate the account database to bypass this check.
-- `MONGODB_TRANSACTIONS_REQUIRED`: check the replica set before attempting
-  saved cases or financial transactions.
+Never use `0.0.0.0/0`. Never disable TLS or database authentication to work
+around an IP or certificate failure.
 
-Official references:
-- https://www.mongodb.com/docs/atlas/security/ip-access-list/
-- https://www.mongodb.com/docs/atlas/architecture/current/network-security/
-- https://www.mongodb.com/docs/atlas/cli/current/command/atlas-accesslists-create/
+## Production network boundary
+
+If a production deployment uses Atlas, the backend, worker, and ML service
+should share a controlled network with a fixed outbound IP allowlisted in
+Atlas, or use an Atlas private endpoint where supported. The current
+`deploy/production` overlay selects DocumentDB, so it is not evidence of a
+working production Atlas network. Store the selected database URI in the
+existing secret store, pin the database name, and verify TLS, replica-set
+transactions, and readiness from
+the deployed network. The laptop's public IP must not be the production
+application egress identity. No paid network resource or live Atlas rule is
+created by this repository change; production connectivity requires a
+deployment-specific network review and a live verification.
+
+Official references: [Atlas IP access lists](https://www.mongodb.com/docs/atlas/security/ip-access-list/),
+[Atlas CLI temporary access](https://www.mongodb.com/docs/atlas/cli/current/command/atlas-accesslists-create/).
