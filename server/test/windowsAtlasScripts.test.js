@@ -15,7 +15,14 @@ test('Windows Atlas helper defaults to dry run and refuses writes without develo
   { skip: !onWindows }, () => {
     const script = path.join(scripts, 'allow_atlas_current_ip.ps1');
     const project = '0123456789abcdef01234567';
-    const dryRun = run(['-File', script, '-ProjectId', project]);
+    // Stub public-IP lookup: this safety regression must not depend on live
+    // Wi-Fi, Atlas credentials, or an external service.
+    const escapedScript = script.replaceAll("'", "''");
+    const dryCommand = [
+      "function Invoke-WebRequest { param([string]$Uri,[switch]$UseBasicParsing,[int]$TimeoutSec) [pscustomobject]@{Content='{\\"ip\\":\\"198.51.100.4\\"}'} }",
+      `& '${escapedScript}' -ProjectId '${project}'`,
+    ].join('; ');
+    const dryRun = run(['-EncodedCommand', Buffer.from(dryCommand, 'utf16le').toString('base64')]);
     assert.equal(dryRun.status, 0, dryRun.stderr);
     assert.match(dryRun.stdout, /DRY RUN.*No MongoDB Atlas access-list change/i);
     assert.match(dryRun.stdout, /\/32/);
