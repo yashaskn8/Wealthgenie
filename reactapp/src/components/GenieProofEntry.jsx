@@ -101,10 +101,15 @@ export default function GenieProofEntry() {
         setEvidenceAvailability('PRODUCTION_VERIFICATION_UNAVAILABLE');
       } else if (value?.productionVerified === false && value?.mode === 'LOCAL_RESEARCH') {
         setEvidenceAvailability('LOCAL_RESEARCH_ONLY');
+      } else {
+        // Unexpected response is not evidence of a functioning verifier.
+        setEvidenceAvailability('UNKNOWN');
       }
     }).catch(() => {
-      // The capability lookup is advisory. Its failure can never imply
-      // available evidence or modify the result of a claim check.
+      if (!controller.signal.aborted) {
+        // A failed status lookup never implies that source verification works.
+        setEvidenceAvailability('UNKNOWN');
+      }
     });
     return () => controller.abort();
   }, []);
@@ -196,6 +201,12 @@ export default function GenieProofEntry() {
             <p className="gp-source-state" aria-live="polite">
               Local research is not a production-authorized source-verification service.
               Any findings must remain subject to the signed-evidence checks.
+            </p>
+          )}
+          {evidenceAvailability === 'UNKNOWN' && (
+            <p className="gp-source-state" aria-live="polite">
+              Official verification availability could not be confirmed.
+              Treat all source status as unknown until a valid evidence-backed result is returned.
             </p>
           )}
         </aside>
