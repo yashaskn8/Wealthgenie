@@ -187,13 +187,13 @@ export default function GenieProofEntry() {
           </button>
           <small>This inserts an example for testing; it does not verify or change a provider’s original statement.</small>
           {evidenceAvailability === 'PRODUCTION_VERIFICATION_UNAVAILABLE' && (
-            <p className="gp-source-state" role="status">
+            <p className="gp-source-state" aria-live="polite">
               Official evidence-backed verification is not active in this environment.
               Checking a claim can still explain what is unsupported, but cannot certify the rate.
             </p>
           )}
           {evidenceAvailability === 'LOCAL_RESEARCH_ONLY' && (
-            <p className="gp-source-state" role="status">
+            <p className="gp-source-state" aria-live="polite">
               Local research is not a production-authorized source-verification service.
               Any findings must remain subject to the signed-evidence checks.
             </p>
