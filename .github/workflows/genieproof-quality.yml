@@ -1,16 +1,9 @@
 name: GenieProof Production Safety Gate
 on:
+  # Mandatory on every main commit: the release workflow requires this gate,
+  # including commits that do not directly modify GenieProof.
   push:
     branches: [main]
-    paths:
-      - 'server/agents/genieProof/**'
-      - 'server/routes/genieProofRoutes.js'
-      - 'server/test/genieProof*.test.js'
-      - 'reactapp/src/components/GenieProof*'
-      - 'reactapp/src/components/genieProofResultPresentation.js'
-      - 'reactapp/src/components/__tests__/GenieProof*'
-      - 'shared/genieProofPrivacyPolicy.js'
-      - '.github/workflows/genieproof-quality.yml'
   pull_request:
     branches: [main]
     paths:
