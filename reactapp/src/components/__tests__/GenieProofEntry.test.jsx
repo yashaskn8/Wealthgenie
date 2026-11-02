@@ -184,6 +184,35 @@ describe('GenieProof beginner-facing claim checking', () => {
     expect(source).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
+  it('accepts two genuine distinct sentence spans with independent verified and unverified findings', async () => {
+    const exact = 'The current official PPF interest rate is 7.1% p.a.';
+    const input = exact + '\n' + unverified.statement;
+    checkGenieProofClaims.mockResolvedValue(status([
+      {
+        claimId: 'b'.repeat(32), statement: exact, verdict: 'SUPPORTED',
+        reasonCode: 'EXACT_RATE_MATCH', explanation: 'Exact qualified source matched.',
+        warningSignals: [],
+        source: {
+          name: 'India Post — Savings',
+          url: 'https://www.indiapost.gov.in/banking-services/savings',
+          observedRatePercentPerAnnum: 7.1,
+          retrievedAt: '2026-10-23T01:00:00.000Z',
+          effectiveFrom: '2026-10-01T00:00:00.000Z',
+          effectiveTo: '2026-12-31T00:00:00.000Z',
+        },
+      },
+      { ...unverified, claimId: 'a'.repeat(32) },
+    ]));
+    render(<GenieProofEntry />);
+    fireEvent.change(screen.getByLabelText('Financial statement to check'), {
+      target: { value: input },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Check claim' }));
+    expect(await screen.findByText('Supported by evidence')).toBeInTheDocument();
+    expect(screen.getByText('Not verified')).toBeInTheDocument();
+    expect(screen.getByText(/1 without a verified conclusion/)).toBeInTheDocument();
+  });
+
   it('rejects forged supported PPF fragments extracted from a single mixed-guarantee sentence', async () => {
     const fragment = 'The current official PPF interest rate is 7.1% p.a.';
     const compound = fragment + ' and guaranteed to remain fixed for fifteen years.';
