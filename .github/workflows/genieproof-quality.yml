@@ -85,3 +85,31 @@ jobs:
           test/genieProofPassportVerifier.test.js
           test/genieProofSchemas.test.js
         working-directory: server
+
+  proof-mongo:
+    name: GenieProof Real Mongo Consent, Ownership and Atomic Deletion
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Start isolated MongoDB 7 replica set
+        uses: supercharge/mongodb-github-action@b0a1493307c4e9b82ed61f3858d606c5ff190c64 # 1.10.0
+        with:
+          mongodb-version: '7.0'
+          mongodb-replica-set: rs0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.x'
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+        working-directory: server
+      - name: Enforce consent, owner quota, revision verification and atomic deletion against MongoDB
+        env:
+          NODE_ENV: test
+          MONGODB_URI: mongodb://127.0.0.1:27017/genieproof_e2e?replicaSet=rs0
+          USE_TESTCONTAINERS: 'false'
+        run: node --test test/genieProofMongo.integration.test.js
+        working-directory: server
