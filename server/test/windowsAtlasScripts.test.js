@@ -19,7 +19,7 @@ test('Windows Atlas helper defaults to dry run and refuses writes without develo
     // Wi-Fi, Atlas credentials, or an external service.
     const escapedScript = script.replaceAll("'", "''");
     const dryCommand = [
-      "function Invoke-WebRequest { param([string]$Uri,[switch]$UseBasicParsing,[int]$TimeoutSec) [pscustomobject]@{Content='{\\"ip\\":\\"198.51.100.4\\"}'} }",
+      "function Invoke-WebRequest { param([string]$Uri,[switch]$UseBasicParsing,[int]$TimeoutSec) [pscustomobject]@{Content='{\"ip\":\"198.51.100.4\"}'} }",
       `& '${escapedScript}' -ProjectId '${project}'`,
     ].join('; ');
     const dryRun = run(['-EncodedCommand', Buffer.from(dryCommand, 'utf16le').toString('base64')]);
