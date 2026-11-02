@@ -54,6 +54,17 @@
 .genieproof-entry .gp-scope-notice strong { display: block; color: #e0f2fe; }
 .genieproof-entry .gp-scope-notice p { margin: 5px 0 0; font-size: .82rem; line-height: 1.5; color: #cbd5e1; }
 .genieproof-entry .gp-scope-notice small { grid-column: 1/-1; color: #94a3b8; font-size: .72rem; line-height: 1.4; }
+.genieproof-entry .gp-source-state {
+  grid-column: 1/-1;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(251,191,36,.4);
+  border-radius: 9px;
+  background: rgba(120,53,15,.24);
+  color: #fde68a;
+  font-size: .84rem;
+  line-height: 1.5;
+}
 .genieproof-entry .gp-example {
   border: 1px solid #38bdf8;
   background: #075985;
