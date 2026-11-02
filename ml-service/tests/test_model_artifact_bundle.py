@@ -285,3 +285,9 @@ def test_production_artifact_store_cannot_fall_back_to_local_disk(tmp_path):
         get_artifact_store("production", database=None, local_root=tmp_path)
 
     assert isinstance(get_artifact_store("test", local_root=tmp_path), LocalArtifactStore)
+
+
+def test_local_artifact_store_default_survives_process_temp_changes(monkeypatch):
+    monkeypatch.delenv("ML_ARTIFACT_STORE_PATH", raising=False)
+    store = get_artifact_store("local")
+    assert store.root == Path(__file__).resolve().parents[1] / "reports" / "model_artifacts"

@@ -9,6 +9,7 @@ export function classifyMongoConnectionFailure(error) {
   const configurationFailures = {
     MONGODB_DATABASE_IDENTITY_MISMATCH: 'Connected MongoDB database does not match MONGODB_EXPECTED_DATABASE.',
     MONGODB_EXPECTED_DATABASE_INVALID: 'MONGODB_EXPECTED_DATABASE is invalid.',
+    MONGODB_EXPECTED_DATABASE_PLACEHOLDER: 'MONGODB_EXPECTED_DATABASE is a placeholder, not a database identity.',
     MONGODB_TRANSACTIONS_REQUIRED: 'MongoDB replica-set transactions are required for application writes.',
   };
   if (Object.hasOwn(configurationFailures, error?.code)) {
@@ -55,6 +56,11 @@ export function assertMongoDatabaseIdentity(connection, expectedDatabase) {
       || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,62}$/.test(expectedDatabase)) {
     const error = new Error('MONGODB_EXPECTED_DATABASE must name a single valid MongoDB database.');
     error.code = 'MONGODB_EXPECTED_DATABASE_INVALID';
+    throw error;
+  }
+  if (/^(?:EXISTING_DATABASE|YOUR_DATABASE|YOUR_DB_NAME|CHANGE_ME|REPLACE_ME)$/i.test(expectedDatabase)) {
+    const error = new Error('MONGODB_EXPECTED_DATABASE is a placeholder, not a database identity.');
+    error.code = 'MONGODB_EXPECTED_DATABASE_PLACEHOLDER';
     throw error;
   }
   const actualDatabase = connection?.connection?.db?.databaseName;

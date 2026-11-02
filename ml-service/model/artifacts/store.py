@@ -243,7 +243,7 @@ def get_artifact_store(
     root = local_root or (
         Path(configured_root)
         if configured_root
-        else Path(tempfile.gettempdir()) / "wealthgenie-model-artifacts"
+        else Path(__file__).resolve().parents[2] / "reports" / "model_artifacts"
     )
     return LocalArtifactStore(root)
 

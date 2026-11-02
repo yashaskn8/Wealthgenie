@@ -17,6 +17,7 @@ test('Mongo connection diagnostics distinguish failure classes without leaking c
     }]]) } }, 'MONGODB_NETWORK_UNAVAILABLE', true],
     [{ code: 'MONGODB_DATABASE_IDENTITY_MISMATCH', message: secretUri }, 'MONGODB_DATABASE_IDENTITY_MISMATCH', false],
     [{ code: 'MONGODB_EXPECTED_DATABASE_INVALID', message: secretUri }, 'MONGODB_EXPECTED_DATABASE_INVALID', false],
+    [{ code: 'MONGODB_EXPECTED_DATABASE_PLACEHOLDER', message: secretUri }, 'MONGODB_EXPECTED_DATABASE_PLACEHOLDER', false],
     [{ code: 'MONGODB_TRANSACTIONS_REQUIRED', message: secretUri }, 'MONGODB_TRANSACTIONS_REQUIRED', false],
   ];
   for (const [error, code, retryable] of cases) {

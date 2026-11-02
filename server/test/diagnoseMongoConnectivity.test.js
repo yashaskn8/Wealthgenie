@@ -52,6 +52,11 @@ test('Mongo diagnostic refuses wrong database and redacts driver failures', asyn
   assert.doesNotMatch(JSON.stringify(failure), /user:password|cluster\.invalid/);
   assert.equal((await diagnoseMongoConnectivity({ env: { ...env, MONGODB_EXPECTED_DATABASE: '' } })).code,
     'MONGODB_EXPECTED_DATABASE_REQUIRED');
+  const placeholder = await diagnoseMongoConnectivity({
+    env: { ...env, MONGODB_EXPECTED_DATABASE: 'EXISTING_DATABASE' },
+    createConnection: () => { throw new Error('Must reject before network I/O'); },
+  });
+  assert.equal(placeholder.code, 'MONGODB_EXPECTED_DATABASE_PLACEHOLDER');
 });
 
 test('Mongo diagnostic emits one safe timeout and stops a stalled read-only CLI process', async () => {

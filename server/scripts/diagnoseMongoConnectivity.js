@@ -30,6 +30,8 @@ export async function diagnoseMongoConnectivity({ env = process.env, createConne
   }
   let connection;
   try {
+    // Reject obvious template values before opening any database connection.
+    assertMongoDatabaseIdentity({ connection: { db: { databaseName: expectedDatabase } } }, expectedDatabase);
     // Use the same compatibility options and database pin as the backend.
     connection = createConnection(uri, getMongoConnectionOptions(env, {
       dbName: expectedDatabase, autoIndex: false, serverSelectionTimeoutMS: 5000,
