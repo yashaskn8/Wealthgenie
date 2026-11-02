@@ -72,6 +72,7 @@ jobs:
           node --test
           test/genieProofCapabilityStatus.test.js
           test/genieProofArchitectureTournament.test.js
+          test/genieProofReleaseGate.test.js
           test/genieProofClaimTriage.test.js
           test/genieProofCheckService.test.js
           test/genieProofNvidiaReviewService.test.js
