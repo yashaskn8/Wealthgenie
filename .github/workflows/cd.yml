@@ -31,7 +31,7 @@ jobs:
     outputs:
       ready: ${{ steps.check.outputs.ready }}
     steps:
-      - name: Require current main and three successful push workflows
+      - name: Require current main and four successful push workflows
         id: check
         env:
           GH_TOKEN: ${{ github.token }}
@@ -50,12 +50,12 @@ jobs:
             echo '::error::Release gate: this commit was superseded on main; no deployment took place.'
             exit 1
           fi
-          # CI is the only automatic entrypoint. Wait for the other two
-          # required push checks on the exact same main commit to finish.
+          # CI is the only automatic entrypoint. Wait for all additional
+          # required push checks, including GenieProof, on the same commit.
           # Never treat an absent, failed or timed-out check as a deployment success.
           for attempt in $(seq 1 90); do
             missing=0
-            for workflow in ci.yml genievoice-quality.yml coverage-firewall-ci.yml; do
+            for workflow in ci.yml genievoice-quality.yml coverage-firewall-ci.yml genieproof-quality.yml; do
               conclusion="$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/$workflow/runs" \
                 -f head_sha="$VERIFIED_SHA" -f event=push -f per_page=10 \
                 --jq '.workflow_runs | sort_by(.created_at) | last | .conclusion // "pending"')"
@@ -78,7 +78,7 @@ jobs:
                 exit 1
               fi
               echo 'ready=true' >> "$GITHUB_OUTPUT"
-              echo 'Release gate passed: CI, GenieVoice and Coverage Firewall succeeded at current main SHA.'
+              echo 'Release gate passed: CI, GenieVoice, Coverage Firewall and GenieProof all succeeded at current main SHA.'
               exit 0
             fi
             if [ "$attempt" -eq 90 ]; then
