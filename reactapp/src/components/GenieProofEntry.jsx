@@ -35,6 +35,23 @@ function exactTimestamp(value) {
     ? Date.parse(value) : null;
 }
 
+function submittedSentenceSpans(text) {
+  // Mirror GenieProof's server-side sentence boundary contract so a signed
+  // rate fragment cannot be borrowed from a longer, mixed-promise sentence.
+  // This is an additional client guard, not a replacement for the server gate.
+  const sentences = [];
+  const boundaries = /(?<!p\.a)[.!?]+(?=\s+|$)|\n+/gi;
+  let previous = 0;
+  for (const boundary of text.matchAll(boundaries)) {
+    const sentence = text.slice(previous, boundary.index + boundary[0].length).trim();
+    if (sentence) sentences.push(sentence);
+    previous = boundary.index + boundary[0].length;
+  }
+  const remaining = text.slice(previous).trim();
+  if (remaining) sentences.push(remaining);
+  return sentences;
+}
+
 function validCheckResponse(value, submittedText) {
   if (value?.ok !== true || value?.mode !== 'READ_ONLY_FINANCIAL_CLAIM_CHECK'
       || value.saved !== false || value.allExtractedCandidatesProcessed !== true
@@ -45,16 +62,21 @@ function validCheckResponse(value, submittedText) {
   const checkedAt = exactTimestamp(value.checkedAt);
   if (checkedAt === null) return false;
   const claimIds = new Set();
+  const sentences = submittedSentenceSpans(submittedText);
+  let lastSentencePosition = -1;
   return value.claims.every(claim => {
     if (!claim || !/^[a-f0-9]{32}$/.test(claim.claimId)
         || claimIds.has(claim.claimId)
         || typeof claim.statement !== 'string' || !claim.statement.trim()
-        || !submittedText.includes(claim.statement)
+        || !sentences.includes(claim.statement)
         || !Object.hasOwn(verdicts, claim.verdict)
         || typeof claim.reasonCode !== 'string' || !/^[A-Z][A-Z0-9_]{2,99}$/.test(claim.reasonCode)
         || typeof claim.explanation !== 'string' || !claim.explanation.trim()
         || !Array.isArray(claim.warningSignals) || claim.warningSignals.length > 6
         || claim.warningSignals.some(item => typeof item !== 'string' || item.length > 300)) return false;
+    const position = sentences.indexOf(claim.statement, lastSentencePosition + 1);
+    if (position < 0) return false;
+    lastSentencePosition = position;
     claimIds.add(claim.claimId);
     if (claim.verdict === 'NOT_VERIFIED') return claim.source === null;
     if (claim.source?.name !== 'India Post — Savings'
