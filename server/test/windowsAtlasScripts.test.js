@@ -93,3 +93,21 @@ test('Windows Atlas read-only lookups retry transient failures without widening 
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /PASS/);
   });
+
+test('Windows Atlas lookups fail closed on malformed IP and denied list access',
+  { skip: !onWindows }, () => {
+    const common = path.join(scripts, 'atlas_ip_access_common.ps1').replaceAll("'", "''");
+    const command = [
+      `$ErrorActionPreference='Stop'; . '${common}'`,
+      "$script:ipAttempts=0; function Invoke-WebRequest { $script:ipAttempts++; [pscustomobject]@{Content='{\"ip\":\"not-an-ip\"}'} }",
+      "$ipError=''; try { Get-WealthGeniePublicIPv4 | Out-Null } catch { $ipError=$_.Exception.Message }",
+      "if($script:ipAttempts -ne 3 -or $ipError -notmatch 'three attempts'){exit 1}",
+      "$script:listAttempts=0; function MockAtlas { $script:listAttempts++; $global:LASTEXITCODE=1; Write-Output 'unauthorized secret=do-not-print' }",
+      "$listError=''; try { Get-WealthGenieAtlasEntries -AtlasCli 'MockAtlas' -ProjectId '0123456789abcdef01234567' | Out-Null } catch { $listError=$_.Exception.Message }",
+      "if($script:listAttempts -ne 2 -or $listError -notmatch 'access-list read failed' -or $listError -match 'do-not-print'){exit 2}",
+      "Write-Output 'PASS'",
+    ].join('; ');
+    const result = run(['-EncodedCommand', Buffer.from(command, 'utf16le').toString('base64')]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /PASS/);
+  });

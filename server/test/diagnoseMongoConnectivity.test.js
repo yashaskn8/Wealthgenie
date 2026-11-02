@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { diagnoseMongoConnectivity } from '../scripts/diagnoseMongoConnectivity.js';
+import { diagnoseMongoConnectivity, runMongoDiagnosticCli } from '../scripts/diagnoseMongoConnectivity.js';
 
 const env = {
   MONGODB_FLAVOR: 'mongodb',
@@ -52,4 +52,19 @@ test('Mongo diagnostic refuses wrong database and redacts driver failures', asyn
   assert.doesNotMatch(JSON.stringify(failure), /user:password|cluster\.invalid/);
   assert.equal((await diagnoseMongoConnectivity({ env: { ...env, MONGODB_EXPECTED_DATABASE: '' } })).code,
     'MONGODB_EXPECTED_DATABASE_REQUIRED');
+});
+
+test('Mongo diagnostic emits one safe timeout and stops a stalled read-only CLI process', async () => {
+  const output = [];
+  const exits = [];
+  const result = await runMongoDiagnosticCli({
+    diagnose: () => new Promise(() => {}),
+    timeoutMs: 10,
+    write: value => output.push(value),
+    terminate: code => exits.push(code),
+  });
+  assert.equal(result.code, 'MONGODB_PREFLIGHT_TIMEOUT');
+  assert.deepEqual(exits, [1]);
+  assert.equal(output.length, 1);
+  assert.deepEqual(JSON.parse(output[0]), result);
 });

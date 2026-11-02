@@ -47,6 +47,12 @@ if (-not $atlasCli) {
 
 $currentIp = Get-WealthGeniePublicIPv4
 $entries = Get-WealthGenieAtlasEntries -AtlasCli $atlasCli.Source -ProjectId $ProjectId
+$unrestricted = @($entries | Where-Object {
+  $_.cidrBlock -eq '0.0.0.0/0' -and (Test-WealthGenieEntryActive -Entry $_)
+})
+if ($unrestricted.Count -gt 0) {
+  throw 'The selected Atlas project already has an unrestricted IPv4 access entry. Review it in Atlas; no change was made.'
+}
 $matching = @($entries | Where-Object { (Test-WealthGenieIpInEntry -Ip $currentIp -Entry $_) -and
   (Test-WealthGenieEntryActive -Entry $_) })
 if ($matching.Count -gt 0) {
@@ -58,8 +64,16 @@ $cidr = "$currentIp/32"
 $arguments = @('accessLists', 'create', $cidr, '--type', 'cidrBlock',
   '--projectId', $ProjectId, '--deleteAfter', $expiryUtc,
   '--comment', 'Temporary WealthGenie development IP; expires automatically', '--output', 'json')
-$null = & $atlasCli.Source @arguments 2>&1
-if ($LASTEXITCODE -ne 0) {
+$createFailed = $true
+try {
+  $null = & $atlasCli.Source @arguments 2>&1
+  $createFailed = $LASTEXITCODE -ne 0
+} catch {
+  # Native stderr can be a terminating error under Windows PowerShell 5.1.
+  # Do not surface raw CLI diagnostics, which might include request details.
+  $createFailed = $true
+}
+if ($createFailed) {
   # A concurrent developer may have created the exact entry. Recheck once;
   # never delete, widen, or extend an existing entry automatically.
   $entries = Get-WealthGenieAtlasEntries -AtlasCli $atlasCli.Source -ProjectId $ProjectId

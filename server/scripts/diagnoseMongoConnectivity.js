@@ -50,8 +50,33 @@ export async function diagnoseMongoConnectivity({ env = process.env, createConne
   }
 }
 
+export async function runMongoDiagnosticCli({
+  diagnose = diagnoseMongoConnectivity,
+  timeoutMs = 15000,
+  write = value => process.stdout.write(value),
+  terminate = code => process.exit(code),
+} = {}) {
+  let timer;
+  const deadline = new Promise(resolve => {
+    timer = setTimeout(() => resolve({
+      status: 'UNAVAILABLE', code: 'MONGODB_PREFLIGHT_TIMEOUT',
+      message: 'MongoDB preflight exceeded its bounded connection deadline.',
+    }), timeoutMs);
+  });
+  const result = await Promise.race([
+    Promise.resolve().then(diagnose).catch(() => ({
+      status: 'UNAVAILABLE', code: 'MONGODB_PREFLIGHT_FAILED',
+      message: 'MongoDB preflight failed before a connection result was available.',
+    })),
+    deadline,
+  ]);
+  clearTimeout(timer);
+  write(`${JSON.stringify(result)}\n`);
+  if (result.code === 'MONGODB_PREFLIGHT_TIMEOUT') terminate(1);
+  return result;
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  const result = await diagnoseMongoConnectivity();
-  process.stdout.write(`${JSON.stringify(result)}\n`);
+  const result = await runMongoDiagnosticCli();
   if (result.status !== 'READY') process.exitCode = 1;
 }

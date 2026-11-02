@@ -91,7 +91,17 @@ test('required Linux CI jobs retain Mongo-backed integrity and isolated financia
   assert.ok(financialSql.steps.some(step => step.run === 'node server/scripts/verifyFinancialPostgresIntegration.js'));
   assert.ok(!financialSql.steps.some(step => (step.run || '').includes('secrets.')),
     'SQL integration lane must not use live production provider secrets');
-  assert.ok(Object.values(workflow.jobs).every(job => job['runs-on'] === 'ubuntu-latest' && !job.strategy));
+  for (const [jobName, job] of Object.entries(workflow.jobs)) {
+    if (jobName === 'windows-atlas-powershell') continue;
+    assert.equal(job['runs-on'], 'ubuntu-latest', `${jobName} must retain its Linux integration coverage`);
+    assert.ok(!job.strategy, `${jobName} must not split away required coverage`);
+  }
+  const windowsAtlas = workflow.jobs['windows-atlas-powershell'];
+  assert.equal(windowsAtlas['runs-on'], 'windows-2022');
+  assert.ok(!windowsAtlas.strategy);
+  assert.ok(windowsAtlas.steps.some(step =>
+    step.run?.includes('node --test server/test/windowsAtlasScripts.test.js')));
+  assert.ok(!windowsAtlas.steps.some(step => JSON.stringify(step).includes('secrets.')));
   assert.deepEqual(workflow.on.push.branches, ['main']);
   assert.deepEqual(workflow.on.pull_request.branches, ['main']);
   assert.ok(Object.hasOwn(workflow.on, 'workflow_dispatch'));

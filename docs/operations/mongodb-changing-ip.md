@@ -34,7 +34,10 @@ powershell.exe -NoProfile -File .\scripts\start_backend_atlas.ps1 -ProjectId <pr
 The preflight uses the backend's effective configuration and performs only
 MongoDB connection, replica-set identity, and ping checks. It reports DNS,
 authentication, TLS, server selection, database identity, and transaction
-failures with safe codes. A timeout alone **cannot prove** an Atlas IP block.
+failures with safe codes. Each diagnostic process has a 15-second deadline;
+`MONGODB_PREFLIGHT_TIMEOUT` means the read-only check stalled and does not
+identify the Atlas IP list as the cause. A timeout alone **cannot prove** an
+Atlas IP block.
 With an authenticated Atlas CLI and `-ProjectId`, it compares the observed
 public IPv4 with active Atlas access entries; VPN or split routing can make
 that comparison indicative rather than conclusive. Neither preflight nor
