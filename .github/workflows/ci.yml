@@ -19,6 +19,25 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  windows-atlas-powershell:
+    name: Windows Atlas PowerShell 5.1 Safety Gate
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.x'
+      - name: Exercise Windows PowerShell 5.1 helpers with offline mocks, no Docker or Atlas credentials
+        shell: pwsh
+        run: |
+          if (-not (Get-Command powershell.exe -ErrorAction SilentlyContinue)) {
+            throw 'Windows PowerShell 5.1 is required for this gate.'
+          }
+          node --test server/test/windowsAtlasScripts.test.js
+
   household-runway-adversarial:
     name: Household Runway Adversarial Gate
     runs-on: ubuntu-latest
