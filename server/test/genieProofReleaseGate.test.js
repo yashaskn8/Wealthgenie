@@ -25,6 +25,11 @@ test('GenieProof safety must run on ALL main pushes, not only GenieProof file ch
   assert.match(proof,/test\/genieProofCheckService\.test\.js/);
   assert.match(proof,/npm run build/);
   assert.match(proof,/npm run typecheck/);
+  assert.match(proof,/proof-mongo:/);
+  assert.match(proof,/GenieProof Real Mongo Consent, Ownership and Atomic Deletion/);
+  assert.match(proof,/mongodb-replica-set: rs0/);
+  assert.match(proof,/genieProofMongo\.integration\.test\.js/);
+  assert.match(proof,/genieproof_e2e\?replicaSet=rs0/);
   assert.match(ci,/Run real-dependency Playwright lifecycle/);
   assert.match(ci,/--grep-invert @production-edge/);
 });
