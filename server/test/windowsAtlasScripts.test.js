@@ -38,7 +38,7 @@ test('Windows Atlas common logic distinguishes covered, uncovered, and expired I
       'if(Test-WealthGenieEntryActive -Entry $expired){exit 4}',
       "Write-Output 'PASS'",
     ].join('; ');
-    const result = run(['-Command', command]);
+    const result = run(['-EncodedCommand', Buffer.from(command, 'utf16le').toString('base64')]);
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /PASS/);
   });
@@ -65,7 +65,24 @@ test('Windows Atlas list reader accepts bounded JSON results without any write c
       "if(-not (Test-WealthGenieIpInEntry -Ip '198.51.100.4' -Entry $entries[0])){exit 2}",
       "Write-Output 'PASS'",
     ].join('; ');
-    const result = run(['-Command', command]);
+    const result = run(['-EncodedCommand', Buffer.from(command, 'utf16le').toString('base64')]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /PASS/);
+  });
+
+test('Windows Atlas read-only lookups retry transient failures without widening access',
+  { skip: !onWindows }, () => {
+    const common = path.join(scripts, 'atlas_ip_access_common.ps1').replaceAll("'", "''");
+    const command = [
+      `$ErrorActionPreference='Stop'; . '${common}'`,
+      "$script:ipAttempts=0; function Invoke-WebRequest { $script:ipAttempts++; if($script:ipAttempts -eq 1){throw 'offline'}; [pscustomobject]@{Content='{\"ip\":\"198.51.100.4\"}'} }",
+      "if((Get-WealthGeniePublicIPv4) -ne '198.51.100.4' -or $script:ipAttempts -ne 2){exit 1}",
+      "$script:listAttempts=0; function MockAtlas { $script:listAttempts++; if($script:listAttempts -eq 1){$global:LASTEXITCODE=1; return}; $global:LASTEXITCODE=0; Write-Output '{\"results\":[]}' }",
+      "$entries=@(Get-WealthGenieAtlasEntries -AtlasCli 'MockAtlas' -ProjectId '0123456789abcdef01234567')",
+      'if($entries.Count -ne 0 -or $script:listAttempts -ne 2){exit 2}',
+      "Write-Output 'PASS'",
+    ].join('; ');
+    const result = run(['-EncodedCommand', Buffer.from(command, 'utf16le').toString('base64')]);
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /PASS/);
   });

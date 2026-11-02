@@ -1,21 +1,35 @@
 # Shared read-only network helpers. Compatible with Windows PowerShell 5.1.
 function Get-WealthGeniePublicIPv4 {
-  $response = Invoke-WebRequest -Uri 'https://api.ipify.org?format=json' -UseBasicParsing -TimeoutSec 6
-  $value = (ConvertFrom-Json -InputObject $response.Content).ip
-  $address = $null
-  if (-not [Net.IPAddress]::TryParse([string]$value, [ref]$address) -or
-      $address.AddressFamily -ne [Net.Sockets.AddressFamily]::InterNetwork) {
-    throw 'The public-IP service did not return a valid IPv4 address.'
+  for ($attempt = 1; $attempt -le 3; $attempt++) {
+    try {
+      $response = Invoke-WebRequest -Uri 'https://api.ipify.org?format=json' -UseBasicParsing -TimeoutSec 6
+      $value = (ConvertFrom-Json -InputObject $response.Content -ErrorAction Stop).ip
+      $address = $null
+      if ([Net.IPAddress]::TryParse([string]$value, [ref]$address) -and
+          $address.AddressFamily -eq [Net.Sockets.AddressFamily]::InterNetwork) {
+        return $address.ToString()
+      }
+    } catch { }
+    if ($attempt -lt 3) { Start-Sleep -Milliseconds 500 }
   }
-  return $address.ToString()
+  throw 'The public-IP service did not return a valid IPv4 address after three attempts.'
 }
 
 function Get-WealthGenieAtlasEntries {
   param([string]$AtlasCli, [string]$ProjectId)
   $all = [System.Collections.Generic.List[object]]::new()
   for ($page = 1; $page -le 20; $page++) {
-    $raw = & $AtlasCli accessLists list --projectId $ProjectId --output json --limit 500 --page $page 2>&1
-    if ($LASTEXITCODE -ne 0) {
+    $raw = $null
+    $exitCode = 1
+    for ($attempt = 1; $attempt -le 2; $attempt++) {
+      try {
+        $raw = & $AtlasCli accessLists list --projectId $ProjectId --output json --limit 500 --page $page 2>&1
+        $exitCode = $LASTEXITCODE
+      } catch { $exitCode = 1 }
+      if ($exitCode -eq 0) { break }
+      if ($attempt -lt 2) { Start-Sleep -Milliseconds 500 }
+    }
+    if ($exitCode -ne 0) {
       throw 'Atlas access-list read failed. Check CLI authentication, project permissions, and network access.'
     }
     try { $parsed = ConvertFrom-Json -InputObject ($raw -join "`n") -ErrorAction Stop }
