@@ -184,6 +184,47 @@ describe('GenieProof beginner-facing claim checking', () => {
     expect(source).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
+  it('rejects forged supported PPF fragments extracted from a single mixed-guarantee sentence', async () => {
+    const fragment = 'The current official PPF interest rate is 7.1% p.a.';
+    const compound = fragment + ' and guaranteed to remain fixed for fifteen years.';
+    checkGenieProofClaims.mockResolvedValue(status([{
+      claimId: 'd'.repeat(32), statement: fragment,
+      verdict: 'SUPPORTED', reasonCode: 'EXACT_RATE_MATCH',
+      explanation: 'A source says 7.1%.', warningSignals: [],
+      source: {
+        name: 'India Post — Savings',
+        url: 'https://www.indiapost.gov.in/banking-services/savings',
+        observedRatePercentPerAnnum: 7.1,
+        retrievedAt: '2026-10-23T01:00:00.000Z',
+        effectiveFrom: '2026-10-01T00:00:00.000Z',
+        effectiveTo: '2026-12-31T00:00:00.000Z',
+      },
+    }]));
+    render(<GenieProofEntry />);
+    fireEvent.change(screen.getByLabelText('Financial statement to check'), {
+      target: { value: compound },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Check claim' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not be checked/i);
+    expect(screen.queryByText('Supported by evidence')).not.toBeInTheDocument();
+  });
+
+  it('rejects out-of-order, invented and repeated sentence spans in a forged check response', async () => {
+    const first = 'Guaranteed 25% profit.';
+    const second = 'This fixed deposit yields 15% per annum.';
+    checkGenieProofClaims.mockResolvedValue(status([
+      { ...unverified, claimId: '1'.repeat(32), statement: second, warningSignals: [] },
+      { ...unverified, claimId: '2'.repeat(32), statement: first },
+    ]));
+    render(<GenieProofEntry />);
+    fireEvent.change(screen.getByLabelText('Financial statement to check'), {
+      target: { value: first + ' ' + second },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Check claim' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not be checked/i);
+    expect(screen.queryByText('Not verified', { exact: true })).not.toBeInTheDocument();
+  });
+
   it('rejects unsupported fake-positive responses without approved source and does not show their finding', async () => {
     checkGenieProofClaims.mockResolvedValue(status([{
       ...unverified, verdict: 'SUPPORTED', source: null,
