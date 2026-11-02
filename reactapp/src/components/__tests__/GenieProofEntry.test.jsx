@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import GenieProofEntry from '../GenieProofEntry';
-import { checkGenieProofClaims } from '../../services/api';
+import { checkGenieProofClaims, getGenieProofCapabilities } from '../../services/api';
 
 vi.mock('../../services/api', () => ({
   checkGenieProofClaims: vi.fn(),
+  getGenieProofCapabilities: vi.fn(),
 }));
 
 const status = (claims = []) => ({
@@ -29,9 +30,43 @@ const unverified = {
 };
 
 describe('GenieProof beginner-facing claim checking', () => {
-  beforeEach(() => vi.resetAllMocks());
+  beforeEach(() => {
+    vi.resetAllMocks();
+    getGenieProofCapabilities.mockResolvedValue({
+      interactiveEnabled: false, extractionPreviewEnabled: true,
+      mode: 'UNAVAILABLE', reasonCode: 'FEATURE_UNAVAILABLE',
+      productionVerified: false,
+    });
+  });
   afterEach(() => cleanup());
 
+
+  it('shows server-authoritative production source unavailability before any claim submission', async () => {
+    render(<GenieProofEntry />);
+    expect(await screen.findByText(/Official evidence-backed verification is not active in this environment/))
+      .toBeInTheDocument();
+    expect(getGenieProofCapabilities).toHaveBeenCalledWith(
+      expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(checkGenieProofClaims).not.toHaveBeenCalled();
+  });
+
+  it('fails closed on malformed capability responses or a failed status lookup', async () => {
+    getGenieProofCapabilities.mockResolvedValueOnce({
+      productionVerified: true, mode: 'UNAVAILABLE', interactiveEnabled: false,
+      extractionPreviewEnabled: true,
+    });
+    const { unmount } = render(<GenieProofEntry />);
+    await waitFor(() => expect(getGenieProofCapabilities).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText(/Official evidence-backed verification is not active in this environment/))
+      .not.toBeInTheDocument();
+    unmount();
+    getGenieProofCapabilities.mockRejectedValueOnce(new Error('unavailable'));
+    render(<GenieProofEntry />);
+    await waitFor(() => expect(getGenieProofCapabilities).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText(/Official evidence-backed verification is not active in this environment/))
+      .not.toBeInTheDocument();
+    expect(checkGenieProofClaims).not.toHaveBeenCalled();
+  });
 
   it('makes supported syntax discoverable without submitting or claiming a verified rate', () => {
     render(<GenieProofEntry />);
