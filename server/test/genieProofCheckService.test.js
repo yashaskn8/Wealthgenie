@@ -243,6 +243,47 @@ test('ambiguous, hypothetical, historical and mixed product assertions cannot be
   }
 });
 
+test('one thousand hostile compound claims cannot inherit a positive verdict even with valid signed PPF evidence', async () => {
+  // Unlike evidence-unavailable fuzzing, the source here really is signed,
+  // current, official-host bound and qualified within an isolated TEST fixture.
+  // This checks that the semantic scope boundary, not merely a missing key,
+  // prevents an accurate rate from blessing an attached false promise.
+  const trusted = trustedFixture();
+  const connectors = [
+    ' and ', ' or ', ', and ', ', but ', ' with ', ' plus ',
+    ' along with ', ' while ', ' because ', ' as well as ',
+  ];
+  const promises = [
+    'guaranteed for 15 years', 'risk free', 'tax free under every regime',
+    'compounded monthly', 'doubles within 10 years',
+    'will remain fixed', 'guarantees 20% returns',
+    'projected 30% income', 'eligible for every investor',
+    'safe to invest immediately',
+  ];
+  const qualifiers = [
+    'for every investor', 'under all conditions', 'until 2040',
+    'without any risk', 'after tax', 'with instant withdrawal',
+    'with assured capital', 'on every deposit', 'for any tenure',
+    'without checking terms',
+  ];
+  let count = 0;
+  for (const connector of connectors) {
+    for (const promise of promises) {
+      for (const qualifier of qualifiers) {
+        const statement = PPF + connector + promise + ' ' + qualifier + '.';
+        const result = await withFixture(statement, trusted);
+        assert.equal(result.ok, true, statement);
+        assert.equal(result.claims.length, 1, statement);
+        assert.equal(result.claims[0].verdict, 'NOT_VERIFIED', statement);
+        assert.equal(result.claims[0].source, null, statement);
+        assert.ok(result.claims[0].reasonCode.startsWith('CLAIM_'), statement);
+        count += 1;
+      }
+    }
+  }
+  assert.equal(count, 1000);
+});
+
 test('two separate financial statements never inherit each other\'s verdict', async () => {
   const result = await withFixture(PPF + '\nGuaranteed 25% profit.', trustedFixture());
   assert.equal(result.ok, true);
